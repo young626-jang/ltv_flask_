@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTV 계산기</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        html, body { height: 100%; overflow: hidden; font-family: 'Malgun Gothic', sans-serif; }
+        .main-container { display: flex; height: 100vh; padding: 1rem; gap: 1rem; }
+        .pdf-viewer-column { flex: 2.5; display: flex; flex-direction: column; }
+        .form-column { flex: 1.5; height: calc(100vh - 2rem); overflow-y: auto; padding-right: 15px; }
+        .pdf-iframe-container { flex-grow: 1; position: relative; }
+        #pdf-viewer { width: 100%; height: 100%; border: 1px solid #dee2e6; border-radius: 0.5rem; }
+        #upload-section { border: 2px dashed #adb5bd; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; text-align: center; height: 100%; cursor: pointer; transition: all 0.3s ease; }
+        #upload-section.dragover { border-color: #0d6efd; background-color: #e9ecef; }
+        #file-input { display: none; }
+        body { font-size: 0.9rem; }
+        label { font-weight: 500; margin-bottom: 0.25rem; }
+        .loan-item { border-left: 3px solid #0d6efd; padding-left: 15px; margin-bottom: 15px; background-color: #f8f9fa; border-radius: 5px; padding: 15px; }
+        /* 가로 모드 레이아웃 스타일 */
+        .main-container.horizontal-mode { flex-direction: column; }
+        .main-container.horizontal-mode .pdf-viewer-column { width: 100%; flex: 0 0 45vh; }
+        .main-container.horizontal-mode .form-column { width: 100%; flex: 1; max-height: 50vh; }
+        .main-container.horizontal-mode #pdf-viewer { height: 40vh; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="main-container" id="main-layout-wrapper">
+    <div class="pdf-viewer-column" id="pdf-column">
+        <div id="upload-section">
+            <div>
+                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 4rem; color: #6c757d;"></i>
+                <h4 class="mt-3">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
+                <p class="text-muted" id="upload-text">등기부등본 파일을 올려주시면 주요 정보가 자동 입력됩니다.</p>
+                <div id="upload-spinner" class="spinner-border mt-3" role="status" style="display: none;"></div>
+            </div>
+        </div>
+        <input type="file" id="file-input" accept=".pdf">
+        <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
+                <h4 id="file-name-display" class="mb-0 small text-muted"></h4>
+                <button id="layout-toggle-btn" class="btn btn-outline-dark btn-sm"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
+            </div>
+            <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
+        </div>
+    </div>
+
+    <div class="form-column" id="form-column-wrapper">
+        <div class="p-2">
+            <h5 class="mb-3">고객 정보</h5>
+            <div class="input-group mb-3">
+                <select class="form-select" id="customer-history"><option value="" selected>기존 고객 불러오기...</option></select>
+                <button class="btn btn-outline-primary" id="load-customer-btn" type="button">불러오기</button>
+                <button class="btn btn-outline-danger" id="delete-customer-btn" type="button">삭제</button>
+                <button class="btn btn-outline-secondary" type="button" id="reset-btn">✨ 전체 초기화</button>
+            </div>
+
+            <div id="basic-info-form">
+                <div class="mb-2"><label for="customer_name">고객명 & 생년월일</label><input type="text" class="form-control form-field" id="customer_name"></div>
+                <div class="mb-2"><label for="address">주소</label><input type="text" class="form-control form-field" id="address"></div>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6"><label for="deduction_region">방공제 지역</label><select class="form-select form-field" id="deduction_region">
+                        <option value="0" selected>지역 선택...</option>
+                        {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
+                    </select></div>
+                    <div class="col-md-6"><label for="deduction_amount">방공제 금액(만)</label><input type="text" class="form-control form-field manwon-format" id="deduction_amount"></div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6"><label for="kb_price">KB 시세(만)</label><input type="text" class="form-control form-field manwon-format" id="kb_price"></div>
+                    <div class="col-md-6"><label for="area">전용면적(㎡)</label><input type="text" class="form-control form-field" id="area"></div>
+                </div>
+                
+                <div class="btn-group w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn btn-warning btn-sm">KB시세</a><a href="https://www.howsmuch.com" target="_blank" class="btn btn-info btn-sm">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn btn-secondary btn-sm">인터넷등기소</a></div>
+
+                 <div class="col-12"><div id="price-type-info" class="fw-bold"></div></div>
+            </div>
+<hr class="my-4">
+            
+            <h5 class="mb-3">LTV, 대출, 수수료</h5>
+            
+            <div class="d-flex justify-content-between align-items-center border-bottom">
+                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="ltv-tab" data-bs-toggle="tab" data-bs-target="#ltv-tab-pane" type="button" role="tab">LTV 비율</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">수수료</button></li>
+                </ul>
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="add-loan-btn">+ 대출 항목 추가</button>
+                </div>
+            </div>
+
+            <div class="tab-content pt-3">
+                <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
+                    <div class="d-flex border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem;">
+                        <div style="flex: 0 0 25%;">설정자</div>
+                        <div style="flex: 1 1 auto; padding-left: 0.5rem;">채권최고액</div>
+                        <div style="flex: 0 0 10%; padding-left: 0.5rem;">비율(%)</div>
+                        <div style="flex: 1 1 auto; padding-left: 0.5rem;">원금</div>
+                        <div style="flex: 0 0 15%; padding-left: 0.5rem;">진행</div>
+                        <div style="flex: 0 0 5%;"></div>
+                    </div>
+                    <div id="loan-items-container"></div>
+                </div>
+                <div class="tab-pane fade" id="ltv-tab-pane" role="tabpanel">
+                    <div class="row g-3">
+                        <div class="col-6"><label for="ltv1">LTV 비율 ① (%)</label><input type="text" class="form-control form-field" id="ltv1" value="80"></div>
+                        <div class="col-6"><label for="ltv2">LTV 비율 ② (%)</label><input type="text" class="form-control form-field" id="ltv2" value=""></div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="fee-tab-pane" role="tabpanel">
+                    <div class="row g-2">
+                        <div class="col"><label>컨설팅(만)</label><input type="text" class="form-control form-field manwon-format" id="consult_amt" value="0"></div>
+                        <div class="col"><label>요율(%)</label><input type="text" class="form-control form-field" id="consult_rate" value="1.5"></div>
+                        <div class="col"><label>브릿지(만)</label><input type="text" class="form-control form-field manwon-format" id="bridge_amt" value="0"></div>
+                        <div class="col"><label>요율(%)</label><input type="text" class="form-control form-field" id="bridge_rate" value="0.7"></div>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-4">
+            <h5 class="mb-3">요약 메모</h5>
+            <textarea class="form-control" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                <button class="btn btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
+                <button class="btn btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
+            </div>
+
+
+
+
+
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let loanItemCounter = 0;
+    let memoDebounceTimeout;
+
+    // 한글 금액 파싱 헬퍼 함수
+    function parseKoreanNumberString(text) {
+        let total = 0;
+        let str = String(text).replace(/,/g, '').trim();
+        const eokMatch = str.match(/(\d+)\s*억/);
+        if (eokMatch) {
+            total += parseInt(eokMatch[1], 10) * 10000;
+            str = str.replace(eokMatch[0], '');
+        }
+        const manMatch = str.match(/(\d+)\s*만/);
+        if (manMatch) {
+            total += parseInt(manMatch[1], 10);
+        }
+        if (total === 0) {
+            const numOnly = str.replace(/[^\d]/g, '');
+            return numOnly ? parseInt(numOnly, 10) : 0;
+        }
+        return total;
+    }
+
+    // 대출 항목 HTML 생성
+function createLoanItemHTML(index, loan = {}) {
+    const formatValue = (val) => val ? Number(String(val).replace(/,/g, '')).toLocaleString() : '0';
+    
+    // ✨ class 속성에 'loan-item'을 다시 추가하여 기능 오류를 수정합니다.
+    return `
+        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom">
+            <div style="flex: 0 0 25%; padding-right: 0.5rem;">
+                <input type="text" class="form-control form-control-sm loan-input form-field" name="lender" value="${loan.lender || ''}">
+            </div>
+            <div style="flex: 1 1 auto; padding-left: 0.5rem;">
+                <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="max_amount" value="${formatValue(loan.max_amount)}">
+            </div>
+            <div style="flex: 0 0 10%; padding-left: 0.5rem;">
+                <input type="text" class="form-control form-control-sm loan-input form-field auto-calc" name="ratio" value="${loan.ratio || '120'}">
+            </div>
+            <div style="flex: 1 1 auto; padding-left: 0.5rem;">
+                <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="principal" value="${formatValue(loan.principal)}">
+            </div>
+            <div style="flex: 0 0 15%; padding-left: 0.5rem;">
+                <select class="form-select form-select-sm loan-input form-field" name="status">
+                    <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
+                    <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
+                    <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
+                </select>
+            </div>
+            <div style="flex: 0 0 5%;" class="text-center">
+                <button type="button" class="btn-close" aria-label="Close" onclick="removeLoanItem(${index})"></button>
+            </div>
+        </div>`;
+}
+    
+    // ✨ 누락되었던 함수
+    function addLoanItem(loan = {}) {
+        const container = document.getElementById('loan-items-container');
+        container.insertAdjacentHTML('beforeend', createLoanItemHTML(loanItemCounter++, loan));
+        attachEventListenersForLoanItems();
+    }
+
+    // 대출 항목 제거
+    function removeLoanItem(index) {
+        document.getElementById(`loan-item-${index}`)?.remove();
+        triggerMemoGeneration();
+    }
+    
+    // 숫자 자동 포맷 (한글 금액 포함)
+function formatManwonValue(e) {
+    const field = e.target;
+    let value = field.value;
+    let parsedValue = 0;
+
+    // '+' 기호가 있는지 확인하여 계산
+    if (value.includes('+')) {
+        const terms = value.split('+');
+        parsedValue = terms.reduce((acc, term) => {
+            return acc + parseKoreanNumberString(term.trim());
+        }, 0);
+    } else if (/[억만]/.test(value)) {
+        // 한글 금액 처리
+        parsedValue = parseKoreanNumberString(value);
+    } else {
+        // 숫자만 있는 경우
+        const numOnly = value.replace(/[^0-9]/g, '');
+        parsedValue = numOnly ? parseInt(numOnly, 10) : 0;
+    }
+    
+    // 계산된 값을 입력창에 다시 설정
+    field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
+
+    // ✨ 빠져있던 메모 업데이트 함수 호출 코드를 여기에 추가했습니다.
+    triggerMemoGeneration();
+}
+
+    // 대출 항목 자동 계산 (원금-최고액)
+    function handleAutoLoanCalc(event) {
+        const target = event.target;
+        const loanItem = target.closest('.loan-item');
+        if (!loanItem) return;
+        const maxAmountInput = loanItem.querySelector('[name="max_amount"]');
+        const ratioInput = loanItem.querySelector('[name="ratio"]');
+        const principalInput = loanItem.querySelector('[name="principal"]');
+        let maxAmount = parseFloat(maxAmountInput.value.replace(/,/g, '')) || 0;
+        let ratio = parseFloat(ratioInput.value) || 0;
+        let principal = parseFloat(principalInput.value.replace(/,/g, '')) || 0;
+        if (target.name === 'principal') {
+            if (principal > 0 && ratio > 0) {
+                maxAmount = Math.round(principal * (ratio / 100));
+                maxAmountInput.value = maxAmount.toLocaleString();
+            }
+        } else {
+            if (maxAmount > 0 && ratio > 0) {
+                principal = Math.round(maxAmount / (ratio / 100));
+                principalInput.value = principal.toLocaleString();
+            }
+        }
+    }
+    
+    // 동적 생성된 대출 항목에 이벤트 리스너 연결
+    function attachEventListenersForLoanItems() {
+        document.querySelectorAll('.loan-input').forEach(input => {
+            input.removeEventListener('change', triggerMemoGeneration);
+            input.removeEventListener('keyup', triggerMemoGeneration);
+            input.removeEventListener('blur', formatManwonValue);
+            input.removeEventListener('keyup', handleAutoLoanCalc);
+            input.removeEventListener('change', handleAutoLoanCalc);
+            
+            input.addEventListener('change', triggerMemoGeneration);
+            input.addEventListener('keyup', () => { if(input.type === 'text') triggerMemoGeneration(); });
+            if (input.classList.contains('manwon-format')) {
+                input.addEventListener('blur', formatManwonValue);
+            }
+            if (input.classList.contains('auto-calc')) {
+                input.addEventListener('keyup', handleAutoLoanCalc);
+                if (input.name === 'max_amount' || input.name === 'ratio') {
+                    input.addEventListener('change', handleAutoLoanCalc);
+                }
+            }
+        });
+    }
+
+    // 모든 폼 데이터 수집
+    function collectAllData() {
+        const regionSelect = document.getElementById('deduction_region');
+        const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
+        const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
+            lender: item.querySelector('[name="lender"]').value, status: item.querySelector('[name="status"]').value,
+            max_amount: item.querySelector('[name="max_amount"]').value, principal: item.querySelector('[name="principal"]').value,
+            ratio: item.querySelector('[name="ratio"]').value,
+        }));
+        return {
+            inputs: {
+                customer_name: document.getElementById('customer_name').value, address: document.getElementById('address').value,
+                kb_price: document.getElementById('kb_price').value, area: document.getElementById('area').value,
+                deduction_region_text: selectedRegionText, deduction_amount: document.getElementById('deduction_amount').value,
+                ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
+            }, fees: {
+                consult_amt: document.getElementById('consult_amt').value, consult_rate: document.getElementById('consult_rate').value,
+                bridge_amt: document.getElementById('bridge_amt').value, bridge_rate: document.getElementById('bridge_rate').value,
+            }, loans: loanItems
+        };
+    }
+    
+    // 메모 생성 요청 (디바운스 적용)
+    function triggerMemoGeneration() {
+        clearTimeout(memoDebounceTimeout);
+        memoDebounceTimeout = setTimeout(generateMemo, 800); 
+    }
+
+    // 메모 생성 및 하안가/일반가 표시
+async function generateMemo() {
+    const memoArea = document.getElementById('generated-memo');
+    memoArea.placeholder = '요약 메모를 생성하고 있습니다...';
+    const data = collectAllData();
+    const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
+    try {
+        const response = await fetch('/api/generate_text_memo', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
+        });
+        const result = await response.json();
+        memoArea.value = result.memo || '오류: 메모를 생성하지 못했습니다.';
+        
+        const priceTypeInfo = document.getElementById('price-type-info');
+        if (result.price_type) {
+            priceTypeInfo.textContent = `시세 적용: ${result.price_type}`;
+            
+            // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
+            priceTypeInfo.classList.remove('text-danger', 'text-primary');
+
+            // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
+            if (result.price_type.includes('일반가')) {
+                priceTypeInfo.classList.add('text-primary'); // '일반가'는 파란색
+            } else if (result.price_type.includes('하안가')) {
+                priceTypeInfo.classList.add('text-danger');  // '하안가'는 빨간색
+            }
+        } else {
+            // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
+            priceTypeInfo.textContent = '';
+            priceTypeInfo.classList.remove('text-danger', 'text-primary');
+        }
+    } catch (error) {
+        memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
+    }
+}
+    
+    // 고객 목록 불러오기
+    async function loadCustomerList() {
+        try {
+            const response = await fetch('/api/customers');
+            const customers = await response.json();
+            const select = document.getElementById('customer-history');
+            select.innerHTML = '<option value="" selected>기존 고객 불러오기...</option>';
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = customer.name;
+                select.appendChild(option);
+            });
+        } catch (error) { console.error("고객 목록 로딩 실패:", error); }
+    }
+
+    // 특정 고객 데이터 불러오기
+    async function loadCustomerData() {
+        const select = document.getElementById('customer-history');
+        const pageId = select.value;
+        if (!pageId) return;
+        try {
+            const response = await fetch(`/api/customer/${pageId}`);
+            if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
+            const data = await response.json();
+            if (data.error) { alert(`데이터 로드 실패: ${data.error}`); return; }
+            document.getElementById('customer_name').value = data.customer_name || '';
+            document.getElementById('address').value = data.address || '';
+            document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
+            document.getElementById('area').value = data.area || '';
+            document.getElementById('ltv1').value = data.ltv1 || '80';
+            document.getElementById('ltv2').value = data.ltv2 || '';
+            document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
+            document.getElementById('consult_rate').value = data.consult_rate || '1.5';
+            document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
+            document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
+            const regionSelect = document.getElementById('deduction_region');
+            const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
+            if(regionOption) {
+                regionSelect.value = regionOption.value;
+            } else if(regionSelect.options.length > 0) {
+                regionSelect.selectedIndex = 0;
+            }
+            document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
+            document.getElementById('loan-items-container').innerHTML = '';
+            loanItemCounter = 0;
+            if (data.loans && data.loans.length > 0) {
+                data.loans.forEach(loan => addLoanItem(loan));
+            } else { addLoanItem(); }
+            triggerMemoGeneration();
+        } catch (error) {
+            alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+        }
+    }
+    
+    // ✨ 누락되었던 함수들
+    async function saveNewCustomer() {
+        const data = collectAllData();
+        if (!data.inputs.customer_name) { alert('고객명을 입력해주세요.'); return; }
+        if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
+        const response = await fetch('/api/customer/new', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) { loadCustomerList(); }
+    }
+
+    async function updateCustomer() {
+        const selectedCustomerId = document.getElementById('customer-history').value;
+        if (!selectedCustomerId) { alert('수정할 고객을 목록에서 먼저 선택해주세요.'); return; }
+        const data = collectAllData();
+        if (!confirm(`'${data.inputs.customer_name}' 고객 정보를 수정하시겠습니까?`)) return;
+        const url = `/api/customer/update/${selectedCustomerId}`;
+        const response = await fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) { loadCustomerList(); }
+    }
+
+    async function deleteCustomer() {
+        const select = document.getElementById('customer-history');
+        const selectedCustomerId = select.value;
+        const selectedCustomerName = select.options[select.selectedIndex].text;
+        if (!selectedCustomerId) { alert('삭제할 고객을 목록에서 먼저 선택해주세요.'); return; }
+        if (!confirm(`'${selectedCustomerName}' 고객 정보를 정말로 삭제하시겠습니까?`)) return;
+        const url = `/api/customer/delete/${selectedCustomerId}`;
+        const response = await fetch(url, { method: 'POST' });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) { location.reload(); }
+    }
+
+    // PDF 파일 업로드 핸들러
+    async function handleFileUpload(file) {
+        console.log("--- handleFileUpload 함수 실행 ---");
+        const spinner = document.getElementById('upload-spinner');
+        spinner.style.display = 'block';
+        const formData = new FormData();
+        formData.append('pdf_file', file);
+        try {
+            console.log("서버로 파일 업로드 요청 전송...");
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.error || `서버 에러: ${response.status}`);
+            }
+            const result = await response.json();
+            console.log("업로드 성공. 서버 결과:", result);
+            if (result.success) {
+                const scraped = result.scraped_data;
+                document.getElementById('customer_name').value = scraped.customer_name || '';
+                document.getElementById('address').value = scraped.address || '';
+                document.getElementById('area').value = scraped.area || '';
+                const pdfUrl = `/view_pdf/${encodeURIComponent(result.filename)}`;
+                document.getElementById('pdf-viewer').src = pdfUrl;
+                document.getElementById('upload-section').style.display = 'none';
+                document.getElementById('viewer-section').style.display = 'block';
+                document.getElementById('file-name-display').textContent = file.name;
+                triggerMemoGeneration();
+            } else { alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); }
+        } catch (error) {
+            console.error("!!!!! 파일 업로드 중 예외 발생:", error);
+            alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+
+    // 레이아웃 토글
+    function toggleLayout() {
+        document.getElementById('main-layout-wrapper').classList.toggle('horizontal-mode');
+        const btn = document.getElementById('layout-toggle-btn');
+        const isHorizontal = document.getElementById('main-layout-wrapper').classList.contains('horizontal-mode');
+        btn.innerHTML = isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+    }
+    
+    // 전체 초기화
+    function clearAllFields() {
+        document.querySelectorAll('.form-field').forEach(field => {
+            if(field.tagName === 'SELECT') { field.selectedIndex = 0; } else { field.value = ''; }
+        });
+        document.getElementById('ltv1').value = '80';
+        document.getElementById('consult_rate').value = '1.5';
+        document.getElementById('bridge_rate').value = '0.7';
+        document.getElementById('deduction_amount').value = document.getElementById('deduction_region').value.toLocaleString();
+        document.getElementById('loan-items-container').innerHTML = '';
+        loanItemCounter = 0;
+        addLoanItem();
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) fileInput.value = null;
+        document.getElementById('pdf-viewer').src = 'about:blank';
+        document.getElementById('upload-section').style.display = 'flex';
+        document.getElementById('viewer-section').style.display = 'none';
+        alert("모든 입력 내용이 초기화되었습니다.");
+        triggerMemoGeneration();
+    }
+    
+    // 모든 이벤트 리스너 최초 연결
+    function attachAllEventListeners() {
+        const uploadSection = document.getElementById('upload-section');
+        const fileInput = document.getElementById('file-input');
+        uploadSection.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => { if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); });
+        ['dragover','dragleave','drop'].forEach(eventName => {
+            uploadSection.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
+        uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
+        uploadSection.addEventListener('drop', (e) => {
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
+        });
+        document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
+        document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
+        document.getElementById('reset-btn').addEventListener('click', clearAllFields);
+        document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
+        document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
+        document.getElementById('update-btn').addEventListener('click', updateCustomer);
+        document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+        document.getElementById('deduction_region').addEventListener('change', (e) => {
+            document.getElementById('deduction_amount').value = e.target.value.toLocaleString();
+            triggerMemoGeneration();
+        });
+        document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
+            field.addEventListener('change', triggerMemoGeneration);
+            if (field.type === 'text' && !field.classList.contains('manwon-format')) {
+                field.addEventListener('keyup', triggerMemoGeneration);
+            }
+        });
+        document.querySelectorAll('.manwon-format').forEach(input => {
+            input.addEventListener('blur', formatManwonValue);
+        });
+    }
+    
+    // 페이지 로드 완료 후 실행
+    document.addEventListener('DOMContentLoaded', () => {
+        addLoanItem();
+        attachAllEventListeners();
+        loadCustomerList();
+        triggerMemoGeneration();
+    });
+</script>
