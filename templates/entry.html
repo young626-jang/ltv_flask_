@@ -18,7 +18,8 @@
         #file-input { display: none; }
         body { font-size: 0.9rem; }
         label { font-weight: 500; margin-bottom: 0.25rem; }
-        .loan-item { border-left: 3px solid #0d6efd; padding-left: 15px; margin-bottom: 15px; background-color: #f8f9fa; border-radius: 5px; padding: 15px; }
+        #loan-tab-pane .loan-item {padding: 0px;} /* 내부 여백 (조금 줄여서 깔끔하게) */
+
         /* 가로 모드 레이아웃 스타일 */
         .main-container.horizontal-mode { flex-direction: column; }
         .main-container.horizontal-mode .pdf-viewer-column { width: 100%; flex: 0 0 45vh; }
@@ -50,7 +51,6 @@
 
     <div class="form-column" id="form-column-wrapper">
         <div class="p-2">
-            <h5 class="mb-3">고객 정보</h5>
             <div class="input-group mb-3">
                 <select class="form-select" id="customer-history"><option value="" selected>기존 고객 불러오기...</option></select>
                 <button class="btn btn-outline-primary" id="load-customer-btn" type="button">불러오기</button>
@@ -81,8 +81,6 @@
             </div>
 <hr class="my-4">
             
-            <h5 class="mb-3">LTV, 대출, 수수료</h5>
-            
             <div class="d-flex justify-content-between align-items-center border-bottom">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
@@ -96,14 +94,14 @@
 
             <div class="tab-content pt-3">
                 <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
-                    <div class="d-flex border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem;">
-                        <div style="flex: 0 0 25%;">설정자</div>
-                        <div style="flex: 1 1 auto; padding-left: 0.5rem;">채권최고액</div>
-                        <div style="flex: 0 0 10%; padding-left: 0.5rem;">비율(%)</div>
-                        <div style="flex: 1 1 auto; padding-left: 0.5rem;">원금</div>
-                        <div style="flex: 0 0 15%; padding-left: 0.5rem;">진행</div>
-                        <div style="flex: 0 0 5%;"></div>
-                    </div>
+                <div class="d-flex border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem; gap: 0.5rem;">
+                    <div style="flex: 0 0 35%;">설정자</div>
+                    <div style="flex: 0 0 15%;">채권최고액</div>
+                    <div style="flex: 0 0 10%;">비율</div>
+                    <div style="flex: 0 0 15%;">원금</div>
+                    <div style="flex: 0 0 15%;">진행</div>
+                    <div style="flex: 0 0 5%;"></div>
+                </div>
                     <div id="loan-items-container"></div>
                 </div>
                 <div class="tab-pane fade" id="ltv-tab-pane" role="tabpanel">
@@ -122,7 +120,7 @@
                 </div>
             </div>
             <hr class="my-4">
-            <h5 class="mb-3">요약 메모</h5>
+            <h5 class="mb-3">결과</h5>
             <textarea class="form-control" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
             
             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
@@ -167,22 +165,21 @@
 function createLoanItemHTML(index, loan = {}) {
     const formatValue = (val) => val ? Number(String(val).replace(/,/g, '')).toLocaleString() : '0';
     
-    // ✨ class 속성에 'loan-item'을 다시 추가하여 기능 오류를 수정합니다.
     return `
-        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom">
-            <div style="flex: 0 0 25%; padding-right: 0.5rem;">
+        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom" style="gap: 0.5rem;">
+            <div style="flex: 0 0 35%;">
                 <input type="text" class="form-control form-control-sm loan-input form-field" name="lender" value="${loan.lender || ''}">
             </div>
-            <div style="flex: 1 1 auto; padding-left: 0.5rem;">
+            <div style="flex: 0 0 15%;">
                 <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="max_amount" value="${formatValue(loan.max_amount)}">
             </div>
-            <div style="flex: 0 0 10%; padding-left: 0.5rem;">
+            <div style="flex: 0 0 10%;">
                 <input type="text" class="form-control form-control-sm loan-input form-field auto-calc" name="ratio" value="${loan.ratio || '120'}">
             </div>
-            <div style="flex: 1 1 auto; padding-left: 0.5rem;">
+            <div style="flex: 0 0 15%;">
                 <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="principal" value="${formatValue(loan.principal)}">
             </div>
-            <div style="flex: 0 0 15%; padding-left: 0.5rem;">
+            <div style="flex: 0 0 15%;">
                 <select class="form-select form-select-sm loan-input form-field" name="status">
                     <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
                     <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
