@@ -100,13 +100,12 @@ def upload_and_parse_pdf():
         scraped_data = parse_pdf_for_ltv(filepath)
         logger.info(f"PDF 파싱 완료. 추출된 데이터 키 개수: {len(scraped_data) if scraped_data else 0}")
         
-        # ✅ 파일 처리 완료 후 자동 삭제
-        try:
-            os.remove(filepath)
-            logger.info(f"파일 삭제 완료: {filepath}")
-        except Exception as delete_error:
-            logger.warning(f"파일 삭제 실패: {delete_error}")
-            # 삭제 실패해도 메인 기능에는 영향 없음
+        # 파일 파싱 후 return 전에 삭제 코드를 주석 처리
+        # try:
+        #     os.remove(filepath)
+        #     logger.info(f"파일 삭제 완료: {filepath}")
+        # except Exception as delete_error:
+        #     logger.warning(f"파일 삭제 실패: {delete_error}")
         
         return jsonify({
             "success": True, 
