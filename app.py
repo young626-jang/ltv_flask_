@@ -100,33 +100,11 @@ def upload_and_parse_pdf():
         scraped_data = parse_pdf_for_ltv(filepath)
         logger.info(f"PDF 파싱 완료. 추출된 데이터 키 개수: {len(scraped_data) if scraped_data else 0}")
         
-        # 파일 파싱 후 return 전에 삭제 코드를 주석 처리
-        # try:
-        #     os.remove(filepath)
-        #     logger.info(f"파일 삭제 완료: {filepath}")
-        # except Exception as delete_error:
-        #     logger.warning(f"파일 삭제 실패: {delete_error}")
-        
         return jsonify({
             "success": True, 
             "filename": filename, 
             "scraped_data": scraped_data
         })
-
-    except Exception as e:
-        # 오류 발생 시에도 파일 정리 시도
-        if 'filepath' in locals() and os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-                logger.info(f"오류 발생으로 인한 파일 정리: {filepath}")
-            except:
-                pass
-        
-        logger.error(f"PDF 업로드 처리 중 오류: {e}", exc_info=True)
-        return jsonify({
-            "success": False, 
-            "error": f"서버 처리 중 오류 발생: {str(e)}"
-        }), 500
 
     except Exception as e:
         logger.error(f"PDF 업로드 처리 중 오류: {e}", exc_info=True)
@@ -246,16 +224,19 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
         )
     memo.append("")
     
-    # 대출기관별 합계
-    lender_sum = defaultdict(int)
-    for item in loans:
-        if item.get('lender', '').strip():
-            lender_sum[item['lender']] += parse_korean_number(item.get('principal', '0'))
+    # 대출기관별 합계 (선순위일 때만 표시)
+    is_subordinate = any(item.get('status') == '유지' for item in loans)
     
-    if lender_sum:
-        memo.append("설정금액별 원금합계")
-        for lender, total in lender_sum.items():
-            memo.append(f"{lender}: {format_thousands(total)}만")
+    if not is_subordinate:  # 선순위일 때만 표시
+        lender_sum = defaultdict(int)
+        for item in loans:
+            if item.get('lender', '').strip():
+                lender_sum[item['lender']] += parse_korean_number(item.get('principal', '0'))
+        
+        if lender_sum:
+            memo.append("설정금액별 원금합계")
+            for lender, total in lender_sum.items():
+                memo.append(f"{lender}: {format_thousands(total)}만")
             
     # 대환/선말소 합계
     dh_sum = sum(
@@ -345,6 +326,4 @@ def delete_customer_route(page_id):
 
 # --- 앱 실행 ---
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0')
