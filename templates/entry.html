@@ -96,9 +96,9 @@
                 <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
                 <div class="d-flex border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem; gap: 0.5rem;">
                     <div style="flex: 0 0 35%;">설정자</div>
-                    <div style="flex: 0 0 15%;">채권최고액(만)</div>
+                    <div style="flex: 0 0 15%;">채권최고액</div>
                     <div style="flex: 0 0 10%;">비율</div>
-                    <div style="flex: 0 0 15%;">원금(만)</div>
+                    <div style="flex: 0 0 15%;">원금</div>
                     <div style="flex: 0 0 15%;">진행</div>
                     <div style="flex: 0 0 5%;"></div>
                 </div>
@@ -127,10 +127,6 @@
                 <button class="btn btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
                 <button class="btn btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
             </div>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let loanItemCounter = 0;
@@ -156,46 +152,64 @@
         return total;
     }
 
-    // 대출 항목 HTML 생성 (만원 단위로 표시)
+    // 원 단위를 만원 단위로 변환하는 함수
+    function convertWonToManwon(wonAmount) {
+        const numericAmount = parseInt(String(wonAmount).replace(/[^\d]/g, '')) || 0;
+        return Math.floor(numericAmount / 10000);
+    }
+
+    // 채권최고액과 비율로 원금 계산하는 함수
+    function calculatePrincipalFromRatio(maxAmount, ratio) {
+        const maxAmt = parseFloat(String(maxAmount).replace(/,/g, '')) || 0;
+        const ratioVal = parseFloat(ratio) || 120;
+        
+        if (ratioVal <= 0) return 0;
+        
+        // 원금 = 채권최고액 ÷ (비율/100)
+        return Math.round(maxAmt / (ratioVal / 100));
+    }
+
+    // createLoanItemHTML 함수 수정
     function createLoanItemHTML(index, loan = {}) {
-        // 만원 단위로 변환하여 표시
         const formatValue = (val) => {
             if (!val) return '0';
             const numValue = Number(String(val).replace(/,/g, ''));
-            return numValue ? Math.round(numValue / 10000).toLocaleString() : '0';
+            return numValue ? numValue.toLocaleString() : '0';
         };
+    
+        
         
         return `
-            <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom" style="gap: 0.5rem;">
-                <div style="flex: 0 0 35%;">
-                    <input type="text" class="form-control form-control-sm loan-input form-field" name="lender" value="${loan.lender || ''}">
-                </div>
-                <div style="flex: 0 0 15%;">
-                    <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="max_amount" value="${formatValue(loan.max_amount)}">
-                </div>
-                <div style="flex: 0 0 10%;">
-                    <input type="text" class="form-control form-control-sm loan-input form-field auto-calc" name="ratio" value="${loan.ratio || '120'}">
-                </div>
-                <div style="flex: 0 0 15%;">
-                    <input type="text" class="form-control form-control-sm loan-input form-field auto-calc manwon-format" name="principal" value="${formatValue(loan.principal)}">
-                </div>
-                <div style="flex: 0 0 15%;">
-                    <select class="form-select form-select-sm loan-input form-field" name="status">
-                        <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
-                        <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
-                        <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
-                        <option value="퇴거자금" ${loan.status === '퇴거자금' ? 'selected' : ''}>퇴거자금</option>
-                        <option value="동의" ${loan.status === '동의' ? 'selected' : ''}>동의</option>
-                        <option value="비동의" ${loan.status === '비동의' ? 'selected' : ''}>비동의</option>
-                    </select>
-                </div>
-                <div style="flex: 0 0 5%;" class="text-center">
-                    <button type="button" class="btn-close" aria-label="Close" onclick="removeLoanItem(${index})"></button>
-                </div>
-            </div>`;
-    }
+        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom" style="gap: 0.5rem;">
+            <div style="flex: 0 0 35%;">
+                <input type="text" class="form-control form-control-sm loan-input form-field" name="lender" value="${loan.lender || ''}">
+            </div>
+            <div style="flex: 0 0 15%;">
+                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format" name="max_amount" value="${formatValue(loan.max_amount)}">
+            </div>
+            <div style="flex: 0 0 10%;">
+                <input type="text" class="form-control form-control-sm loan-input form-field" name="ratio" value="${loan.ratio || '120'}">
+            </div>
+            <div style="flex: 0 0 15%;">
+                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format" name="principal" value="${formatValue(loan.principal)}">
+            </div>
+            <div style="flex: 0 0 15%;">
+                <select class="form-select form-select-sm loan-input form-field" name="status">
+                    <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
+                    <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
+                    <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
+                    <option value="퇴거자금" ${loan.status === '퇴거자금' ? 'selected' : ''}>퇴거자금</option>
+                    <option value="동의" ${loan.status === '동의' ? 'selected' : ''}>동의</option>
+                    <option value="비동의" ${loan.status === '비동의' ? 'selected' : ''}>비동의</option>
+                </select>
+            </div>
+            <div style="flex: 0 0 5%;" class="text-center">
+                <button type="button" class="btn-close" aria-label="Close" onclick="removeLoanItem(${index})"></button>
+            </div>
+        </div>`;
+}
     
-    // 대출 항목 추가
+    // ✨ 누락되었던 함수
     function addLoanItem(loan = {}) {
         const container = document.getElementById('loan-items-container');
         container.insertAdjacentHTML('beforeend', createLoanItemHTML(loanItemCounter++, loan));
@@ -209,118 +223,153 @@
     }
     
     // 숫자 자동 포맷 (한글 금액 포함)
-    function formatManwonValue(e) {
-        const field = e.target;
-        let value = field.value;
-        let parsedValue = 0;
+function formatManwonValue(e) {
+    const field = e.target;
+    let value = field.value;
+    let parsedValue = 0;
 
-        // '+' 기호가 있는지 확인하여 계산
-        if (value.includes('+')) {
-            const terms = value.split('+');
-            parsedValue = terms.reduce((acc, term) => {
-                return acc + parseKoreanNumberString(term.trim());
-            }, 0);
-        } else if (/[억만]/.test(value)) {
-            // 한글 금액 처리
-            parsedValue = parseKoreanNumberString(value);
-        } else {
-            // 숫자만 있는 경우
-            const numOnly = value.replace(/[^0-9]/g, '');
-            parsedValue = numOnly ? parseInt(numOnly, 10) : 0;
-        }
-        
-        // 계산된 값을 입력창에 다시 설정
-        field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
-
-        triggerMemoGeneration();
+    // '+' 기호가 있는지 확인하여 계산
+    if (value.includes('+')) {
+        const terms = value.split('+');
+        parsedValue = terms.reduce((acc, term) => {
+            return acc + parseKoreanNumberString(term.trim());
+        }, 0);
+    } else if (/[억만]/.test(value)) {
+        // 한글 금액 처리
+        parsedValue = parseKoreanNumberString(value);
+    } else {
+        // 숫자만 있는 경우
+        const numOnly = value.replace(/[^0-9]/g, '');
+        parsedValue = numOnly ? parseInt(numOnly, 10) : 0;
     }
+    
+    // 계산된 값을 입력창에 다시 설정
+    field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
 
-    // 대출 항목 자동 계산 (원금-최고액) - 만원 단위로 계산
+    // ✨ 빠져있던 메모 업데이트 함수 호출 코드를 여기에 추가했습니다.
+    triggerMemoGeneration();
+}
+
+    // [수정됨] 대출 항목 자동 계산 (원금-최고액) - 클라이언트 사이드
     function handleAutoLoanCalc(event) {
         const target = event.target;
         const loanItem = target.closest('.loan-item');
         if (!loanItem) return;
-        
+
         const maxAmountInput = loanItem.querySelector('[name="max_amount"]');
         const ratioInput = loanItem.querySelector('[name="ratio"]');
         const principalInput = loanItem.querySelector('[name="principal"]');
-        
-        let maxAmount = parseFloat(maxAmountInput.value.replace(/,/g, '')) || 0; // 만원 단위
+
+        let maxAmount = parseFloat(maxAmountInput.value.replace(/,/g, '')) || 0;
         let ratio = parseFloat(ratioInput.value) || 0;
-        let principal = parseFloat(principalInput.value.replace(/,/g, '')) || 0; // 만원 단위
-        
+        let principal = parseFloat(principalInput.value.replace(/,/g, '')) || 0;
+
         if (target.name === 'principal') {
+            // 원금이 바뀌면 비율에 따라 최고액 역산
             if (principal > 0 && ratio > 0) {
                 maxAmount = Math.round(principal * (ratio / 100));
                 maxAmountInput.value = maxAmount.toLocaleString();
             }
         } else {
+            // 최고액 또는 비율이 바뀌면 원금 계산
             if (maxAmount > 0 && ratio > 0) {
                 principal = Math.round(maxAmount / (ratio / 100));
                 principalInput.value = principal.toLocaleString();
             }
         }
+        triggerMemoGeneration();
     }
     
-    // 동적 생성된 대출 항목에 이벤트 리스너 연결
+    // [신규] 채권최고액 입력 시 서버 API를 통해 금액 변환 및 원금 자동계산
+    async function handleApiLoanConversion(event) {
+        const maxAmountInput = event.target;
+        const loanItem = maxAmountInput.closest('.loan-item');
+        if (!loanItem) return;
+
+        const ratioInput = loanItem.querySelector('[name="ratio"]');
+        const principalInput = loanItem.querySelector('[name="principal"]');
+
+        const loanData = {
+            max_amount: maxAmountInput.value,
+            ratio: ratioInput.value
+        };
+
+        try {
+            const response = await fetch('/api/convert_loan_amount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loanData)
+            });
+
+            if (!response.ok) throw new Error('API call failed');
+            const result = await response.json();
+
+            if (result.success && result.converted_data) {
+                const data = result.converted_data;
+                maxAmountInput.value = data.max_amount ? parseInt(data.max_amount).toLocaleString() : '0';
+                principalInput.value = data.principal ? parseInt(data.principal).toLocaleString() : '0';
+            }
+        } catch (error) {
+            console.error('Error during loan conversion:', error);
+            // API 호출 실패 시, 클라이언트 사이드 계산으로 대체
+            handleAutoLoanCalc(event); 
+        } finally {
+            triggerMemoGeneration();
+        }
+    }
+    
+    // [수정됨] 동적 생성된 대출 항목에 이벤트 리스너 연결
     function attachEventListenersForLoanItems() {
-        document.querySelectorAll('.loan-input').forEach(input => {
-            input.removeEventListener('change', triggerMemoGeneration);
-            input.removeEventListener('keyup', triggerMemoGeneration);
-            input.removeEventListener('blur', formatManwonValue);
-            input.removeEventListener('keyup', handleAutoLoanCalc);
-            input.removeEventListener('change', handleAutoLoanCalc);
+        document.querySelectorAll('.loan-item').forEach(item => {
+            const maxAmountInput = item.querySelector('[name="max_amount"]');
+            const ratioInput = item.querySelector('[name="ratio"]');
+            const principalInput = item.querySelector('[name="principal"]');
             
-            input.addEventListener('change', triggerMemoGeneration);
-            input.addEventListener('keyup', () => { if(input.type === 'text') triggerMemoGeneration(); });
-            if (input.classList.contains('manwon-format')) {
-                input.addEventListener('blur', formatManwonValue);
-            }
-            if (input.classList.contains('auto-calc')) {
-                input.addEventListener('keyup', handleAutoLoanCalc);
-                if (input.name === 'max_amount' || input.name === 'ratio') {
-                    input.addEventListener('change', handleAutoLoanCalc);
-                }
-            }
+            // 기존 이벤트 리스너를 모두 제거하여 중복 방지
+            const newMaxAmountInput = maxAmountInput.cloneNode(true);
+            const newRatioInput = ratioInput.cloneNode(true);
+            const newPrincipalInput = principalInput.cloneNode(true);
+
+            maxAmountInput.parentNode.replaceChild(newMaxAmountInput, maxAmountInput);
+            ratioInput.parentNode.replaceChild(newRatioInput, ratioInput);
+            principalInput.parentNode.replaceChild(newPrincipalInput, principalInput);
+
+            // [핵심] 채권최고액: 포커스가 벗어날 때 서버 API로 변환 요청
+            newMaxAmountInput.addEventListener('blur', handleApiLoanConversion);
+            
+            // 비율: 값이 변경될 때 클라이언트에서 원금 즉시 재계산
+            newRatioInput.addEventListener('change', handleAutoLoanCalc);
+            
+            // 원금: 포커스가 벗어날 때 숫자 포맷팅 / 값이 변경될 때 최고액 역산
+            newPrincipalInput.addEventListener('blur', formatManwonValue);
+            newPrincipalInput.addEventListener('change', handleAutoLoanCalc);
+
+            // 모든 항목의 값이 변경되면 메모 업데이트
+            item.querySelectorAll('.loan-input').forEach(input => {
+                input.addEventListener('change', triggerMemoGeneration);
+            });
         });
     }
 
-    // 모든 폼 데이터 수집 (서버 전송용으로 원 단위로 변환)
+    // 모든 폼 데이터 수집
     function collectAllData() {
         const regionSelect = document.getElementById('deduction_region');
         const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
-        
-        const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => {
-            const maxAmount = parseFloat(item.querySelector('[name="max_amount"]').value.replace(/,/g, '')) || 0;
-            const principal = parseFloat(item.querySelector('[name="principal"]').value.replace(/,/g, '')) || 0;
-            
-            return {
-                lender: item.querySelector('[name="lender"]').value,
-                status: item.querySelector('[name="status"]').value,
-                // 서버로 전송할 때는 다시 원 단위로 변환 (만원 × 10000)
-                max_amount: Math.round(maxAmount * 10000),
-                principal: Math.round(principal * 10000),
-                ratio: item.querySelector('[name="ratio"]').value,
-            };
-        });
-        
+        const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
+            lender: item.querySelector('[name="lender"]').value, status: item.querySelector('[name="status"]').value,
+            max_amount: item.querySelector('[name="max_amount"]').value, principal: item.querySelector('[name="principal"]').value,
+            ratio: item.querySelector('[name="ratio"]').value,
+        }));
         return {
             inputs: {
-                customer_name: document.getElementById('customer_name').value,
-                address: document.getElementById('address').value,
-                kb_price: document.getElementById('kb_price').value,
-                area: document.getElementById('area').value,
-                deduction_region_text: selectedRegionText,
-                deduction_amount: document.getElementById('deduction_amount').value,
+                customer_name: document.getElementById('customer_name').value, address: document.getElementById('address').value,
+                kb_price: document.getElementById('kb_price').value, area: document.getElementById('area').value,
+                deduction_region_text: selectedRegionText, deduction_amount: document.getElementById('deduction_amount').value,
                 ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
-            },
-            fees: {
-                consult_amt: document.getElementById('consult_amt').value,
-                consult_rate: document.getElementById('consult_rate').value,
-                bridge_amt: document.getElementById('bridge_amt').value,
-                bridge_rate: document.getElementById('bridge_rate').value,
-            },
-            loans: loanItems
+            }, fees: {
+                consult_amt: document.getElementById('consult_amt').value, consult_rate: document.getElementById('consult_rate').value,
+                bridge_amt: document.getElementById('bridge_amt').value, bridge_rate: document.getElementById('bridge_rate').value,
+            }, loans: loanItems
         };
     }
     
@@ -331,37 +380,40 @@
     }
 
     // 메모 생성 및 하안가/일반가 표시
-    async function generateMemo() {
-        const memoArea = document.getElementById('generated-memo');
-        memoArea.placeholder = '요약 메모를 생성하고 있습니다...';
-        const data = collectAllData();
-        const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
-        try {
-            const response = await fetch('/api/generate_text_memo', { 
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
-            });
-            const result = await response.json();
-            memoArea.value = result.memo || '오류: 메모를 생성하지 못했습니다.';
+async function generateMemo() {
+    const memoArea = document.getElementById('generated-memo');
+    memoArea.placeholder = '요약 메모를 생성하고 있습니다...';
+    const data = collectAllData();
+    const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
+    try {
+        const response = await fetch('/api/generate_text_memo', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
+        });
+        const result = await response.json();
+        memoArea.value = result.memo || '오류: 메모를 생성하지 못했습니다.';
+        
+        const priceTypeInfo = document.getElementById('price-type-info');
+        if (result.price_type) {
+            priceTypeInfo.textContent = `시세 적용: ${result.price_type}`;
             
-            const priceTypeInfo = document.getElementById('price-type-info');
-            if (result.price_type) {
-                priceTypeInfo.textContent = `시세 적용: ${result.price_type}`;
-                
-                priceTypeInfo.classList.remove('text-danger', 'text-primary');
+            // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
+            priceTypeInfo.classList.remove('text-danger', 'text-primary');
 
-                if (result.price_type.includes('일반가')) {
-                    priceTypeInfo.classList.add('text-primary');
-                } else if (result.price_type.includes('하안가')) {
-                    priceTypeInfo.classList.add('text-danger');
-                }
-            } else {
-                priceTypeInfo.textContent = '';
-                priceTypeInfo.classList.remove('text-danger', 'text-primary');
+            // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
+            if (result.price_type.includes('일반가')) {
+                priceTypeInfo.classList.add('text-primary'); // '일반가'는 파란색
+            } else if (result.price_type.includes('하안가')) {
+                priceTypeInfo.classList.add('text-danger');  // '하안가'는 빨간색
             }
-        } catch (error) {
-            memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
+        } else {
+            // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
+            priceTypeInfo.textContent = '';
+            priceTypeInfo.classList.remove('text-danger', 'text-primary');
         }
+    } catch (error) {
+        memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
     }
+}
     
     // 고객 목록 불러오기
     async function loadCustomerList() {
@@ -379,7 +431,7 @@
         } catch (error) { console.error("고객 목록 로딩 실패:", error); }
     }
 
-    // 특정 고객 데이터 불러오기 (만원 단위로 변환)
+    // 특정 고객 데이터 불러오기
     async function loadCustomerData() {
         const select = document.getElementById('customer-history');
         const pageId = select.value;
@@ -389,7 +441,6 @@
             if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
             const data = await response.json();
             if (data.error) { alert(`데이터 로드 실패: ${data.error}`); return; }
-            
             document.getElementById('customer_name').value = data.customer_name || '';
             document.getElementById('address').value = data.address || '';
             document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
@@ -400,7 +451,6 @@
             document.getElementById('consult_rate').value = data.consult_rate || '1.5';
             document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
             document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
-            
             const regionSelect = document.getElementById('deduction_region');
             const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
             if(regionOption) {
@@ -409,25 +459,25 @@
                 regionSelect.selectedIndex = 0;
             }
             document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
-            
             document.getElementById('loan-items-container').innerHTML = '';
             loanItemCounter = 0;
+
+
+
             if (data.loans && data.loans.length > 0) {
-                data.loans.forEach(loan => {
-                    // 서버에서 받은 데이터(원 단위)를 그대로 addLoanItem에 전달
-                    // createLoanItemHTML에서 자동으로 만원 단위로 변환됨
-                    addLoanItem(loan);
-                });
-            } else { 
-                addLoanItem(); 
-            }
+                data.loans.forEach(loan => addLoanItem(loan));
+
+            } else { addLoanItem(); }
+
             triggerMemoGeneration();
         } catch (error) {
             alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
         }
     }
     
-    // 신규 고객 저장
+
+
+    // ✨ 누락되었던 함수들
     async function saveNewCustomer() {
         const data = collectAllData();
         if (!data.inputs.customer_name) { alert('고객명을 입력해주세요.'); return; }
@@ -440,7 +490,6 @@
         if (result.success) { loadCustomerList(); }
     }
 
-    // 기존 고객 정보 수정
     async function updateCustomer() {
         const selectedCustomerId = document.getElementById('customer-history').value;
         if (!selectedCustomerId) { alert('수정할 고객을 목록에서 먼저 선택해주세요.'); return; }
@@ -455,7 +504,6 @@
         if (result.success) { loadCustomerList(); }
     }
 
-    // 고객 삭제
     async function deleteCustomer() {
         const select = document.getElementById('customer-history');
         const selectedCustomerId = select.value;
@@ -484,4 +532,101 @@
                 throw new Error(errorResult.error || `서버 에러: ${response.status}`);
             }
             const result = await response.json();
-            console.log("업로드 성공
+            console.log("업로드 성공. 서버 결과:", result);
+            if (result.success) {
+                const scraped = result.scraped_data;
+                document.getElementById('customer_name').value = scraped.customer_name || '';
+                document.getElementById('address').value = scraped.address || '';
+                document.getElementById('area').value = scraped.area || '';
+                const pdfUrl = `/view_pdf/${encodeURIComponent(result.filename)}`;
+                document.getElementById('pdf-viewer').src = pdfUrl;
+                document.getElementById('upload-section').style.display = 'none';
+                document.getElementById('viewer-section').style.display = 'block';
+                document.getElementById('file-name-display').textContent = file.name;
+                triggerMemoGeneration();
+            } else { alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); }
+        } catch (error) {
+            console.error("!!!!! 파일 업로드 중 예외 발생:", error);
+            alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+
+    // 레이아웃 토글
+    function toggleLayout() {
+        document.getElementById('main-layout-wrapper').classList.toggle('horizontal-mode');
+        const btn = document.getElementById('layout-toggle-btn');
+        const isHorizontal = document.getElementById('main-layout-wrapper').classList.contains('horizontal-mode');
+        btn.innerHTML = isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+    }
+    
+    // 전체 초기화
+    function clearAllFields() {
+        document.querySelectorAll('.form-field').forEach(field => {
+            if(field.tagName === 'SELECT') { field.selectedIndex = 0; } else { field.value = ''; }
+        });
+        document.getElementById('ltv1').value = '80';
+        document.getElementById('consult_rate').value = '1.5';
+        document.getElementById('bridge_rate').value = '0.7';
+        document.getElementById('deduction_amount').value = document.getElementById('deduction_region').value.toLocaleString();
+        document.getElementById('loan-items-container').innerHTML = '';
+        loanItemCounter = 0;
+        addLoanItem();
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) fileInput.value = null;
+        document.getElementById('pdf-viewer').src = 'about:blank';
+        document.getElementById('upload-section').style.display = 'flex';
+        document.getElementById('viewer-section').style.display = 'none';
+        alert("모든 입력 내용이 초기화되었습니다.");
+        triggerMemoGeneration();
+    }
+    
+    // 모든 이벤트 리스너 최초 연결
+    function attachAllEventListeners() {
+        const uploadSection = document.getElementById('upload-section');
+        const fileInput = document.getElementById('file-input');
+        uploadSection.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => { if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); });
+        ['dragover','dragleave','drop'].forEach(eventName => {
+            uploadSection.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
+        uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
+        uploadSection.addEventListener('drop', (e) => {
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
+        });
+        document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
+        document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
+        document.getElementById('reset-btn').addEventListener('click', clearAllFields);
+        document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
+        document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
+        document.getElementById('update-btn').addEventListener('click', updateCustomer);
+        document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+        document.getElementById('deduction_region').addEventListener('change', (e) => {
+            document.getElementById('deduction_amount').value = e.target.value.toLocaleString();
+            triggerMemoGeneration();
+        });
+        document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
+            field.addEventListener('change', triggerMemoGeneration);
+            if (field.type === 'text' && !field.classList.contains('manwon-format')) {
+                field.addEventListener('keyup', triggerMemoGeneration);
+            }
+        });
+        document.querySelectorAll('.manwon-format').forEach(input => {
+            input.addEventListener('blur', formatManwonValue);
+        });
+    }
+    
+    // 페이지 로드 완료 후 실행
+    document.addEventListener('DOMContentLoaded', () => {
+        addLoanItem();
+        attachAllEventListeners();
+        loadCustomerList();
+        triggerMemoGeneration();
+    });
+</script>
+
+</body>
+</html>
