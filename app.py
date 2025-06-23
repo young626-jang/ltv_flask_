@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from collections import defaultdict
 
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
-from utils import parse_korean_number, calculate_ltv_limit
+from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts
 from ltv_map import region_map
 from pdf_parser import parse_pdf_for_ltv
 from history_manager_flask import (
@@ -282,6 +282,46 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
     ])
 
     return "\n".join(memo)
+
+@app.route('/api/convert_loan_amount', methods=['POST'])
+def convert_loan_amount_route():
+    """대출 금액 자동 변환 API"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "잘못된 요청 데이터"}), 400
+        
+        converted_data = auto_convert_loan_amounts(data)
+        return jsonify({
+            "success": True,
+            "converted_data": converted_data
+        })
+        
+    except Exception as e:
+        logger.error(f"대출 금액 변환 중 오류: {e}")
+        return jsonify({"error": "금액 변환 중 오류가 발생했습니다."}), 500
+
+@app.route('/api/calculate_principal', methods=['POST'])
+def calculate_principal_route():
+    """원금 계산 API"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "잘못된 요청 데이터"}), 400
+            
+        max_amount = data.get('max_amount', 0)
+        ratio = data.get('ratio', 100)
+        
+        principal = calculate_principal_from_ratio(max_amount, ratio)
+        
+        return jsonify({
+            "success": True,
+            "principal": principal
+        })
+        
+    except Exception as e:
+        logger.error(f"원금 계산 중 오류: {e}")
+        return jsonify({"error": "원금 계산 중 오류가 발생했습니다."}), 500
 
 # --- 고객 관리 API 라우트 ---
 @app.route('/api/customers')
