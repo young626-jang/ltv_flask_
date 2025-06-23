@@ -184,6 +184,9 @@ function createLoanItemHTML(index, loan = {}) {
                     <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
                     <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
                     <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
+                    <option value="퇴거자금" ${loan.status === '퇴거자금' ? 'selected' : ''}>퇴거자금</option>
+                    <option value="동의" ${loan.status === '동의' ? 'selected' : ''}>동의</option>
+                    <option value="비동의" ${loan.status === '비동의' ? 'selected' : ''}>비동의</option>
                 </select>
             </div>
             <div style="flex: 0 0 5%;" class="text-center">
