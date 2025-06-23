@@ -160,16 +160,21 @@ def generate_memo_content(inputs, loans, fees):
     deduction = parse_korean_number(inputs.get("deduction_amount", "0"))
     ltv_rates = [rate for rate in inputs.get('ltv_rates', []) if rate and rate.isdigit()]
     
-    # 대출 정보 계산
+    # 대출 정보 계산 - 유지성 상태들 (유지, 동의, 비동의)
+    maintain_status = ['유지', '동의', '비동의']
     maintain_maxamt_sum = sum(
         parse_korean_number(item.get('max_amount', '0')) 
-        for item in loans if item.get('status') == '유지'
+        for item in loans if item.get('status') in maintain_status
     )
+    
+    # 대환/선말소성 상태들 (대환, 선말소, 퇴거자금)
+    refinance_status = ['대환', '선말소', '퇴거자금']
     sub_principal_sum = sum(
         parse_korean_number(item.get('principal', '0')) 
-        for item in loans if item.get('status') != '유지'
+        for item in loans if item.get('status') in refinance_status
     )
-    is_subordinate = any(item.get('status') == '유지' for item in loans)
+    
+    is_subordinate = any(item.get('status') in maintain_status for item in loans)
 
     # LTV 계산
     ltv_results = []
@@ -225,34 +230,41 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
     memo.append("")
     
     # 대출기관별 합계 (선순위일 때만 표시)
-    is_subordinate = any(item.get('status') == '유지' for item in loans)
+    maintain_status = ['유지', '동의', '비동의']
+    is_subordinate = any(item.get('status') in maintain_status for item in loans)
     
     if not is_subordinate:  # 선순위일 때만 표시
         lender_sum = defaultdict(int)
+        refinance_status = ['대환', '선말소', '퇴거자금']
         for item in loans:
-            if item.get('lender', '').strip():
+            if item.get('lender', '').strip() and item.get('status') in refinance_status:
                 lender_sum[item['lender']] += parse_korean_number(item.get('principal', '0'))
         
         if lender_sum:
             memo.append("설정금액별 원금합계")
             for lender, total in lender_sum.items():
                 memo.append(f"{lender}: {format_thousands(total)}만")
+            memo.append("")
             
-    # 대환/선말소 합계
-    dh_sum = sum(
-        parse_korean_number(item.get('principal', '0')) 
-        for item in loans if item.get('status') == '대환'
-    )
-    sm_sum = sum(
-        parse_korean_number(item.get('principal', '0')) 
-        for item in loans if item.get('status') == '선말소'
-    )
+    # 상태별 합계 계산
+    status_sums = {
+        '대환': 0,
+        '선말소': 0, 
+        '퇴거자금': 0
+    }
     
-    if dh_sum > 0: 
-        memo.append(f"대환 합계: {format_thousands(dh_sum)}만")
-    if sm_sum > 0: 
-        memo.append(f"선말소 합계: {format_thousands(sm_sum)}만")
-    memo.append("")
+    for item in loans:
+        status = item.get('status', '')
+        if status in status_sums:
+            status_sums[status] += parse_korean_number(item.get('principal', '0'))
+    
+    # 합계가 0보다 큰 항목들만 표시
+    for status, amount in status_sums.items():
+        if amount > 0:
+            memo.append(f"{status} 합계: {format_thousands(amount)}만")
+    
+    if any(amount > 0 for amount in status_sums.values()):
+        memo.append("")
 
     # 수수료 정보
     consult_amt = parse_korean_number(fees.get('consult_amt', '0'))
