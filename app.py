@@ -209,15 +209,6 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
     memo.append(f"주소: {inputs.get('address', '')} | {area_str} | {kb_price_str} | {deduction_str}")
     memo.append("")
 
-    # LTV 정보
-    for res in ltv_results:
-        memo.append(
-            f"LTV {res['ltv_rate']}% ({res['loan_type']}) "
-            f"한도: {format_thousands(res['limit'])}만 "
-            f"가용: {format_thousands(res['available'])}만"
-        )
-    memo.append("")
-    
     # 대출 정보
     for item in loans:
         memo.append(
@@ -226,6 +217,15 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
             f"{item.get('ratio', '-')}% | "
             f"{format_thousands(parse_korean_number(item.get('principal', '0')))} | "
             f"{item.get('status', '-')}"
+        )
+    memo.append("")
+    
+    # LTV 정보
+    for res in ltv_results:
+        memo.append(
+            f"LTV {res['ltv_rate']}% ({res['loan_type']}) "
+            f"한도: {format_thousands(res['limit'])}만 "
+            f"가용: {format_thousands(res['available'])}만"
         )
     memo.append("")
     
