@@ -86,6 +86,9 @@
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="ltv-tab" data-bs-toggle="tab" data-bs-target="#ltv-tab-pane" type="button" role="tab">LTV 비율</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">수수료</button></li>
+                    {/* ▼▼▼ 이자 계산기 탭 추가 ▼▼▼ */}
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                </ul>
                 </ul>
                 <div>
                     <button type="button" class="btn btn-secondary btn-sm" id="add-loan-btn">+ 대출 항목 추가</button>
@@ -118,7 +121,32 @@
                         <div class="col"><label>요율(%)</label><input type="text" class="form-control form-field" id="bridge_rate" value="0.7"></div>
                     </div>
                 </div>
-            </div>
+                {/* ▼▼▼ 이자 계산기 내용 추가 ▼▼▼ */}
+                <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="interest-loan-amount" class="form-label">대출금액 (만원)</label>
+                            <input type="text" class="form-control" id="interest-loan-amount" placeholder="예: 10000">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="interest-annual-rate" class="form-label">연이율 (%)</label>
+                            <input type="text" class="form-control" id="interest-annual-rate" placeholder="예: 5.5">
+                        </div>
+                        <div class="col-12 mt-4">
+                            <label class="form-label">하루 이자 (원)</label>
+                            <input type="text" class="form-control" id="interest-daily-result" readonly>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">한달 이자 (원)</label>
+                            <input type="text" class="form-control" id="interest-monthly-result" readonly>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">1년 이자 (원)</label>
+                            <input type="text" class="form-control" id="interest-yearly-result" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>                
             <hr class="my-4">
             <h5 class="mb-3">결과</h5>
             <textarea class="form-control" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
@@ -253,7 +281,40 @@
             </div>
         </div>`;
 }
-    
+    // ✨ [신규] 단순 이자 계산 함수
+    function calculateSimpleInterest() {
+        // 입력 요소에서 값 가져오기
+        const loanAmountInput = document.getElementById('interest-loan-amount');
+        const annualRateInput = document.getElementById('interest-annual-rate');
+
+        // 콤마(,) 제거하고 숫자로 변환
+        const principalManwon = parseInt(loanAmountInput.value.replace(/,/g, '')) || 0;
+        const principal = principalManwon * 10000; // 원 단위로 변환
+        const annualRate = parseFloat(annualRateInput.value) || 0;
+
+        // 결과 표시 요소 가져오기
+        const dailyResultEl = document.getElementById('interest-daily-result');
+        const monthlyResultEl = document.getElementById('interest-monthly-result');
+        const yearlyResultEl = document.getElementById('interest-yearly-result');
+
+        // 입력값이 유효할 때만 계산
+        if (principal > 0 && annualRate > 0) {
+            const yearlyInterest = Math.floor(principal * (annualRate / 100));
+            const monthlyInterest = Math.floor(yearlyInterest / 12);
+            const dailyInterest = Math.floor(yearlyInterest / 365);
+
+            // 계산된 값을 콤마와 함께 ' 원' 단위로 표시
+            yearlyResultEl.value = yearlyInterest.toLocaleString() + ' 원';
+            monthlyResultEl.value = monthlyInterest.toLocaleString() + ' 원';
+            dailyResultEl.value = dailyInterest.toLocaleString() + ' 원';
+        } else {
+            // 입력값이 없거나 0이면 결과를 '0 원'으로 초기화
+            yearlyResultEl.value = '0 원';
+            monthlyResultEl.value = '0 원';
+            dailyResultEl.value = '0 원';
+        }
+    }
+
     // ✨ 누락되었던 함수
     function addLoanItem(loan = {}) {
         const container = document.getElementById('loan-items-container');
@@ -660,6 +721,7 @@
         triggerMemoGeneration();
     }
     
+    
     // 모든 이벤트 리스너 최초 연결
     function attachAllEventListeners() {
         const uploadSection = document.getElementById('upload-section');
@@ -675,6 +737,31 @@
             uploadSection.classList.remove('dragover');
             if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
         });
+
+
+                document.querySelectorAll('.manwon-format').forEach(input => {
+            input.addEventListener('blur', formatManwonValue);
+        });
+
+        /* ▼▼▼ 이자 계산기 이벤트 리스너 추가 ▼▼▼ */
+        const loanAmountInput = document.getElementById('interest-loan-amount');
+        const annualRateInput = document.getElementById('interest-annual-rate');
+
+        // 키보드를 누를 때마다 이자 다시 계산
+        loanAmountInput.addEventListener('keyup', calculateSimpleInterest);
+        annualRateInput.addEventListener('keyup', calculateSimpleInterest);
+
+        // 대출금액 입력 필드에서 포커스가 벗어날 때 숫자 포맷팅 (콤마 추가)
+        loanAmountInput.addEventListener('blur', (e) => {
+            const value = e.target.value.replace(/,/g, '');
+            const num = parseInt(value, 10);
+            if (!isNaN(num) && num > 0) {
+                e.target.value = num.toLocaleString();
+            } else {
+                e.target.value = '';
+            }
+        });
+    }
         document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
         document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
         document.getElementById('reset-btn').addEventListener('click', clearAllFields);
@@ -699,7 +786,6 @@
         document.querySelectorAll('.manwon-format').forEach(input => {
             input.addEventListener('blur', formatManwonValue);
         });
-    }
     
     // 페이지 로드 완료 후 실행
     document.addEventListener('DOMContentLoaded', () => {
@@ -709,6 +795,5 @@
         triggerMemoGeneration();
     });
 </script>
-
 </body>
 </html>
