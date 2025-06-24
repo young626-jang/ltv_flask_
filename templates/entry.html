@@ -268,34 +268,34 @@
     }
     
     // 숫자 자동 포맷 (개선된 고급 금액 처리)
-function formatManwonValue(e) {
-    const field = e.target;
-    let value = field.value.trim();
-    let parsedValue = 0;
+    function formatManwonValue(e) {
+        const field = e.target;
+        let value = field.value.trim();
+        let parsedValue = 0;
 
-    // 빈 값 처리
-    if (!value) {
-        field.value = '';
+        // 빈 값 처리
+        if (!value) {
+            field.value = '';
+            triggerMemoGeneration();
+            return;
+        }
+
+        // '+' 기호가 있는지 확인하여 계산
+        if (value.includes('+')) {
+            const terms = value.split('+');
+            parsedValue = terms.reduce((acc, term) => {
+                return acc + parseAdvancedAmount(term.trim());
+            }, 0);
+        } else {
+            parsedValue = parseAdvancedAmount(value);
+        }
+        
+        // 계산된 값을 입력창에 다시 설정
+        field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
+
+        // 메모 업데이트 함수 호출
         triggerMemoGeneration();
-        return;
     }
-
-    // '+' 기호가 있는지 확인하여 계산
-    if (value.includes('+')) {
-        const terms = value.split('+');
-        parsedValue = terms.reduce((acc, term) => {
-            return acc + parseAdvancedAmount(term.trim());
-        }, 0);
-    } else {
-        parsedValue = parseAdvancedAmount(value);
-    }
-    
-    // 계산된 값을 입력창에 다시 설정
-    field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
-
-    // 메모 업데이트 함수 호출
-    triggerMemoGeneration();
-}
 
     // [수정됨] 대출 항목 자동 계산 (원금-최고액) - 클라이언트 사이드
     function handleAutoLoanCalc(event) {
@@ -365,6 +365,31 @@ function formatManwonValue(e) {
         }
     }
     
+    // ✨ [신규] 방공제 및 임차인(동의/비동의) 상태에 따른 경고 메시지 표시 함수
+    function checkTenantDeductionWarning() {
+        const deductionRegionSelect = document.getElementById('deduction_region');
+        // "지역 선택..." 또는 "방공제 없음" 등의 기본값(value="0")이 아닌 경우를 확인합니다.
+        const isDeductionSelected = deductionRegionSelect.value && deductionRegionSelect.value !== '0';
+
+        if (!isDeductionSelected) {
+            return; // 방공제 지역이 선택되지 않았으면 검사를 중단합니다.
+        }
+
+        const tenantStatuses = ['동의', '비동의'];
+        let hasTenantLoan = false;
+        // 현재 화면에 있는 모든 대출 항목의 '진행' 상태를 확인합니다.
+        document.querySelectorAll('.loan-item [name="status"]').forEach(statusSelect => {
+            if (tenantStatuses.includes(statusSelect.value)) {
+                hasTenantLoan = true;
+            }
+        });
+
+        // 방공제 지역이 선택되었고, '동의' 또는 '비동의' 상태의 대출이 하나라도 있다면 경고 메시지를 표시합니다.
+        if (hasTenantLoan) {
+            alert("임차인이 거주하고 있는 물건지는 방공제금액을 입력할 수 없습니다. 전세퇴거여부를 확인해주세요");
+        }
+    }
+
     // [수정됨] 동적 생성된 대출 항목에 이벤트 리스너 연결
     function attachEventListenersForLoanItems() {
         document.querySelectorAll('.loan-item').forEach(item => {
@@ -393,7 +418,15 @@ function formatManwonValue(e) {
 
             // 모든 항목의 값이 변경되면 메모 업데이트
             item.querySelectorAll('.loan-input').forEach(input => {
-                input.addEventListener('change', triggerMemoGeneration);
+                // ✨ [수정] 'change' 이벤트에 경고 확인 로직 추가
+                input.addEventListener('change', (e) => {
+                    // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
+                    if (e.target.name === 'status') {
+                        checkTenantDeductionWarning();
+                    }
+                    // 기존의 메모 생성 함수를 호출합니다.
+                    triggerMemoGeneration();
+                });
             });
         });
     }
@@ -427,40 +460,40 @@ function formatManwonValue(e) {
     }
 
     // 메모 생성 및 하안가/일반가 표시
-async function generateMemo() {
-    const memoArea = document.getElementById('generated-memo');
-    memoArea.placeholder = '요약 메모를 생성하고 있습니다...';
-    const data = collectAllData();
-    const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
-    try {
-        const response = await fetch('/api/generate_text_memo', { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
-        });
-        const result = await response.json();
-        memoArea.value = result.memo || '오류: 메모를 생성하지 못했습니다.';
-        
-        const priceTypeInfo = document.getElementById('price-type-info');
-        if (result.price_type) {
-            priceTypeInfo.textContent = `시세 적용: ${result.price_type}`;
+    async function generateMemo() {
+        const memoArea = document.getElementById('generated-memo');
+        memoArea.placeholder = '요약 메모를 생성하고 있습니다...';
+        const data = collectAllData();
+        const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
+        try {
+            const response = await fetch('/api/generate_text_memo', { 
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
+            });
+            const result = await response.json();
+            memoArea.value = result.memo || '오류: 메모를 생성하지 못했습니다.';
             
-            // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
-            priceTypeInfo.classList.remove('text-danger', 'text-primary');
+            const priceTypeInfo = document.getElementById('price-type-info');
+            if (result.price_type) {
+                priceTypeInfo.textContent = `시세 적용: ${result.price_type}`;
+                
+                // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
+                priceTypeInfo.classList.remove('text-danger', 'text-primary');
 
-            // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
-            if (result.price_type.includes('일반가')) {
-                priceTypeInfo.classList.add('text-primary'); // '일반가'는 파란색
-            } else if (result.price_type.includes('하안가')) {
-                priceTypeInfo.classList.add('text-danger');  // '하안가'는 빨간색
+                // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
+                if (result.price_type.includes('일반가')) {
+                    priceTypeInfo.classList.add('text-primary'); // '일반가'는 파란색
+                } else if (result.price_type.includes('하안가')) {
+                    priceTypeInfo.classList.add('text-danger');  // '하안가'는 빨간색
+                }
+            } else {
+                // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
+                priceTypeInfo.textContent = '';
+                priceTypeInfo.classList.remove('text-danger', 'text-primary');
             }
-        } else {
-            // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
-            priceTypeInfo.textContent = '';
-            priceTypeInfo.classList.remove('text-danger', 'text-primary');
+        } catch (error) {
+            memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
         }
-    } catch (error) {
-        memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
     }
-}
     
     // 고객 목록 불러오기
     async function loadCustomerList() {
@@ -522,8 +555,6 @@ async function generateMemo() {
         }
     }
     
-
-
     // ✨ 누락되었던 함수들
     async function saveNewCustomer() {
         const data = collectAllData();
@@ -651,10 +682,14 @@ async function generateMemo() {
         document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
         document.getElementById('update-btn').addEventListener('click', updateCustomer);
         document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+        
+        // ✨ [수정] 방공제 지역 변경 시 경고 확인 로직을 호출하도록 수정합니다.
         document.getElementById('deduction_region').addEventListener('change', (e) => {
             document.getElementById('deduction_amount').value = e.target.value.toLocaleString();
+            checkTenantDeductionWarning(); // 경고 확인 함수 호출
             triggerMemoGeneration();
         });
+
         document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
             field.addEventListener('change', triggerMemoGeneration);
             if (field.type === 'text' && !field.classList.contains('manwon-format')) {
