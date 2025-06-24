@@ -86,7 +86,6 @@
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="ltv-tab" data-bs-toggle="tab" data-bs-target="#ltv-tab-pane" type="button" role="tab">LTV 비율</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">수수료</button></li>
-                    {/* ▼▼▼ 이자 계산기 탭 추가 ▼▼▼ */}
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                 </ul>
                 </ul>
@@ -121,7 +120,6 @@
                         <div class="col"><label>요율(%)</label><input type="text" class="form-control form-field" id="bridge_rate" value="0.7"></div>
                     </div>
                 </div>
-                {/* ▼▼▼ 이자 계산기 내용 추가 ▼▼▼ */}
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -742,8 +740,6 @@
                 document.querySelectorAll('.manwon-format').forEach(input => {
             input.addEventListener('blur', formatManwonValue);
         });
-
-        /* ▼▼▼ 이자 계산기 이벤트 리스너 추가 ▼▼▼ */
         const loanAmountInput = document.getElementById('interest-loan-amount');
         const annualRateInput = document.getElementById('interest-annual-rate');
 
