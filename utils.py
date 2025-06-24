@@ -10,6 +10,7 @@ def parse_comma_number(text):
         return 0
 
 def parse_korean_number(text: str) -> int:
+    """기존 한글 숫자 파싱 함수 유지"""
     text = str(text).replace(",", "").strip()
     total = 0
     
@@ -31,21 +32,75 @@ def parse_korean_number(text: str) -> int:
             
     return total
 
+def parse_advanced_amount(text: str) -> int:
+    """
+    고급 금액 파싱 함수
+    - 9억 → 90000
+    - 737,000,000원 → 73700  
+    - 1억2천만원 → 12000
+    - 3억6천만원 → 36000
+    - 90,000 → 90000
+    """
+    if not text:
+        return 0
+        
+    clean_text = str(text).replace(",", "").strip()
+    
+    # 1. 한글 금액 처리 (억, 만, 천, 원 포함)
+    if re.search(r'억|만|천|원', clean_text):
+        return parse_korean_amount_advanced(clean_text)
+    
+    # 2. 원 단위 금액 처리 (8자리 이상이거나 '원'으로 끝나는 경우)
+    if clean_text.endswith('원') or len(re.sub(r'[^\d]', '', clean_text)) >= 8:
+        num_only = re.sub(r'[^\d]', '', clean_text)
+        if num_only:
+            won_amount = int(num_only)
+            # 원을 만원으로 변환
+            return won_amount // 10000
+    
+    # 3. 일반 숫자 처리
+    num_only = re.sub(r'[^\d]', '', clean_text)
+    return int(num_only) if num_only else 0
+
+def parse_korean_amount_advanced(text: str) -> int:
+    """한글 금액 고급 파싱"""
+    total = 0
+    remaining_text = text
+    
+    # 억 단위 처리
+    eok_match = re.search(r'(\d+)억', remaining_text)
+    if eok_match:
+        total += int(eok_match.group(1)) * 10000
+        remaining_text = remaining_text.replace(eok_match.group(0), '')
+    
+    # 천만 단위 처리 (예: 2천만 = 2000만)
+    cheonman_match = re.search(r'(\d+)천만', remaining_text)
+    if cheonman_match:
+        total += int(cheonman_match.group(1)) * 1000
+        remaining_text = remaining_text.replace(cheonman_match.group(0), '')
+    
+    # 만 단위 처리
+    man_match = re.search(r'(\d+)만', remaining_text)
+    if man_match:
+        total += int(man_match.group(1))
+        remaining_text = remaining_text.replace(man_match.group(0), '')
+    
+    # 천 단위 처리 (만원 단위로 변환)
+    cheon_match = re.search(r'(\d+)천', remaining_text)
+    if cheon_match:
+        total += int(cheon_match.group(1)) / 10  # 천원을 만원으로 변환
+        remaining_text = remaining_text.replace(cheon_match.group(0), '')
+    
+    return int(total)
+
 def convert_won_to_manwon(amount_text):
     """
     원 단위 금액을 만원 단위로 변환
     예: "363,000,000" -> 36300
     """
     try:
-        # 콤마 제거하고 숫자만 추출
-        clean_amount = re.sub(r"[^\d]", "", str(amount_text))
-        if not clean_amount:
-            return 0
-        
-        won_amount = int(clean_amount)
-        # 원을 만원으로 변환 (10,000으로 나누기)
-        manwon_amount = won_amount // 10000
-        return manwon_amount
+        # 고급 파싱 함수 사용
+        return parse_advanced_amount(amount_text)
     except (ValueError, TypeError):
         return 0
 
@@ -70,14 +125,14 @@ def calculate_principal_from_ratio(max_amount, ratio):
 def auto_convert_loan_amounts(loan_data):
     """
     대출 데이터의 금액을 자동 변환
-    - 채권최고액: 원 단위 -> 만원 단위 변환
+    - 채권최고액: 고급 파싱으로 변환
     - 원금: 채권최고액과 비율로 자동 계산
     """
     try:
-        # 채권최고액 변환 (원 -> 만원)
+        # 채권최고액 변환 (고급 파싱 사용)
         if 'max_amount' in loan_data:
             original_amount = loan_data['max_amount']
-            converted_amount = convert_won_to_manwon(original_amount)
+            converted_amount = parse_advanced_amount(original_amount)
             loan_data['max_amount'] = str(converted_amount)
         
         # 원금 자동 계산
