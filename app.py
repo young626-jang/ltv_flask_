@@ -276,7 +276,7 @@ def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
     total_fee = consult_fee + bridge_fee
     
     memo.extend([
-        f"대출금 {format_thousands(consult_amt)}만 컨설팅비용({consult_rate}%): {format_thousands(consult_fee)}만",
+        f"필요금 {format_thousands(consult_amt)}만 컨설팅비용({consult_rate}%): {format_thousands(consult_fee)}만",
         f"브릿지 {format_thousands(bridge_amt)}만 브릿지비용({bridge_rate}%): {format_thousands(bridge_fee)}만",
         f"총 수수료 합계: {format_thousands(total_fee)}만"
     ])
