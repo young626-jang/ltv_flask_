@@ -440,21 +440,48 @@
                             <input type="text" class="form-control" id="interest-annual-rate" placeholder="">
                         </div>
                     </div>
-                    <div class="row g-3 mt-3">
-                        <div class="col-md-4">
-                            <label class="form-label">하루 이자 (원)</label>
-                            <input type="text" class="form-control" id="interest-daily-result" readonly>
+                        <div class="row g-3 mt-3">
+                            <div class="col-md-4">
+                                <label class="form-label">하루 이자 (원)</label>
+                                <input type="text" class="form-control" id="interest-daily-result" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">한달 이자 (원)</label>
+                                <input type="text" class="form-control" id="interest-monthly-result" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">1년 이자 (원)</label>
+                                <input type="text" class="form-control" id="interest-yearly-result" readonly>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">한달 이자 (원)</label>
-                            <input type="text" class="form-control" id="interest-monthly-result" readonly>
+                        <hr class="my-4">
+                        <h6 class="mb-3 text-success">원금 분할·만기일시 대출 계산기</h6>
+                        <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label for="balloon-principal-pct" class="form-label">원금 분할 비율 (X%)</label>
+                                <input type="number" class="form-control" id="balloon-principal-pct" value="7" min="0" max="100" step="0.1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="balloon-months" class="form-label">기간 (개월)</label>
+                                <input type="number" class="form-control" id="balloon-months" value="60" min="1" step="1">
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">1년 이자 (원)</label>
-                            <input type="text" class="form-control" id="interest-yearly-result" readonly>
+
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label text-success">매월 원금</label>
+                                <input type="text" class="form-control bg-light" id="balloon-monthly-principal" readonly>
+                                <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-info">첫 달 납입액</label>
+                                <input type="text" class="form-control bg-light" id="balloon-first-payment" readonly>
+                                <small class="text-muted" id="balloon-first-breakdown">(원금 + 이자)</small>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </div>    
             </div>                
             <hr class="my-4">
             <h5 class="mb-3">결과</h5>
@@ -1188,7 +1215,80 @@
                 e.target.value = '';
             }
         });
+
+            // ✨ 원금 분할 계산기 함수들 추가
+    function formatNumberWithCommas(value) {
+        return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function parseFormattedNumber(value) {
+        return Number(value.replace(/,/g, '')) || 0;
+    }
+
+    function calculateBalloonLoan() {
+        // 기존 이자계산기 필드에서 값 가져오기
+        const loanAmountInput = document.getElementById('interest-loan-amount');
+        const annualRateInput = document.getElementById('interest-annual-rate');
+        const principalPctInput = document.getElementById('balloon-principal-pct');
+        const monthsInput = document.getElementById('balloon-months');
+
+        // 기존 필드값 사용 (만원 단위를 원 단위로 변환)
+        const loanManwon = parseFloat(loanAmountInput.value.replace(/,/g, '')) || 0;
+        const loan = loanManwon * 10000; // 만원을 원으로 변환
+        const annualRate = Number(annualRateInput.value) || 0;
+        const principalPct = Math.max(0, Math.min(100, Number(principalPctInput.value) || 0));
+        const months = Number(monthsInput.value) || 0;
+
+        const monthlyRate = annualRate > 0 ? annualRate / 100 / 12 : 0;
+        const principalPortion = loan * (principalPct / 100);
+        const monthlyPrincipal = months > 0 ? principalPortion / months : 0;
+        const firstMonthInterest = loan * monthlyRate;
+        const firstMonthPayment = monthlyPrincipal + firstMonthInterest;
+
+        document.getElementById('balloon-monthly-principal').value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
+        document.getElementById('balloon-first-payment').value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
+        document.getElementById('balloon-first-breakdown').textContent = 
+            `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
+    }
+
+    function handleBalloonLoanInput(event) {
+        const input = event.target;
+        const value = input.value.replace(/,/g, '');
+        const num = parseInt(value, 10);
         
+        if (!isNaN(num) && num > 0) {
+            input.value = num.toLocaleString();
+        } else {
+            input.value = '';
+        }
+        
+        calculateBalloonLoan();
+    }
+        
+
+    // 기존 이자계산기 이벤트 리스너에 원금 분할 계산 추가
+    loanAmountInput.addEventListener('keyup', () => {
+        calculateSimpleInterest();
+        calculateBalloonLoan(); // 추가
+    });
+    annualRateInput.addEventListener('keyup', () => {
+        calculateSimpleInterest();
+        calculateBalloonLoan(); // 추가
+    });
+
+    // 원금 분할 계산기 전용 필드들
+    const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
+    const balloonMonthsInput = document.getElementById('balloon-months');
+
+    if (balloonPrincipalPctInput) {
+        balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
+        balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
+        
+        // 초기 계산 실행
+        calculateBalloonLoan();
+    }
+
+
         document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
         document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
         document.getElementById('reset-btn').addEventListener('click', clearAllFields);
