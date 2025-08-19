@@ -1001,7 +1001,7 @@
             const regionSelect = document.getElementById('deduction_region');
             const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
             if(regionOption) {
-                regionSelect.value = regionOption.value;
+                regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
             } else if(regionSelect.options.length > 0) {
                 regionSelect.selectedIndex = 0;
             }
@@ -1275,54 +1275,51 @@
         calculateSimpleInterest();
         calculateBalloonLoan(); // 추가
     });
+// 원금 분할 계산기 전용 필드들
+const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
+const balloonMonthsInput = document.getElementById('balloon-months');
 
-    // 원금 분할 계산기 전용 필드들
-    const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
-    const balloonMonthsInput = document.getElementById('balloon-months');
+if (balloonPrincipalPctInput) {
+   balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
+   balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
+   
+   // 초기 계산 실행
+   calculateBalloonLoan();
+}
 
-    if (balloonPrincipalPctInput) {
-        balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
-        balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
-        
-        // 초기 계산 실행
-        calculateBalloonLoan();
-    }
+document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
+document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
+document.getElementById('reset-btn').addEventListener('click', clearAllFields);
+document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
+document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
+document.getElementById('update-btn').addEventListener('click', updateCustomer);
+document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
 
+// ✨ [수정] 방공제 지역 변경 시 경고 확인 로직만 유지
+document.getElementById('deduction_region').addEventListener('change', (e) => {
+   checkTenantDeductionWarning(); // 경고 확인 함수 호출
+   triggerMemoGeneration();
+});
 
-        document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
-        document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
-        document.getElementById('reset-btn').addEventListener('click', clearAllFields);
-        document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
-        document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
-        document.getElementById('update-btn').addEventListener('click', updateCustomer);
-        document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
-        
-        // ✨ [수정] 방공제 지역 변경 시 경고 확인 로직을 호출하도록 수정합니다.
-        document.getElementById('deduction_region').addEventListener('change', (e) => {
-            document.getElementById('deduction_amount').value = e.target.value.toLocaleString();
-            checkTenantDeductionWarning(); // 경고 확인 함수 호출
-            triggerMemoGeneration();
-        });
+document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
+   field.addEventListener('change', triggerMemoGeneration);
+   if (field.type === 'text' && !field.classList.contains('manwon-format')) {
+       field.addEventListener('keyup', triggerMemoGeneration);
+   }
+});
 
-        document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
-            field.addEventListener('change', triggerMemoGeneration);
-            if (field.type === 'text' && !field.classList.contains('manwon-format')) {
-                field.addEventListener('keyup', triggerMemoGeneration);
-            }
-        });
-        
-        document.querySelectorAll('.manwon-format').forEach(input => {
-            input.addEventListener('blur', formatManwonValue);
-        });
-    }
-    
-    // 페이지 로드 완료 후 실행
-    document.addEventListener('DOMContentLoaded', () => {
-        addLoanItem();
-        attachAllEventListeners();
-        loadCustomerList();
-        triggerMemoGeneration();
-    });
+document.querySelectorAll('.manwon-format').forEach(input => {
+   input.addEventListener('blur', formatManwonValue);
+});
+}
+
+// 페이지 로드 완료 후 실행
+document.addEventListener('DOMContentLoaded', () => {
+   addLoanItem();
+   attachAllEventListeners();
+   loadCustomerList();
+   triggerMemoGeneration();
+});
 </script>
 </body>
 </html>
