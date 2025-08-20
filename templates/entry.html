@@ -1297,8 +1297,12 @@ document.getElementById('layout-toggle-btn').addEventListener('click', toggleLay
 
 // ✨ [수정] 방공제 지역 변경 시 경고 확인 로직만 유지
 document.getElementById('deduction_region').addEventListener('change', (e) => {
-   checkTenantDeductionWarning(); // 경고 확인 함수 호출
-   triggerMemoGeneration();
+    // ✅ 신규 고객용: 방공제 금액 자동 설정
+    document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
+        parseInt(e.target.value).toLocaleString() : '';
+    
+    checkTenantDeductionWarning(); 
+    triggerMemoGeneration();
 });
 
 document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
