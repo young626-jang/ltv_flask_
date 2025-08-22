@@ -152,7 +152,13 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "filter": {
             "property": LOAN_DB_RELATION_PROPERTY,
             "relation": {"contains": page_id}
-        }
+        },
+        "sorts": [
+            {
+                "timestamp": "created_time",
+                "direction": "ascending"
+            }
+        ]
     }
     
     loan_response = requests.post(
