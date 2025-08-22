@@ -11,29 +11,218 @@
     <link rel="manifest" href="/static/manifest.json">
 
     <style>
+        :root {
+            /* Durekt 스타일 색상 팔레트 */
+            --primary-dark: #2D3748;
+            --primary-accent: #D946EF;
+            --primary-cyan: #06FFA5;
+            --primary-blue: #3B82F6;
+            --background-light: #EDF2F7;
+            --background-white: #FFFFFF;
+            --text-dark: #1A202C;
+            --text-muted: #718096;
+            --border-light: #E2E8F0;
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
         html, body { 
             height: 100%; 
             overflow-x: hidden; /* 가로 스크롤 방지 */
             font-family: 'Malgun Gothic', sans-serif; 
+            background: var(--background-light) !important;
+            background-color: #F7FAFC !important;
         }
         
-        /* 기존 스타일 유지 */
+        /* 기존 스타일 유지 - 리사이즈 바 추가 */
         .main-container { 
             display: flex; 
             height: 100vh; 
-            padding: 1rem; 
-            gap: 1rem; 
+            padding: 0.5rem; 
+            position: relative;
+            background: var(--background-light);
+            gap: 0.5rem;
         }
-        .pdf-viewer-column { flex: 2.5; display: flex; flex-direction: column; }
-        .form-column { flex: 1.5; height: calc(100vh - 2rem); overflow-y: auto; padding-right: 15px; }
+        .pdf-viewer-column { 
+            flex: none; 
+            width: 62.5%; /* 기본 2.5/4 비율 */
+            display: flex; 
+            flex-direction: column; 
+            transition: width 0.1s ease;
+            background: var(--background-white);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--shadow-soft);
+        }
+        .form-column { 
+            flex: none; 
+            width: 37.5%; /* 기본 1.5/4 비율 */
+            height: calc(100vh - 2rem); 
+            overflow-y: auto; 
+            padding-left: 0.5rem;
+            transition: width 0.1s ease;
+            background: var(--background-white);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--shadow-soft);
+        }
+        
+        /* 리사이즈 바 스타일 */
+        .resize-bar {
+            width: 8px; /* 세로모드에서도 터치 영역 약간 확대 */
+            background: linear-gradient(to bottom, #e9ecef, #dee2e6, #e9ecef);
+            cursor: col-resize;
+            position: relative;
+            flex-shrink: 0;
+            user-select: none;
+            z-index: 10;
+            transition: all 0.2s ease;
+            touch-action: none; /* 터치 스크롤 방지 */
+        }
+        
+        .resize-bar:hover {
+            background: linear-gradient(to bottom, #6c757d, #495057, #6c757d);
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+        }
+        
+        .resize-bar:active {
+            background: linear-gradient(to bottom, #495057, #343a40, #495057);
+        }
+        
+        .resize-bar::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 30px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 1px;
+        }
+        
+        .resize-bar::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+        }
         .pdf-iframe-container { flex-grow: 1; position: relative; }
-        #pdf-viewer { width: 100%; height: 100%; border: 1px solid #dee2e6; border-radius: 0.5rem; }
-        #upload-section { border: 2px dashed #adb5bd; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; text-align: center; height: 100%; cursor: pointer; transition: all 0.3s ease; }
-        #upload-section.dragover { border-color: #0d6efd; background-color: #e9ecef; }
+        #pdf-viewer { 
+            width: 100%; 
+            height: 100%; 
+            border: 1px solid var(--border-light); 
+            border-radius: 8px; 
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+        #upload-section { 
+            border: 2px dashed var(--border-light); 
+            border-radius: 12px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            height: 100%; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            color: var(--text-muted);
+        }
+        #upload-section.dragover { 
+            border-color: var(--primary-accent); 
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            color: var(--primary-accent);
+        }
         #file-input { display: none; }
-        body { font-size: 0.9rem; }
-        label { font-weight: 500; margin-bottom: 0.25rem; }
-        #loan-tab-pane .loan-item {padding: 0px;}
+        body { 
+            font-size: 0.9rem; 
+            color: var(--text-dark);
+            background-color: #EDF2F7;
+        }
+        label { 
+            font-weight: 600; 
+            margin-bottom: 0.25rem; 
+            color: var(--text-dark);
+            font-size: 0.875rem;
+        }
+
+        /* Durekt 스타일 버튼 오버라이드 */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-accent) 0%, #c026d3 100%);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(212, 70, 239, 0.2);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #c026d3 0%, #a21caf 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(212, 70, 239, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--primary-cyan) 0%, #00d4aa 100%);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #00d4aa 0%, #059669 100%);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid var(--primary-accent);
+            color: var(--primary-accent);
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--primary-accent);
+            border-color: var(--primary-accent);
+        }
+        
+        .btn-outline-secondary {
+            border: 2px solid var(--text-muted);
+            color: var(--text-muted);
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .btn-outline-secondary:hover {
+            background: var(--text-muted);
+            border-color: var(--text-muted);
+        }
+        
+        /* 폼 컨트롤 스타일링 */
+        .form-control, .form-select {
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+            color: var(--text-dark);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 3px rgba(212, 70, 239, 0.1);
+            outline: none;
+        }
+        
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
 
         /* ✨ 순서 조정 버튼 스타일 */
         .order-buttons {
@@ -73,11 +262,64 @@
             cursor: not-allowed;
         }
 
-        /* 가로 모드 레이아웃 스타일 */
-        .main-container.horizontal-mode { flex-direction: column; }
-        .main-container.horizontal-mode .pdf-viewer-column { width: 100%; flex: 0 0 45vh; }
-        .main-container.horizontal-mode .form-column { width: 100%; flex: 1; max-height: 50vh; }
-        .main-container.horizontal-mode #pdf-viewer { height: 40vh; }
+        /* 가로 모드 레이아웃 스타일 - 반응형 flex 기반 */
+        .main-container.horizontal-mode { 
+            flex-direction: column; 
+            gap: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .main-container.horizontal-mode .pdf-viewer-column { 
+            width: 100% !important; 
+            flex: 3; /* PDF 영역이 3/5 비율로 자동 조정 */
+            min-height: 150px; /* 최소 높이 축소 */
+            max-height: none;
+            overflow: hidden;
+        }
+        .main-container.horizontal-mode .form-column { 
+            width: 100% !important; 
+            flex: 2; /* 폼 영역이 2/5 비율로 자동 조정 */
+            min-height: 150px;
+            max-height: none;
+            overflow-y: auto;
+        }
+        .main-container.horizontal-mode .resize-bar {
+            width: 100% !important;
+            height: 8px; /* PC에서 여백 절약 */
+            cursor: row-resize;
+            position: relative;
+            z-index: 999; /* z-index 증가 */
+            touch-action: none; /* 터치 동작 제한 */
+        }
+        
+        /* 모바일에서만 터치 영역 확대 */
+        @media (max-width: 768px) {
+            .main-container.horizontal-mode .resize-bar {
+                height: 12px !important;
+            }
+            
+            /* 가로모드 모바일에서 업로드 영역 컴팩트화 */
+            .main-container.horizontal-mode #upload-section {
+                min-height: 120px;
+            }
+            
+            .main-container.horizontal-mode #upload-section h4 {
+                font-size: 1rem;
+                margin-top: 0.5rem;
+            }
+            
+            .main-container.horizontal-mode #upload-section .bi-cloud-arrow-up-fill {
+                font-size: 3rem !important;
+            }
+        }
+        .main-container.horizontal-mode .resize-bar::before {
+            width: 30px;
+            height: 2px;
+        }
+        .main-container.horizontal-mode .resize-bar::after {
+            width: 4px;
+            height: 20px;
+        }
 
         /* ============= 📱 모바일 반응형 개선 ============= */
         
@@ -89,21 +331,20 @@
             
             .main-container {
                 flex-direction: column;
-                padding: 0.5rem;
-                gap: 0.5rem;
+                padding: 0.25rem;
+                gap: 0.25rem;
                 height: 100vh;
             }
             
             .pdf-viewer-column {
                 flex: 0 0 40vh;
-                min-height: 250px;
+                min-height: 180px;
             }
             
             .form-column {
                 flex: 1;
                 height: auto;
                 max-height: none;
-                padding-right: 0;
                 overflow-y: auto;
             }
             
@@ -154,12 +395,11 @@
             
             /* 업로드 영역 모바일 최적화 */
             #upload-section {
-                min-height: 200px;
-                padding: 1rem;
+                min-height: 150px;
             }
             
             #upload-section h4 {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
             }
             
             /* 텍스트 영역 모바일 최적화 */
@@ -188,12 +428,12 @@
             }
             
             .main-container {
-                padding: 0.25rem;
+                padding: 0.125rem;
             }
             
             .pdf-viewer-column {
                 flex: 0 0 35vh;
-                min-height: 200px;
+                min-height: 150px;
             }
             
             /* 더 작은 화면에서는 버튼들을 세로로 */
@@ -205,7 +445,6 @@
             
             .d-grid.gap-2.d-md-flex .btn {
                 width: 100%;
-                margin: 0;
             }
             
             /* 고객 선택 영역 모바일 최적화 */
@@ -245,27 +484,6 @@
             }
         }
         
-        /* 아주 작은 화면 (400px 이하) */
-        @media (max-width: 400px) {
-            .main-container {
-                padding: 0.125rem;
-            }
-            
-            body {
-                font-size: 0.75rem;
-            }
-            
-            .btn {
-                min-height: 40px;
-                font-size: 0.8rem;
-                padding: 0.5rem;
-            }
-            
-            .form-control, .form-select {
-                min-height: 40px;
-                font-size: 14px;
-            }
-        }
         
         /* 가로모드 모바일 최적화 */
         @media (max-width: 768px) and (orientation: landscape) {
@@ -314,8 +532,8 @@
         /* PWA 상태바 고려 (iOS Safari) */
         @supports (padding-top: env(safe-area-inset-top)) {
             .main-container {
-                padding-top: max(1rem, env(safe-area-inset-top));
-                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+                padding-top: max(0.5rem, env(safe-area-inset-top));
+                padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
             }
         }
         
@@ -335,7 +553,7 @@
         }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <div class="main-container" id="main-layout-wrapper">
     <div class="pdf-viewer-column" id="pdf-column">
@@ -349,13 +567,15 @@
         </div>
         <input type="file" id="file-input" accept=".pdf">
         <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
-            <div class="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
-                <h4 id="file-name-display" class="mb-0 small text-muted"></h4>
+            <div class="d-flex justify-content-between align-items-center mb-0 flex-shrink-0" style="padding: 0.25rem 0;">
+                <h6 id="file-name-display" class="mb-0 small text-muted"></h6>
                 <button id="layout-toggle-btn" class="btn btn-outline-dark btn-sm"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
             </div>
             <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
         </div>
     </div>
+
+    <div class="resize-bar" id="resize-bar"></div>
 
     <div class="form-column" id="form-column-wrapper">
         <div class="p-2">
@@ -366,7 +586,7 @@
                 <button class="btn btn-outline-secondary" type="button" id="reset-btn">✨ 전체 초기화</button>
             </div>
 
-            <div id="basic-info-form">
+            <div id="basic-info-form" style="background: var(--background-white); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <div class="mb-2"><label for="customer_name">고객명 & 생년월일</label><input type="text" class="form-control form-field" id="customer_name"></div>
                 <div class="mb-2"><label for="address">주소</label><input type="text" class="form-control form-field" id="address"></div>
 
@@ -496,6 +716,60 @@
 <script>
     let loanItemCounter = 0;
     let memoDebounceTimeout;
+
+    // 레이아웃 설정 저장/복원 기능
+    function saveLayoutSettings() {
+        const mainContainer = document.getElementById('main-layout-wrapper');
+        const pdfColumn = document.getElementById('pdf-column');
+        const formColumn = document.getElementById('form-column-wrapper');
+        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
+        
+        const layoutSettings = {
+            isHorizontalMode: isHorizontal,
+            pdfColumnWidth: pdfColumn.style.width || (isHorizontal ? '100%' : '62.5%'),
+            pdfColumnHeight: pdfColumn.style.height || (isHorizontal ? '60%' : 'calc(100vh - 2rem)'),
+            formColumnWidth: formColumn.style.width || (isHorizontal ? '100%' : '37.5%'),
+            formColumnHeight: formColumn.style.height || (isHorizontal ? '38%' : 'calc(100vh - 2rem)'),
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem('ltvLayoutSettings', JSON.stringify(layoutSettings));
+    }
+
+    function loadLayoutSettings() {
+        try {
+            const saved = localStorage.getItem('ltvLayoutSettings');
+            if (!saved) return;
+            
+            const settings = JSON.parse(saved);
+            const mainContainer = document.getElementById('main-layout-wrapper');
+            const btn = document.getElementById('layout-toggle-btn');
+            const pdfColumn = document.getElementById('pdf-column');
+            const formColumn = document.getElementById('form-column-wrapper');
+            
+            // 저장된 설정이 24시간 이내인지 확인
+            const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
+            if (!isRecent) return;
+            
+            // 레이아웃 모드 복원
+            if (settings.isHorizontalMode) {
+                mainContainer.classList.add('horizontal-mode');
+                btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
+            } else {
+                mainContainer.classList.remove('horizontal-mode');
+                btn.innerHTML = '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+            }
+            
+            // 컬럼 크기 복원
+            pdfColumn.style.width = settings.pdfColumnWidth;
+            pdfColumn.style.height = settings.pdfColumnHeight;
+            formColumn.style.width = settings.formColumnWidth;
+            formColumn.style.height = settings.formColumnHeight;
+            
+        } catch (error) {
+            console.error('레이아웃 설정 로드 실패:', error);
+        }
+    }
 
     // 고급 금액 파싱 함수
     function parseAdvancedAmount(text) {
@@ -1140,10 +1414,41 @@
 
     // 레이아웃 토글
     function toggleLayout() {
-        document.getElementById('main-layout-wrapper').classList.toggle('horizontal-mode');
+        const mainContainer = document.getElementById('main-layout-wrapper');
         const btn = document.getElementById('layout-toggle-btn');
-        const isHorizontal = document.getElementById('main-layout-wrapper').classList.contains('horizontal-mode');
-        btn.innerHTML = isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+        const pdfColumn = document.getElementById('pdf-column');
+        const formColumn = document.getElementById('form-column-wrapper');
+        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
+        
+        mainContainer.classList.toggle('horizontal-mode');
+        btn.innerHTML = !isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+        
+        // 컬럼 크기 초기화
+        if (!isHorizontal) {
+            // 가로모드로 전환 - flex 기반 반응형
+            pdfColumn.style.width = '100%';
+            pdfColumn.style.height = '';
+            pdfColumn.style.flex = '3';
+            formColumn.style.width = '100%';
+            formColumn.style.height = '';
+            formColumn.style.flex = '2';
+        } else {
+            // 세로모드로 전환
+            pdfColumn.style.width = '62.5%';
+            pdfColumn.style.height = 'calc(100vh - 2rem)';
+            pdfColumn.style.flex = '';
+            formColumn.style.width = '37.5%';
+            formColumn.style.height = 'calc(100vh - 2rem)';
+            formColumn.style.flex = '';
+        }
+        
+        // 레이아웃 상태 저장
+        saveLayoutSettings();
+        
+        // 리사이즈 바 이벤트 리스너 재설정
+        setTimeout(() => {
+            initializeResizeBar();
+        }, 100);
     }
     
     // 전체 초기화
@@ -1317,12 +1622,185 @@ document.querySelectorAll('.manwon-format').forEach(input => {
 });
 }
 
+
+    // 리사이즈 바 기능 구현
+    function initializeResizeBar() {
+        const resizeBar = document.getElementById('resize-bar');
+        const pdfColumn = document.getElementById('pdf-column');
+        const formColumn = document.getElementById('form-column-wrapper');
+        const mainContainer = document.getElementById('main-layout-wrapper');
+        const pdfViewer = document.getElementById('pdf-viewer'); // iframe 요소를 미리 찾아둡니다.
+        
+        // 기존 이벤트 리스너 제거 (중복 방지)
+        const newResizeBar = resizeBar.cloneNode(true);
+        resizeBar.parentNode.replaceChild(newResizeBar, resizeBar);
+        
+        let isResizing = false;
+        let startPos = 0;
+        let startPdfSize = 0;
+        
+        const isHorizontalMode = () => mainContainer.classList.contains('horizontal-mode');
+        
+        function startResize(clientX, clientY) {
+            isResizing = true;
+            
+            // [수정 1] 드래그를 시작할 때 iframe의 마우스 이벤트를 '끈다'.
+            pdfViewer.style.pointerEvents = 'none';
+            
+            // 트랜지션 효과를 잠시 꺼서 드래그가 끊기지 않게 합니다.
+            pdfColumn.style.transition = 'none';
+            formColumn.style.transition = 'none';
+            
+            // 드래그 중 텍스트가 선택되는 것을 방지합니다.
+            document.body.style.userSelect = 'none';
+            
+            if (isHorizontalMode()) {
+                startPos = clientY;
+                startPdfSize = pdfColumn.getBoundingClientRect().height;
+                document.body.style.cursor = 'row-resize';
+            } else {
+                startPos = clientX;
+                startPdfSize = pdfColumn.getBoundingClientRect().width;
+                document.body.style.cursor = 'col-resize';
+            }
+        }
+        
+        function doResize(clientX, clientY) {
+            if (!isResizing) return;
+            
+            if (isHorizontalMode()) {
+                // --- 가로 모드 (상하 분할) ---
+                const deltaY = clientY - startPos;
+                const containerHeight = mainContainer.clientHeight;
+                const minHeight = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 높이
+                
+                let newPdfHeight = startPdfSize + deltaY;
+                
+                // 최소/최대 높이 제한을 두어 레이아웃이 깨지지 않게 합니다.
+                newPdfHeight = Math.max(minHeight, newPdfHeight);
+                newPdfHeight = Math.min(containerHeight - minHeight, newPdfHeight);
+
+                const newFormHeight = containerHeight - newPdfHeight - newResizeBar.clientHeight;
+                
+                const totalFlexHeight = newPdfHeight + newFormHeight;
+                pdfColumn.style.flex = `${(newPdfHeight / totalFlexHeight) * 5}`;
+                formColumn.style.flex = `${(newFormHeight / totalFlexHeight) * 5}`;
+                
+            } else {
+                // --- 세로 모드 (좌우 분할) ---
+                const deltaX = clientX - startPos;
+                const containerWidth = mainContainer.clientWidth;
+                const resizeBarWidth = newResizeBar.clientWidth;
+                const availableWidth = containerWidth - resizeBarWidth;
+                const minWidth = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 너비
+
+                let newPdfWidth = startPdfSize + deltaX;
+
+                // 최소/최대 너비 제한을 두어 레이아웃이 깨지지 않게 합니다.
+                newPdfWidth = Math.max(minWidth, newPdfWidth);
+                newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
+                
+                const pdfPercent = (newPdfWidth / availableWidth) * 100;
+                const formPercent = 100 - pdfPercent;
+                
+                pdfColumn.style.width = `${pdfPercent}%`;
+                formColumn.style.width = `${formPercent}%`;
+            }
+        }
+        
+        function endResize() {
+            if (!isResizing) return;
+            isResizing = false;
+            
+            // [수정 2] 드래그가 끝나면 iframe의 마우스 이벤트를 다시 '켠다'.
+            pdfViewer.style.pointerEvents = 'auto';
+            
+            // 부드러운 효과를 위해 트랜지션을 다시 활성화합니다.
+            pdfColumn.style.transition = '';
+            formColumn.style.transition = '';
+            
+            // 텍스트 선택 방지 및 마우스 커서 스타일을 원래대로 복원합니다.
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            
+            // 리사이즈가 끝난 후 현재 레이아웃 상태를 저장합니다.
+            saveLayoutSettings();
+        }
+        
+        // --- 이벤트 리스너 등록 ---
+        
+        // 마우스 이벤트
+        newResizeBar.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startResize(e.clientX, e.clientY);
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isResizing) {
+                e.preventDefault();
+                doResize(e.clientX, e.clientY);
+            }
+        });
+        
+        document.addEventListener('mouseup', endResize);
+        document.addEventListener('mouseleave', endResize); // 마우스가 창 밖으로 나가도 드래그가 멈추도록 추가
+        
+        // 터치 이벤트 (모바일)
+        newResizeBar.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            startResize(touch.clientX, touch.clientY);
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (isResizing) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                doResize(touch.clientX, touch.clientY);
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', endResize);
+        document.addEventListener('touchcancel', endResize);
+        
+        // 더블클릭으로 기본 비율 복원
+        newResizeBar.addEventListener('dblclick', () => {
+            if (isHorizontalMode()) {
+                pdfColumn.style.flex = '3';
+                formColumn.style.flex = '2';
+            } else {
+                pdfColumn.style.width = '62.5%';
+                formColumn.style.width = '37.5%';
+            }
+            saveLayoutSettings();
+        });
+    }
+
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', () => {
    addLoanItem();
    attachAllEventListeners();
    loadCustomerList();
    triggerMemoGeneration();
+   initializeResizeBar(); // 리사이즈 바 초기화 추가
+   
+   // 저장된 레이아웃 설정 복원
+   setTimeout(() => {
+       loadLayoutSettings();
+       initializeResizeBar(); // 레이아웃 복원 후 리사이즈 바 재초기화
+   }, 200);
+});
+
+// 페이지를 떠날 때 자동 저장
+window.addEventListener('beforeunload', () => {
+    saveLayoutSettings();
+});
+
+// 페이지 숨김/표시 시 저장 (모바일 브라우저 대응)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        saveLayoutSettings();
+    }
 });
 </script>
 </body>
