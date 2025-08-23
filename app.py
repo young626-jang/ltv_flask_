@@ -126,162 +126,177 @@ def view_pdf(filename):
     
     return send_file(filepath, mimetype='application/pdf')
 
-@app.route('/api/generate_text_memo', methods=['POST'])
-def generate_text_memo_route():
-    """메모 생성 API"""
+def generate_memo(data):
+    """
+    하나의 함수로 통합된 메모 생성 로직.
+    입력 데이터를 받아 계산과 텍스트 생성을 모두 처리한다.
+    (요청사항에 맞춰 수정된 버전)
+    """
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "잘못된 요청 데이터"}), 400
-            
         inputs = data.get('inputs', {})
         loans = data.get('loans', [])
         fees = data.get('fees', {})
 
-        memo_content = generate_memo_content(inputs, loans, fees)
+        # --- 금액 포맷팅 헬퍼 함수 ---
+        def format_manwon(value):
+            num_val = parse_korean_number(str(value))
+            if num_val == 0:
+                return "0"
+            return f"{convert_won_to_manwon(num_val)}만"
+
+        # --- 1. 계산 로직 ---
+        address = inputs.get('address', '')
+        floor_match = re.findall(r"제(\d+)층", address)
+        floor_num = int(floor_match[-1]) if floor_match else None
         
-        return jsonify(memo_content)
+        price_type = ""
+        if floor_num is not None:
+            price_type = "📉 하안가" if floor_num <= 2 else "📈 일반가"
+
+        total_value = parse_korean_number(inputs.get("kb_price", "0"))
+        deduction = parse_korean_number(inputs.get("deduction_amount", "0"))
+        ltv_rates = [rate for rate in inputs.get('ltv_rates', []) if rate and rate.isdigit()]
         
-    except Exception as e:
-        logger.error(f"메모 생성 중 오류: {e}", exc_info=True)
-        return jsonify({"error": "메모 생성 중 오류가 발생했습니다."}), 500
-
-def generate_memo_content(inputs, loans, fees):
-    """메모 내용 생성 로직 분리"""
-    address = inputs.get('address', '')
-    floor_match = re.findall(r"제(\d+)층", address)
-    floor_num = int(floor_match[-1]) if floor_match else None
-    
-    price_type = ""
-    if floor_num is not None:
-        price_type = "📉 하안가" if floor_num <= 2 else "📈 일반가"
-
-    total_value = parse_korean_number(inputs.get("kb_price", "0"))
-    deduction = parse_korean_number(inputs.get("deduction_amount", "0"))
-    ltv_rates = [rate for rate in inputs.get('ltv_rates', []) if rate and rate.isdigit()]
-    
-    # 대출 정보 계산 - 유지성 상태들 (유지, 동의, 비동의)
-    maintain_status = ['유지', '동의', '비동의']
-    maintain_maxamt_sum = sum(
-        parse_korean_number(item.get('max_amount', '0')) 
-        for item in loans if item.get('status') in maintain_status
-    )
-    
-    # 대환/선말소성 상태들 (대환, 선말소, 퇴거자금)
-    refinance_status = ['대환', '선말소', '퇴거자금']
-    sub_principal_sum = sum(
-        parse_korean_number(item.get('principal', '0')) 
-        for item in loans if item.get('status') in refinance_status
-    )
-    
-    is_subordinate = any(item.get('status') in maintain_status for item in loans)
-
-    # LTV 계산
-    ltv_results = []
-    for rate_str in ltv_rates:
-        ltv = int(rate_str)
-        loan_type_info = "후순위" if is_subordinate else "선순위"
-        limit, available = calculate_ltv_limit(
-            total_value, deduction, sub_principal_sum, 
-            maintain_maxamt_sum, ltv, is_senior=not is_subordinate
+        maintain_status = ['유지', '동의', '비동의']
+        maintain_maxamt_sum = sum(
+            parse_korean_number(item.get('max_amount', '0')) 
+            for item in loans if isinstance(item, dict) and item.get('status') in maintain_status
         )
-        ltv_results.append({
-            "ltv_rate": ltv, 
-            "limit": limit, 
-            "available": available, 
-            "loan_type": loan_type_info
-        })
-
-    # 메모 생성
-    memo = build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction)
-    
-    return {"memo": memo, "price_type": price_type}
-
-def build_memo_text(inputs, loans, fees, ltv_results, total_value, deduction):
-    """메모 텍스트 구성"""
-    memo = []
-    
-    # 고객 기본 정보
-    memo.append(f"고객명: {inputs.get('customer_name', '')}")
-    area_str = f"면적: {inputs.get('area', '')}㎡"
-    kb_price_str = f"KB시세: {format_thousands(total_value)}만"
-    deduction_str = f"방공제: {format_thousands(deduction)}만"
-    memo.append(f"주소: {inputs.get('address', '')} | {area_str} | {kb_price_str} | {deduction_str}")
-    memo.append("")
-
-    # 대출 정보
-    for item in loans:
-        memo.append(
-            f"{item.get('lender', '-')} | "
-            f"{format_thousands(parse_korean_number(item.get('max_amount', '0')))} | "
-            f"{item.get('ratio', '-')}% | "
-            f"{format_thousands(parse_korean_number(item.get('principal', '0')))} | "
-            f"{item.get('status', '-')}"
-        )
-    memo.append("")
-    
-    # LTV 정보
-    for res in ltv_results:
-        memo.append(
-            f"LTV {res['ltv_rate']}% ({res['loan_type']}) "
-            f"한도: {format_thousands(res['limit'])}만 "
-            f"가용: {format_thousands(res['available'])}만"
-        )
-    memo.append("")
-    
-    # 대출기관별 합계 (선순위일 때만 표시)
-    maintain_status = ['유지', '동의', '비동의']
-    is_subordinate = any(item.get('status') in maintain_status for item in loans)
-    
-    if not is_subordinate:  # 선순위일 때만 표시
-        lender_sum = defaultdict(int)
+        
         refinance_status = ['대환', '선말소', '퇴거자금']
-        for item in loans:
-            if item.get('lender', '').strip() and item.get('status') in refinance_status:
-                lender_sum[item['lender']] += parse_korean_number(item.get('principal', '0'))
+        sub_principal_sum = sum(
+            parse_korean_number(item.get('principal', '0')) 
+            for item in loans if isinstance(item, dict) and item.get('status') in refinance_status
+        )
         
-        if lender_sum:
-            memo.append("설정금액별 원금합계")
-            for lender, total in lender_sum.items():
-                memo.append(f"{lender}: {format_thousands(total)}만")
-            memo.append("")
+        is_subordinate = any(isinstance(item, dict) and item.get('status') in maintain_status for item in loans)
+
+        ltv_results = []
+        for rate_str in ltv_rates:
+            ltv = int(rate_str)
+            loan_type_info = "후순위" if is_subordinate else "선순위"
+            limit, available = calculate_ltv_limit(
+                total_value, deduction, sub_principal_sum, 
+                maintain_maxamt_sum, ltv, is_senior=not is_subordinate
+            )
+            ltv_results.append({
+                "ltv_rate": ltv, 
+                "limit": limit, 
+                "available": available, 
+                "loan_type": loan_type_info
+            })
+
+        # --- 2. 텍스트 구성 로직 ---
+        memo_lines = []
+
+        if inputs and (inputs.get('customer_name') or inputs.get('address')):
+            memo_lines.append(f"고객명: {inputs.get('customer_name', '')}")
+            area_str = f"면적: {inputs.get('area', '')}㎡" if inputs.get('area') else ""
+            kb_price_str = f"KB시세: {format_manwon(total_value)}" if total_value > 0 else ""
+            deduction_str = f"방공제: {format_manwon(deduction)}" if deduction > 0 else ""
             
-    # 상태별 합계 계산
-    status_sums = {
-        '대환': 0,
-        '선말소': 0, 
-        '퇴거자금': 0
-    }
-    
-    for item in loans:
-        status = item.get('status', '')
-        if status in status_sums:
-            status_sums[status] += parse_korean_number(item.get('principal', '0'))
-    
-    # 합계가 0보다 큰 항목들만 표시
-    for status, amount in status_sums.items():
-        if amount > 0:
-            memo.append(f"{status} 합계: {format_thousands(amount)}만")
-    
-    if any(amount > 0 for amount in status_sums.values()):
-        memo.append("")
+            address_parts = [inputs.get('address', ''), area_str, kb_price_str, deduction_str]
+            memo_lines.append(" | ".join(part for part in address_parts if part))
+            memo_lines.append("")
 
-    # 수수료 정보
-    consult_amt = parse_korean_number(fees.get('consult_amt', '0'))
-    consult_rate = float(fees.get('consult_rate', '0') or 0)
-    consult_fee = int(consult_amt * consult_rate / 100)
-    bridge_amt = parse_korean_number(fees.get('bridge_amt', '0'))
-    bridge_rate = float(fees.get('bridge_rate', '0') or 0)
-    bridge_fee = int(bridge_amt * bridge_rate / 100)
-    total_fee = consult_fee + bridge_fee
-    
-    memo.extend([
-        f"필요금 {format_thousands(consult_amt)}만 컨설팅비용({consult_rate}%): {format_thousands(consult_fee)}만",
-        f"브릿지 {format_thousands(bridge_amt)}만 브릿지비용({bridge_rate}%): {format_thousands(bridge_fee)}만",
-        f"총 수수료 합계: {format_thousands(total_fee)}만"
-    ])
+        valid_loans = []
+        if loans and isinstance(loans, list):
+            status_order = {'선말소': 0, '대환': 1}
+            valid_loans = [l for l in loans if isinstance(l, dict) and (parse_korean_number(l.get('max_amount', '0')) > 0 or parse_korean_number(l.get('principal', '0')) > 0)]
+            valid_loans.sort(key=lambda x: status_order.get(x.get('status'), 2))
+            
+            loan_memo = []
+            for i, item in enumerate(valid_loans, 1):
+                max_amount = parse_korean_number(item.get('max_amount', '0'))
+                principal = parse_korean_number(item.get('principal', '0'))
+                loan_memo.append(
+                    f"{i}. {item.get('lender', '-')} | "
+                    f"설정금액: {format_manwon(max_amount)} | "
+                    f"{item.get('ratio', '-')}% | "
+                    f"원금: {format_manwon(principal)} | "
+                    f"{item.get('status', '-')}"
+                )
+            
+            if loan_memo:
+                memo_lines.extend(loan_memo)
+                memo_lines.append("")
 
-    return "\n".join(memo)
+        if ltv_results and isinstance(ltv_results, list):
+            ltv_memo = []
+            for res in ltv_results:
+                if isinstance(res, dict) and (res.get('limit', 0) > 0 or res.get('available', 0) > 0):
+                    ltv_memo.append(
+                        f"{res.get('loan_type', '기타')} 한도 LTV {res.get('ltv_rate', 0)}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}"
+                    )
+            if ltv_memo:
+                memo_lines.extend(ltv_memo)
+                memo_lines.append("")
+
+        # '선말소', '대환', '퇴거자금' 상태의 대출이 있을 때만 합계 섹션을 표시
+        order = ['선말소', '대환', '퇴거자금']
+        status_sums = defaultdict(lambda: defaultdict(lambda: {'sum': 0, 'count': 0}))
+        has_status_sum = False
+
+        for item in valid_loans:
+            status = item.get('status', '')
+            principal = parse_korean_number(item.get('principal', '0'))
+            if status in order and principal > 0:
+                lender = item.get('lender', '기타')
+                status_sums[status][lender]['sum'] += principal
+                status_sums[status][lender]['count'] += 1
+                has_status_sum = True
+
+        if has_status_sum:
+            memo_lines.append("--------------------------------------------------")
+            memo_lines.append("설정금액별 원금 합계")
+            memo_lines.append("")
+            
+            for status in order:
+                if status_sums[status]:
+                    total_status_sum = sum(data['sum'] for data in status_sums[status].values())
+                    memo_lines.append(f"{status}")
+                    for lender, data in status_sums[status].items():
+                        memo_lines.append(f"{lender} {data['count']}건 {format_manwon(data['sum'])}")
+                    memo_lines.append(f"총 {format_manwon(total_status_sum)}")
+                    memo_lines.append("")
+            memo_lines.append("--------------------------------------------------")
+
+        if fees and isinstance(fees, dict):
+            consult_amt = parse_korean_number(fees.get('consult_amt', '0'))
+            bridge_amt = parse_korean_number(fees.get('bridge_amt', '0'))
+
+            if consult_amt > 0 or bridge_amt > 0:
+                consult_rate = float(fees.get('consult_rate', '0') or 0)
+                consult_fee = int(consult_amt * consult_rate / 100)
+                bridge_rate = float(fees.get('bridge_rate', '0') or 0)
+                bridge_fee = int(bridge_amt * bridge_rate / 100)
+                total_fee = consult_fee + bridge_fee
+                
+                fee_memo = []
+                if consult_amt > 0:
+                    fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({consult_rate}%): {format_manwon(consult_fee)}")
+                if bridge_amt > 0:
+                    fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({bridge_rate}%): {format_manwon(bridge_fee)}")
+                if total_fee > 0:
+                    fee_memo.append(f"총 컨설팅 합계: {format_manwon(total_fee)}")
+                
+                if fee_memo:
+                    memo_lines.extend(fee_memo)
+        
+        memo_text = "\n".join(memo_lines).strip()
+        return {"memo": memo_text, "price_type": price_type}
+
+    except Exception as e:
+        logger.error(f"메모 생성 중 오류 발생: {e}", exc_info=True)
+        return {"memo": "", "price_type": ""}
+
+@app.route('/api/generate_text_memo', methods=['POST'])
+def generate_text_memo_route():
+    """메모 생성 API"""
+    data = request.get_json() or {}
+    result = generate_memo(data)
+    return jsonify(result)
+
 
 @app.route('/api/convert_loan_amount', methods=['POST'])
 def convert_loan_amount_route():
