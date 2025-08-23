@@ -151,7 +151,7 @@ def generate_memo(data):
         
         price_type = ""
         if floor_num is not None:
-            price_type = "📉 하안가" if floor_num <= 2 else "📈 일반가"
+            price_type = "하안가" if floor_num <= 2 else "일반가"
 
         total_value = parse_korean_number(inputs.get("kb_price", "0"))
         deduction = parse_korean_number(inputs.get("deduction_amount", "0"))
@@ -368,3 +368,4 @@ def delete_customer_route(page_id):
 # --- 앱 실행 ---
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+
