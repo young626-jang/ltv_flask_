@@ -227,7 +227,6 @@ def generate_memo(data):
         if has_status_sum:
             memo_lines.append("--------------------------------------------------")
             memo_lines.append("설정금액별 원금 합계")
-            memo_lines.append("")
             for status in order:
                 if status_sums[status]:
                     total_status_sum = sum(data['sum'] for data in status_sums[status].values())
@@ -366,5 +365,6 @@ def delete_customer_route(page_id):
 # --- 앱 실행 ---
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+
 
 
