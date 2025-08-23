@@ -225,7 +225,6 @@ def generate_memo(data):
                 has_status_sum = True
         
         if has_status_sum:
-            memo_lines.append("")
             memo_lines.append("--------------------------------------------------")
             memo_lines.append("설정금액별 원금 합계")
             memo_lines.append("")
@@ -236,7 +235,6 @@ def generate_memo(data):
                     for lender, data in status_sums[status].items():
                         memo_lines.append(f"{lender} {data['count']}건 {format_manwon(data['sum'])}")
                     memo_lines.append(f"총 {format_manwon(total_status_sum)}")
-                    memo_lines.append("")
             memo_lines.append("--------------------------------------------------")
 
         if fees and isinstance(fees, dict):
@@ -368,4 +366,5 @@ def delete_customer_route(page_id):
 # --- 앱 실행 ---
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+
 
