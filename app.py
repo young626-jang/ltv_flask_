@@ -6,9 +6,9 @@ from werkzeug.utils import secure_filename
 from collections import defaultdict
 
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
-from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts
+from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
 from ltv_map import region_map
-from pdf_parser import parse_pdf_for_ltv
+from pdf_parser import parse_pdf_for_ltv, extract_owner_shares_with_birth
 from history_manager_flask import (
     fetch_all_customers, 
     fetch_customer_details,
@@ -76,7 +76,9 @@ def upload_and_parse_pdf():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         scraped_data = parse_pdf_for_ltv(filepath)
-        return jsonify({"success": True, "filename": filename, "scraped_data": scraped_data})
+        owner_shares = extract_owner_shares_with_birth(filepath)
+        scraped_data["owner_shares"] = owner_shares
+        return jsonify({"success": True, "scraped_data": scraped_data})
     except Exception as e:
         logger.error(f"PDF 업로드 처리 중 오류: {e}", exc_info=True)
         return jsonify({"success": False, "error": f"서버 처리 중 오류 발생: {str(e)}"}), 500
@@ -101,8 +103,7 @@ def generate_memo(data):
         def format_manwon(value):
             num_val = parse_korean_number(str(value))
             if isinstance(num_val, (int, float)):
-                manwon_val = int(num_val / 10000)
-                return f"{manwon_val:,}만"
+                return f"{num_val:,}만"
             return "0만"
 
         # --- 1. 계산 로직 (이전과 동일) ---
@@ -126,6 +127,16 @@ def generate_memo(data):
             ltv_results.append({"ltv_rate": ltv, "limit": limit, "available": available, "loan_type": loan_type_info})
 
         # --- 2. 텍스트 구성 로직 ---
+        # 의미있는 입력이 없으면 빈 메모 반환
+        has_meaningful_input = (
+            (inputs and (inputs.get('customer_name') or inputs.get('address') or total_value > 0 or deduction > 0)) or
+            (loans and any(isinstance(item, dict) and (parse_korean_number(item.get('max_amount', '0')) > 0 or parse_korean_number(item.get('principal', '0')) > 0) for item in loans)) or
+            (fees and isinstance(fees, dict) and (parse_korean_number(fees.get('consult_amt', '0')) > 0 or parse_korean_number(fees.get('bridge_amt', '0')) > 0))
+        )
+        
+        if not has_meaningful_input:
+            return {"memo": "", "price_type": ""}
+        
         memo_lines = []
         ltv_lines_exist = False # LTV 라인이 추가되었는지 확인하기 위한 플래그
 
@@ -290,5 +301,29 @@ def delete_customer_route(page_id):
         logger.error(f"고객 삭제 오류: {e}")
         return jsonify({"error": "고객 삭제 중 오류가 발생했습니다."}), 500
 
+@app.route('/api/calculate_individual_share', methods=['POST'])
+def calculate_individual_share():
+    try:
+        data = request.get_json()
+        total_value = int(data.get("total_value", 0))   # 만원 단위
+        ltv = float(data.get("ltv", 70))
+        loans = data.get("loans", [])
+        owners = data.get("owners", [])
+        senior_lien = 0
+
+        # 차감할 대출 (채권최고액, 원금 합산)
+        for loan in loans:
+            max_amt = int(loan.get("max_amount", 0))
+            principal = int(loan.get("principal", 0))
+            senior_lien += max_amt if max_amt else principal
+
+        # 지분별 한도 계산
+        results = calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien)
+
+        return jsonify({"success": True, "results": results})
+    except Exception as e:
+        logger.error(f"개인별 지분 한도 계산 오류: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')```
+    app.run(debug=True, host='0.0.0.0')
