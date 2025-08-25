@@ -161,3 +161,40 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
     limit = (limit // 100) * 100
     available = (available // 100) * 100
     return limit, available
+
+def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
+    """
+    소유자별 지분율을 반영하여 개인별 대출 가능 한도를 계산합니다.
+    
+    Parameters:
+        total_value (int): 부동산 전체 시세 (만원 단위)
+        owners (list[dict]): [{ "이름": ..., "지분": "1/2", "지분율": "50.0%" }, ...]
+        ltv (float): 적용 LTV 비율 (예: 70)
+        senior_lien (int): 선순위 채권최고액 (만원 단위, default=0)
+
+    Returns:
+        list[dict]: 소유자별 계산 결과
+    """
+    results = []
+    for owner in owners:
+        # 지분율 숫자만 추출
+        share_percent = float(owner["지분율"].replace("%", ""))
+        
+        # (1) 지분 가치
+        equity_value = int(total_value * (share_percent / 100))
+        
+        # (2) LTV 적용 한도
+        ltv_limit = int(equity_value * (ltv / 100))
+        
+        # (3) 최종 대출 가능액 (선순위 차감)
+        final_limit = max(0, ltv_limit - senior_lien)
+        
+        results.append({
+            "이름": owner["이름"],
+            "지분율": owner["지분율"],
+            "지분가치(만원)": equity_value,
+            "LTV한도(만원)": ltv_limit,
+            "최종한도(만원)": final_limit
+        })
+    
+    return results
