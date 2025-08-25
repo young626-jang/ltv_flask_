@@ -828,10 +828,9 @@
                 <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB시세</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn md-btn-secondary flex-fill">인터넷등기소</a></div>
 
             </div>
-<hr class="my-4">
             
             <!-- LTV 비율을 탭 밖으로 노출 -->
-            <div style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem; border: 2px solid transparent; transition: border-color 0.3s ease;" onmouseover="this.style.borderColor='#A4193D'" onmouseout="this.style.borderColor='transparent'">
+            <div style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); border: 2px solid transparent; transition: border-color 0.3s ease;" onmouseover="this.style.borderColor='#A4193D'" onmouseout="this.style.borderColor='transparent'">
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="d-flex align-items-center gap-2">
@@ -858,29 +857,34 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
+                        지분 한도 계산기
+                      </button>
+                    </li>
                 </ul>
                 <div>
                     <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
                 </div>
             </div>
 
-            <div class="tab-content pt-3" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; margin-top: 0.5rem;">
+            <div class="tab-content" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem;">
                 <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
-                <!-- ✨ 헤더 레이아웃 수정: 드래그 핸들용 공간 추가 -->
-                <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
-                    <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
-                    <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
-                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
-                    <div style="flex: 0 0 7%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
-                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
-                    <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
-                    <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
-                </div>
+                    <!-- ✨ 헤더 레이아웃 수정: 드래그 핸들용 공간 추가 -->
+                    <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
+                        <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
+                        <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
+                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
+                        <div style="flex: 0 0 7%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
+                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
+                        <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
+                        <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
+                    </div>
                     <div id="loan-items-container"></div>
                 </div>
                 <div class="tab-pane fade" id="fee-tab-pane" role="tabpanel">
@@ -902,50 +906,90 @@
                             <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="">
                         </div>
                     </div>
-                        <div class="row g-3 mt-3">
-                            <div class="col-md-4">
-                                <label class="form-label">하루 이자 (원)</label>
-                                <input type="text" class="form-control md-input" id="interest-daily-result" readonly>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">한달 이자 (원)</label>
-                                <input type="text" class="form-control md-input" id="interest-monthly-result" readonly>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">1년 이자 (원)</label>
-                                <input type="text" class="form-control md-input" id="interest-yearly-result" readonly>
-                            </div>
+                    <div class="row g-3 mt-3">
+                        <div class="col-md-4">
+                            <label class="form-label">하루 이자 (원)</label>
+                            <input type="text" class="form-control md-input" id="interest-daily-result" readonly>
                         </div>
-                        <hr class="my-4">
-                        <h6 class="mb-3 text-success">원금 분할·만기일시 대출 계산기</h6>
-                        <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label for="balloon-principal-pct" class="form-label">원금 분할 비율 (X%)</label>
-                                <input type="number" class="form-control md-input" id="balloon-principal-pct" value="7" min="0" max="100" step="0.1">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="balloon-months" class="form-label">기간 (개월)</label>
-                                <input type="number" class="form-control md-input" id="balloon-months" value="60" min="1" step="1">
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label">한달 이자 (원)</label>
+                            <input type="text" class="form-control md-input" id="interest-monthly-result" readonly>
                         </div>
-
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <label class="form-label text-success">매월 원금</label>
-                                <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" readonly>
-                                <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label text-info">첫 달 납입액</label>
-                                <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" readonly>
-                                <small class="text-muted" id="balloon-first-breakdown">(원금 + 이자)</small>
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label">1년 이자 (원)</label>
+                            <input type="text" class="form-control md-input" id="interest-yearly-result" readonly>
                         </div>
                     </div>
-                </div>    
+                    <hr class="my-4">
+                    <h6 class="mb-3 text-success">원금 분할·만기일시 대출 계산기</h6>
+                    <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="balloon-principal-pct" class="form-label">원금 분할 비율 (X%)</label>
+                            <input type="number" class="form-control md-input" id="balloon-principal-pct" value="7" min="0" max="100" step="0.1">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="balloon-months" class="form-label">기간 (개월)</label>
+                            <input type="number" class="form-control md-input" id="balloon-months" value="60" min="1" step="1">
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-success">매월 원금</label>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" readonly>
+                            <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-info">첫 달 납입액</label>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" readonly>
+                            <small class="text-muted" id="balloon-first-breakdown">(원금 + 이자)</small>
+                        </div>
+                    </div>
+                </div>
+                <!-- ====================================================== -->
+                <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
+                <!-- ====================================================== -->
+                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel">
+                    <h6 class="mb-3">차주 선택</h6>
+                    
+                    <!-- 공유자 1 정보 입력 -->
+                    <div class="row mb-2">
+                        <div class="col-auto pe-2">
+                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3); margin-top: 32px;">
+                        </div>
+                        <div class="col-5">
+                          <label for="share-customer-name-1">공유자 1 고객명 & 생년월일</label>
+                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder=>
+                        </div>
+                        <div class="col">
+                          <label for="share-customer-birth-1">지분율</label>
+                          <input type="text" class="form-control md-input" id="share-customer-birth-1">
+                        </div>
+                    </div>
+
+                    <!-- 공유자 2 정보 입력 -->
+                    <div class="row mb-2">
+                        <div class="col-auto pe-2">
+                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3); margin-top: 32px;">
+                        </div>
+                        <div class="col-5">
+                          <label for="share-customer-name-2">공유자 2 고객명 & 생년월일</label>
+                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder=>
+                        </div>
+                        <div class="col">
+                          <label for="share-customer-birth-2">지분율</label>
+                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder=>
+                        </div>
+                    </div>
+                    
+                    
+                </div>
+                <!-- ====================================================== -->
+                <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
+                <!-- ====================================================== -->
             </div>                
-            <hr class="my-4">
+            <hr class="my-2">
             <div style="background: #6E6E6D; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <textarea class="form-control md-input" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
             </div>
@@ -1646,8 +1690,18 @@
                 document.getElementById('customer_name').value = scraped.customer_name || '';
                 document.getElementById('address').value = scraped.address || '';
                 document.getElementById('area').value = scraped.area || '';
-                const pdfUrl = `/view_pdf/${encodeURIComponent(result.filename)}`;
-                document.getElementById('pdf-viewer').src = pdfUrl;
+                if (scraped.owner_shares && scraped.owner_shares.length > 0) {
+                    scraped.owner_shares.forEach((line, idx) => {
+                        const [nameBirth, shareInfo] = line.split("  지분율 ");
+                        const nameField = document.getElementById(`share-customer-name-${idx+1}`);
+                        const shareField = document.getElementById(`share-customer-birth-${idx+1}`);
+                        if (nameField) nameField.value = nameBirth;
+                        if (shareField) shareField.value = "지분율 " + shareInfo;
+                    });
+                }
+                // FileReader API를 사용해서 클라이언트에서 바로 PDF 표시
+                const fileURL = URL.createObjectURL(file);
+                document.getElementById('pdf-viewer').src = fileURL;
                 document.getElementById('upload-section').style.display = 'none';
                 document.getElementById('viewer-section').style.display = 'block';
                 document.getElementById('file-name-display').textContent = file.name;
@@ -1727,6 +1781,86 @@
         triggerMemoGeneration();
     }
     
+    // 개별 차주 지분 한도 계산
+    async function calculateIndividualShare() {
+        try {
+            // 선택된 차주 찾기
+            const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
+            if (!selectedRadio) return; // 선택된 차주가 없으면 종료
+            
+            const ownerIdx = selectedRadio.value;
+            
+            const kbPriceText = document.getElementById("kb_price").value.replace(/,/g,'') || "0";
+            const kbPrice = parseInt(kbPriceText);
+            const ltvText = document.getElementById("ltv1").value || "70";
+            const ltv = parseFloat(ltvText);
+
+            // 대출 데이터 수집
+            let loans = [];
+            document.querySelectorAll("#loan-items-container .loan-item").forEach(item => {
+                const maxAmount = item.querySelector("input[placeholder='채권최고액']")?.value.replace(/,/g,'') || "0";
+                const ratio = item.querySelector("input[placeholder='비율']")?.value || "100";
+                const principal = item.querySelector("input[placeholder='원금']")?.value.replace(/,/g,'') || "0";
+                const status = item.querySelector("select")?.value || "-";
+                
+                loans.push({
+                    max_amount: parseInt(maxAmount) || 0,
+                    ratio: parseFloat(ratio) || 100,
+                    principal: parseInt(principal) || 0,
+                    status: status
+                });
+            });
+
+            // 소유자 데이터 수집
+            const nameField = document.getElementById(`share-customer-name-${ownerIdx}`);
+            const shareField = document.getElementById(`share-customer-birth-${ownerIdx}`);
+            
+            if (!nameField || !shareField || !nameField.value.trim()) {
+                return; // 정보가 없으면 조용히 종료
+            }
+            
+            const shareText = shareField.value;
+            const shareMatch = shareText.match(/\(([\d.]+)%\)/);
+            const sharePercent = shareMatch ? parseFloat(shareMatch[1]) : 0;
+            
+            if (sharePercent === 0) return; // 지분율이 없으면 조용히 종료
+            
+            let owners = [{
+                "이름": nameField.value,
+                "지분율": `${sharePercent}%`
+            }];
+
+            const payload = {
+                total_value: kbPrice,
+                ltv: ltv,
+                loans: loans,
+                owners: owners
+            };
+
+            const res = await fetch("/api/calculate_individual_share", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) return; // 오류 시 조용히 종료
+            
+            const data = await res.json();
+
+            if (data.success && data.results.length > 0) {
+                const result = data.results[0];
+                
+                // 기존 메모에 지분 계산 결과 추가
+                const currentMemo = document.getElementById('generated-memo').value;
+                const individualShareMemo = `\n\n--- 개별 지분 한도 계산 ---\n${result.이름} 선순위 LTV ${ltv}% 지분 ${result["최종한도(만원)"].toLocaleString()}만`;
+                
+                document.getElementById('generated-memo').value = currentMemo + individualShareMemo;
+            }
+        } catch (error) {
+            console.error("지분 계산 오류:", error);
+        }
+    }
+    
     // 모든 이벤트 리스너 최초 연결
     function attachAllEventListeners() {
         const uploadSection = document.getElementById('upload-section');
@@ -1752,6 +1886,11 @@
 
         document.querySelectorAll('.manwon-format').forEach(input => {
             input.addEventListener('blur', formatManwonValue);
+        });
+        
+        // 지분 한도 계산기 라디오 버튼 이벤트
+        document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
+            radio.addEventListener('change', calculateIndividualShare);
         });
         
         const loanAmountInput = document.getElementById('interest-loan-amount');
@@ -2060,6 +2199,34 @@ document.querySelectorAll('.manwon-format').forEach(input => {
         triggerMemoGeneration();
     }
 
+// 고객명 & 생년월일 자동 파싱 기능
+function parseCustomerNames() {
+    const customerNameField = document.getElementById('customer_name');
+    if (!customerNameField) return;
+    
+    const fullText = customerNameField.value.trim();
+    if (!fullText) return;
+
+    const customers = fullText.split(',').map(item => item.trim()).filter(item => item);
+    const totalShares = customers.length; // 단순히 동등분할 가정
+
+    customers.forEach((customer, index) => {
+        if (index < 2) {
+            const parts = customer.split(' ').filter(part => part.trim());
+            if (parts.length >= 2) {
+                const name = parts[0];
+                const birth = parts[1];
+                
+                const nameField = document.getElementById(`share-customer-name-${index + 1}`);
+                const shareField = document.getElementById(`share-customer-birth-${index + 1}`);
+                
+                if (nameField) nameField.value = `${name} ${birth}`;
+                if (shareField) shareField.value = `1/${totalShares} (${(100/totalShares).toFixed(1)}%)`;
+            }
+        }
+    });
+}
+
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', () => {
    addLoanItem();
@@ -2074,6 +2241,15 @@ document.addEventListener('DOMContentLoaded', () => {
        loadLayoutSettings();
        initializeResizeBar(); // 레이아웃 복원 후 리사이즈 바 재초기화
    }, 200);
+   
+   // 고객명 & 생년월일 필드에 이벤트 리스너 추가
+   const customerNameField = document.getElementById('customer_name');
+   if (customerNameField) {
+       customerNameField.addEventListener('input', parseCustomerNames);
+       customerNameField.addEventListener('change', parseCustomerNames);
+       // 페이지 로드시에도 한번 실행
+       parseCustomerNames();
+   }
 });
 
 // 페이지를 떠날 때 자동 저장
