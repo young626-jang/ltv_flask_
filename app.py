@@ -314,8 +314,8 @@ def calculate_individual_share():
         # 차감할 대출 (선순위만, 채권최고액 우선, 없으면 원금)
         for loan in loans:
             status = loan.get("status", "").strip()
-            # 선순위, 유지, 대환만 차감 (후순위는 제외)
-            if status in ["선순위", "유지", "대환"]:
+            # 선순위, 유지, 대환, 선말소만 차감 (후순위는 제외)
+            if status in ["선순위", "유지", "대환", "선말소"]:
                 max_amt = int(loan.get("max_amount", 0))
                 principal = int(loan.get("principal", 0))
                 senior_lien += max_amt if max_amt else principal
