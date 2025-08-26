@@ -185,8 +185,8 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
         # (2) LTV 적용 한도
         ltv_limit = int(equity_value * (ltv / 100))
         
-        # (3) 최종 대출 가능액 (선순위 차감)
-        final_limit = int(ltv_limit - senior_lien)  # 음수도 그대로 반환
+        # (3) 최종 대출 가능액 (선말소의 경우 전체 선순위 대출 차감)
+        final_limit = int(ltv_limit - senior_lien)  # 선말소시 전체 선순위 대출 차감
         
         results.append({
             "이름": owner["이름"],
