@@ -140,6 +140,8 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "deduction_region": get_rich_text(props, "방공제지역"),
         "ltv1": get_rich_text(props, "LTV비율1"),
         "ltv2": get_rich_text(props, "LTV비율2"),
+        "share_rate1": get_number(props, "공유자 1 지분율"),
+        "share_rate2": get_number(props, "공유자 2 지분율"),
         "consult_amt": get_number(props, "컨설팅금액"),
         "consult_rate": get_number(props, "컨설팅수수료율"),
         "bridge_amt": get_number(props, "브릿지금액"),
@@ -217,6 +219,12 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "LTV비율2": {
             "rich_text": [{"text": {"content": str(ltv2).strip()}}]
+        },
+        "공유자 1 지분율": {
+            "number": float(inputs.get("share_rate1", "0") or 0)
+        },
+        "공유자 2 지분율": {
+            "number": float(inputs.get("share_rate2", "0") or 0)
         },
         "컨설팅금액": {
             "number": parse_korean_number(fees.get("consult_amt", "0"))
