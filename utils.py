@@ -148,52 +148,54 @@ def auto_convert_loan_amounts(loan_data):
         logger.error(f"대출 금액 자동 변환 중 오류: {e}")
         return loan_data
 
+
 # 기존의 핵심 LTV 계산 로직
 def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
     if is_senior:
+        # 선순위: limit 과 available 모두 계산
         limit = int(total_value * (ltv / 100) - deduction)
         available = int(limit - principal_sum)
     else:
+        # 후순위: 가용은 무의미 → limit 만 계산
         limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = int(limit - principal_sum)
+        available = None  # 후순위에서는 사용하지 않음
 
-    # ✨ [수정] 100단위로 버림하여 끝자리를 맞춥니다. (예: 38,120 -> 38,100)
-    limit = (limit // 100) * 100
-    available = (available // 100) * 100
+    import math
+    limit = math.floor(limit / 100) * 100
+    if available is not None:
+        available = math.floor(available / 100) * 100
     return limit, available
 
-def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
-    """소유자별 지분율을 반영하여 개인별 대출 가능 한도를 계산합니다.
-    
-    Parameters:
-        total_value (int): 부동산 전체 시세 (만원 단위)
-        owners (list[dict]): [{ "이름": ..., "지분": "1/2", "지분율": "50.0%" }, ...]
-        ltv (float): 적용 LTV 비율 (예: 70)
-        senior_lien (int): 선순위 채권최고액 (만원 단위, default=0)
 
-    Returns:
-        list[dict]: 소유자별 계산 결과
-    """
+def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=True):
     results = []
     for owner in owners:
-        # 지분율 숫자만 추출
         share_percent = float(owner["지분율"].replace("%", ""))
-        
-        # (1) 지분 가치
-        equity_value = int(total_value * (share_percent / 100))
-        
-        # (2) LTV 적용 한도
-        ltv_limit = int(equity_value * (ltv / 100))
-        
-        # (3) 최종 대출 가능액 (선말소의 경우 전체 선순위 대출 차감)
-        final_limit = int(ltv_limit - senior_lien)  # 선말소시 전체 선순위 대출 차감
-        
-        results.append({
+        share_ratio = share_percent / 100
+
+        equity_value = int(total_value * share_ratio)
+
+        if is_senior:
+            ltv_limit = int(equity_value * (ltv / 100))
+        else:
+            # ### 이 로직이 정확한 계산식입니다 ###
+            # 후순위 한도 = (개별 지분가치 * LTV) - (부동산의 전체 유지 채권최고액)
+            ltv_limit = int((equity_value * (ltv / 100)) - maintain_maxamt_sum)
+            # ### -------------------------- ###
+
+        ltv_limit = (ltv_limit // 100) * 100
+        available = ltv_limit - existing_principal if is_senior else None
+
+        result = {
             "이름": owner["이름"],
             "지분율": owner["지분율"],
             "지분가치(만원)": equity_value,
-            "LTV한도(만원)": ltv_limit,
-            "최종한도(만원)": final_limit
-        })
-    
+            "지분LTV한도(만원)": ltv_limit,
+            "대출구분": "선순위" if is_senior else "후순위"
+        }
+        if available is not None:
+            result["가용자금(만원)"] = available
+
+        results.append(result)
+
     return results
