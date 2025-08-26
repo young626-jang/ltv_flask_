@@ -163,12 +163,6 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
     return limit, available
 
 def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
-    ...
-        # (3) 최종 대출 가능액 (선순위 차감)
--        final_limit = max(0, ltv_limit - senior_lien)
-+        final_limit = int(ltv_limit - senior_lien)  # 음수도 그대로 반환
-    
-    
     """소유자별 지분율을 반영하여 개인별 대출 가능 한도를 계산합니다.
     
     Parameters:
@@ -192,7 +186,7 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
         ltv_limit = int(equity_value * (ltv / 100))
         
         # (3) 최종 대출 가능액 (선순위 차감)
-        final_limit = max(0, ltv_limit - senior_lien)
+        final_limit = int(ltv_limit - senior_lien)  # 음수도 그대로 반환
         
         results.append({
             "이름": owner["이름"],
