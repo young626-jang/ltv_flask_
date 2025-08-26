@@ -311,12 +311,19 @@ def calculate_individual_share():
         owners = data.get("owners", [])
         senior_lien = 0
 
-        # 차감할 대출 (채권최고액, 원금 합산)
+        # 차감할 대출 (선순위만, 채권최고액 우선, 없으면 원금)
         for loan in loans:
-            max_amt = int(loan.get("max_amount", 0))
-            principal = int(loan.get("principal", 0))
-            senior_lien += max_amt if max_amt else principal
+            status = loan.get("status", "").strip()
+            # 선순위, 유지, 대환만 차감 (후순위는 제외)
+            if status in ["선순위", "유지", "대환"]:
+                max_amt = int(loan.get("max_amount", 0))
+                principal = int(loan.get("principal", 0))
+                senior_lien += max_amt if max_amt else principal
 
+        # 디버깅용 로그
+        logger.info(f"지분 계산 - 시세: {total_value}만, LTV: {ltv}%, 선순위: {senior_lien}만")
+        logger.info(f"대출 데이터: {loans}")
+        
         # 지분별 한도 계산
         results = calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien)
 
