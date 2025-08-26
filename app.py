@@ -101,10 +101,11 @@ def generate_memo(data):
         fees = data.get('fees', {})
 
         def format_manwon(value):
-            num_val = parse_korean_number(str(value))
-            if isinstance(num_val, (int, float)):
+            try:
+                num_val = int(str(value).replace(",", "").strip())
                 return f"{num_val:,}만"
-            return "0만"
+            except (ValueError, TypeError):
+                return "0만"
 
         # --- 1. 계산 로직 (이전과 동일) ---
         address = inputs.get('address', '')
@@ -164,7 +165,26 @@ def generate_memo(data):
                 memo_lines.append("")
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도 LTV {res.get('ltv_rate', 0)}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = []
+            for res in ltv_results:
+                if not isinstance(res, dict):
+                    continue
+                loan_type = res.get('loan_type', '기타')
+                ltv_rate = res.get('ltv_rate', 0)
+                limit_val = res.get('limit', 0)
+
+                # limit는 부호 그대로 표시
+                limit_str = f"{int(limit_val):,}만"
+
+                if loan_type == "후순위":
+                    # 후순위는 가용 표시 안 함
+                    ltv_memo.append(f"{loan_type} 한도 LTV {ltv_rate}% {limit_str}")
+                else:
+                    # 선순위만 가용 표시
+                    available_val = res.get('available', 0)
+                    available_str = f"{int(available_val):,}만"
+                    ltv_memo.append(f"{loan_type} 한도 LTV {ltv_rate}% {limit_str} 가용 {available_str}")
+
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 ltv_lines_exist = True
@@ -309,23 +329,38 @@ def calculate_individual_share():
         ltv = float(data.get("ltv", 70))
         loans = data.get("loans", [])
         owners = data.get("owners", [])
-        senior_lien = 0
+        loan_type = data.get("loan_type", "선순위")    # 선순위/후순위 구분
 
-        # 차감할 대출 (선순위만, 채권최고액 우선, 없으면 원금)
+        # 선순위만 기존 원금 합계 반영
+        existing_principal = 0
+        sum_maintain = 0  # 유지 채권최고액 합계
+        
         for loan in loans:
             status = loan.get("status", "").strip()
-            # 선순위, 유지, 대환, 선말소만 차감 (후순위는 제외)
-            if status in ["선순위", "유지", "대환", "선말소"]:
-                max_amt = int(loan.get("max_amount", 0))
-                principal = int(loan.get("principal", 0))
-                senior_lien += max_amt if max_amt else principal
+            if status == "유지":
+                sum_maintain += int(loan.get("max_amount", 0))
+            if loan_type == "선순위" and status in ["유지", "대환", "선말소"]:
+                existing_principal += int(loan.get("principal", 0))
 
-        # 디버깅용 로그
-        logger.info(f"지분 계산 - 시세: {total_value}만, LTV: {ltv}%, 선순위: {senior_lien}만")
-        logger.info(f"대출 데이터: {loans}")
-        
+        # 대출 유형 판단
+        is_senior = (loan_type == "선순위")
+
         # 지분별 한도 계산
-        results = calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien)
+        results = calculate_individual_ltv_limits(
+            total_value=total_value,
+            owners=owners,
+            ltv=ltv,
+            maintain_maxamt_sum=sum_maintain,  # 유지 채권최고액 합계 전달
+            existing_principal=existing_principal if is_senior else 0,
+            is_senior=is_senior
+        )
+
+        if not is_senior:  # 후순위
+            for r in results:
+                r.pop("가용자금(만원)", None)  # 가용자금 제거
+                # limit은 음수도 보존
+                if isinstance(r.get("지분LTV한도(만원)"), str):
+                    r["지분LTV한도(만원)"] = int(r["지분LTV한도(만원)"])
 
         return jsonify({"success": True, "results": results})
     except Exception as e:
