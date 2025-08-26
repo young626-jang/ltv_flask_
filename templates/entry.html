@@ -857,10 +857,29 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center">
+            <!-- ✅ 공통 대출항목 영역 -->
+            <div id="loan-section" class="mt-3" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft);">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">대출 항목</h6>
+                    <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
+                </div>
+                
+                <!-- ✨ 헤더 레이아웃: 드래그 핸들용 공간 추가 -->
+                <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
+                    <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
+                    <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
+                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
+                    <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
+                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
+                    <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
+                    <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
+                </div>
+                <div id="loan-items-container"></div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation">
                       <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
@@ -868,26 +887,10 @@
                       </button>
                     </li>
                 </ul>
-                <div>
-                    <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
-                </div>
             </div>
 
             <div class="tab-content" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem;">
-                <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
-                    <!-- ✨ 헤더 레이아웃 수정: 드래그 핸들용 공간 추가 -->
-                    <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
-                        <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
-                        <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
-                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
-                        <div style="flex: 0 0 7%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
-                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
-                        <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
-                        <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
-                    </div>
-                    <div id="loan-items-container"></div>
-                </div>
-                <div class="tab-pane fade" id="fee-tab-pane" role="tabpanel">
+                <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
                     <div class="row g-2">
                         <div class="col"><label>컨설팅(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" value="0"></div>
                         <div class="col"><label>(%)</label><input type="text" class="form-control form-field md-input" id="consult_rate" value="1.5"></div>
@@ -1449,6 +1452,8 @@
                     }
                     // 기존의 메모 생성 함수를 호출합니다.
                     triggerMemoGeneration();
+                    // 지분 계산도 자동 업데이트
+                    calculateIndividualShare();
                 });
             });
         });
@@ -1584,10 +1589,54 @@
                 addLoanItem(); 
             }
 
+            // customer_name 데이터를 지분한도 계산기 탭 공유자 필드에 자동 입력
+            if (data.customer_name) {
+                const owners = data.customer_name.split(',').map(name => name.trim());
+                if (owners.length >= 1) {
+                    document.getElementById('share-customer-name-1').value = owners[0];
+                }
+                if (owners.length >= 2) {
+                    document.getElementById('share-customer-name-2').value = owners[1];
+                }
+            }
+
             triggerMemoGeneration();
         } catch (error) {
             alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
         }
+    }
+    
+    // 지분율 자동 계산 함수
+    function autoCalculateShareRatio(inputIndex, targetIndex) {
+        const inputField = document.getElementById(`share-customer-birth-${inputIndex}`);
+        const targetField = document.getElementById(`share-customer-birth-${targetIndex}`);
+        
+        if (!inputField || !targetField) return;
+        
+        const inputValue = inputField.value.trim();
+        if (inputValue === '') {
+            targetField.value = '';
+            return;
+        }
+        
+        // 숫자만 추출
+        const inputRatio = parseFloat(inputValue.replace(/[^0-9.]/g, ''));
+        if (isNaN(inputRatio) || inputRatio < 0 || inputRatio > 100) return;
+        
+        // 나머지 지분율 계산
+        const remainingRatio = 100 - inputRatio;
+        targetField.value = remainingRatio.toString();
+    }
+    
+    // 텍스트에리어 크기 자동 조절 함수
+    function autoResizeTextarea(textarea) {
+        // 높이 초기화
+        textarea.style.height = 'auto';
+        // 내용에 맞춰 높이 조절 (최소 15행, 최대 50행)
+        const minHeight = 15 * 20; // 15행 * 대략적인 행 높이
+        const maxHeight = 50 * 20; // 50행 * 대략적인 행 높이
+        const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+        textarea.style.height = newHeight + 'px';
     }
     
     // ✨ 누락되었던 함수들
@@ -1792,16 +1841,22 @@
             
             const kbPriceText = document.getElementById("kb_price").value.replace(/,/g,'') || "0";
             const kbPrice = parseInt(kbPriceText);
-            const ltvText = document.getElementById("ltv1").value || "70";
-            const ltv = parseFloat(ltvText);
+            
+            // LTV 비율 수집 (ltv1, ltv2)
+            const ltvRates = [];
+            const ltv1 = document.getElementById("ltv1").value;
+            const ltv2 = document.getElementById("ltv2").value;
+            if (ltv1 && ltv1.trim()) ltvRates.push(parseFloat(ltv1));
+            if (ltv2 && ltv2.trim()) ltvRates.push(parseFloat(ltv2));
+            if (ltvRates.length === 0) ltvRates.push(70); // 기본값
 
             // 대출 데이터 수집
             let loans = [];
             document.querySelectorAll("#loan-items-container .loan-item").forEach(item => {
-                const maxAmount = item.querySelector("input[placeholder='채권최고액']")?.value.replace(/,/g,'') || "0";
-                const ratio = item.querySelector("input[placeholder='비율']")?.value || "100";
-                const principal = item.querySelector("input[placeholder='원금']")?.value.replace(/,/g,'') || "0";
-                const status = item.querySelector("select")?.value || "-";
+                const maxAmount = item.querySelector("input[name='max_amount']")?.value.replace(/,/g,'') || "0";
+                const ratio = item.querySelector("input[name='ratio']")?.value || "100";
+                const principal = item.querySelector("input[name='principal']")?.value.replace(/,/g,'') || "0";
+                const status = item.querySelector("select[name='status']")?.value || "-";
                 
                 loans.push({
                     max_amount: parseInt(maxAmount) || 0,
@@ -1819,43 +1874,99 @@
                 return; // 정보가 없으면 조용히 종료
             }
             
-            const shareText = shareField.value;
-            const shareMatch = shareText.match(/\(([\d.]+)%\)/);
-            const sharePercent = shareMatch ? parseFloat(shareMatch[1]) : 0;
+            const shareText = shareField.value.trim();
+            // 다양한 형태의 지분율 파싱
+            let sharePercent = 0;
+            if (shareText) {
+                // 1. 괄호 안 퍼센트 우선 추출: "1/2 (50.0%)" -> 50.0
+                const percentMatch = shareText.match(/\(([\d.]+)%?\)/);
+                if (percentMatch) {
+                    sharePercent = parseFloat(percentMatch[1]);
+                } else {
+                    // 2. 일반 숫자 추출: "50", "50%" -> 50
+                    const numberMatch = shareText.match(/([\d.]+)%?/);
+                    sharePercent = numberMatch ? parseFloat(numberMatch[1]) : 0;
+                }
+            }
             
-            if (sharePercent === 0) return; // 지분율이 없으면 조용히 종료
+            if (sharePercent === 0) {
+                alert('지분율을 입력하세요');
+                return;
+            }
             
             let owners = [{
                 "이름": nameField.value,
                 "지분율": `${sharePercent}%`
             }];
 
-            const payload = {
-                total_value: kbPrice,
-                ltv: ltv,
-                loans: loans,
-                owners: owners
-            };
-
-            const res = await fetch("/api/calculate_individual_share", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+            // 기존 지분 계산 메모 제거
+            let currentMemo = document.getElementById('generated-memo').value;
+            currentMemo = currentMemo.replace(/\n\n--- 개별 지분 한도 계산 ---[\s\S]*?$/g, '');
             
-            if (!res.ok) return; // 오류 시 조용히 종료
+            // 대출 상태 확인해서 후순위/선순위 결정
+            const maintainStatus = ['유지', '동의', '비동의'];
+            const hasSubordinate = loans.some(loan => maintainStatus.includes(loan.status));
+            const loanTypeInfo = hasSubordinate ? "후순위" : "선순위";
             
-            const data = await res.json();
+            let individualShareMemo = '\n\n--- 개별 지분 한도 계산 ---';
+            let ownerName = '';
+            
+            // 각 LTV에 대해 계산
+            for (let i = 0; i < ltvRates.length; i++) {
+                const ltv = ltvRates[i];
+                const payload = {
+                    total_value: kbPrice,
+                    ltv: ltv,
+                    loans: loans,
+                    owners: owners
+                };
 
-            if (data.success && data.results.length > 0) {
-                const result = data.results[0];
+                const res = await fetch("/api/calculate_individual_share", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
                 
-                // 기존 메모에 지분 계산 결과 추가
-                const currentMemo = document.getElementById('generated-memo').value;
-                const individualShareMemo = `\n\n--- 개별 지분 한도 계산 ---\n${result.이름} 선순위 LTV ${ltv}% 지분 ${result["최종한도(만원)"].toLocaleString()}만`;
+                if (!res.ok) continue; // 오류 시 다음 LTV로
                 
-                document.getElementById('generated-memo').value = currentMemo + individualShareMemo;
+                const data = await res.json();
+                
+                if (data.success && data.results.length > 0) {
+                    const result = data.results[0];
+                    const finalLimit = result["최종한도(만원)"];
+                    
+                    // 첫 번째 결과에서만 차주명과 지분율 표시
+                    if (i === 0) {
+                        ownerName = result.이름;
+                        // 지분율 표시 방식 구분 (PDF 스크래핑 vs 수기입력)
+                        const originalShareText = shareField.value.trim();
+                        let displayShare;
+                        
+                        // PDF 스크래핑 시: 분수나 괄호가 포함된 경우 원본값 그대로
+                        if (originalShareText.includes('/') || originalShareText.includes('(') || originalShareText.includes('%')) {
+                            // 이미 "지분율"이 포함되어 있으면 그대로, 없으면 추가
+                            if (originalShareText.includes('지분율')) {
+                                displayShare = originalShareText;
+                            } else {
+                                displayShare = `지분율 ${originalShareText}`;
+                            }
+                        } else {
+                            // 수기입력 시: 숫자에 % 추가
+                            displayShare = `지분율 ${sharePercent}%`;
+                        }
+                        
+                        individualShareMemo += `\n차주 ${ownerName} ${displayShare}`;
+                    }
+                    
+                    individualShareMemo += `\n${loanTypeInfo} LTV ${ltv}% 지분 ${finalLimit.toLocaleString()}만`;
+                }
             }
+            
+            const memoTextarea = document.getElementById('generated-memo');
+            memoTextarea.value = currentMemo + individualShareMemo;
+            
+            // 메모 크기 자동 조절
+            autoResizeTextarea(memoTextarea);
         } catch (error) {
             console.error("지분 계산 오류:", error);
         }
@@ -1891,6 +2002,30 @@
         // 지분 한도 계산기 라디오 버튼 이벤트
         document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
             radio.addEventListener('change', calculateIndividualShare);
+        });
+        
+        // 지분 계산에 영향을 주는 필드들 변경 시 자동 재계산
+        document.getElementById('ltv1')?.addEventListener('change', calculateIndividualShare);
+        document.getElementById('ltv1')?.addEventListener('blur', calculateIndividualShare);
+        document.getElementById('kb_price')?.addEventListener('change', calculateIndividualShare);
+        document.getElementById('kb_price')?.addEventListener('blur', calculateIndividualShare);
+        
+        // 지분율 입력 필드 변경 시 자동 재계산 + 상호 지분율 자동 계산
+        document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
+            autoCalculateShareRatio(1, 2);
+            calculateIndividualShare();
+        });
+        document.getElementById('share-customer-birth-1')?.addEventListener('blur', function() {
+            autoCalculateShareRatio(1, 2);
+            calculateIndividualShare();
+        });
+        document.getElementById('share-customer-birth-2')?.addEventListener('change', function() {
+            autoCalculateShareRatio(2, 1);
+            calculateIndividualShare();
+        });
+        document.getElementById('share-customer-birth-2')?.addEventListener('blur', function() {
+            autoCalculateShareRatio(2, 1);
+            calculateIndividualShare();
         });
         
         const loanAmountInput = document.getElementById('interest-loan-amount');
