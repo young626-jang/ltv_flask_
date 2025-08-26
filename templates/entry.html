@@ -1479,6 +1479,8 @@
                 deduction_region_text: selectedRegionText, 
                 deduction_amount: document.getElementById('deduction_amount').value,
                 ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
+                share_rate1: document.getElementById('share-customer-birth-1').value,
+                share_rate2: document.getElementById('share-customer-birth-2').value,
             }, 
             fees: {
                 consult_amt: document.getElementById('consult_amt').value, 
@@ -1598,6 +1600,14 @@
                 if (owners.length >= 2) {
                     document.getElementById('share-customer-name-2').value = owners[1];
                 }
+            }
+            
+            // 공유자 지분율 자동 입력
+            if (data.share_rate1) {
+                document.getElementById('share-customer-birth-1').value = data.share_rate1;
+            }
+            if (data.share_rate2) {
+                document.getElementById('share-customer-birth-2').value = data.share_rate2;
             }
 
             triggerMemoGeneration();
@@ -1825,6 +1835,12 @@
         if (fileInput) fileInput.value = null;
         document.getElementById('pdf-viewer').src = 'about:blank';
         document.getElementById('upload-section').style.display = 'flex';
+        
+        // 지분한도 계산기 필드 초기화
+        document.getElementById('share-customer-name-1').value = '';
+        document.getElementById('share-customer-birth-1').value = '';
+        document.getElementById('share-customer-name-2').value = '';
+        document.getElementById('share-customer-birth-2').value = '';
         document.getElementById('viewer-section').style.display = 'none';
         alert("모든 입력 내용이 초기화되었습니다.");
         triggerMemoGeneration();
@@ -1858,11 +1874,15 @@
                 const principal = item.querySelector("input[name='principal']")?.value.replace(/,/g,'') || "0";
                 const status = item.querySelector("select[name='status']")?.value || "-";
                 
+                // 선말소 상태인 경우 선순위로 분류
+                const loanType = (status === "선말소") ? "선순위" : "후순위";
+                
                 loans.push({
                     max_amount: parseInt(maxAmount) || 0,
                     ratio: parseFloat(ratio) || 100,
                     principal: parseInt(principal) || 0,
-                    status: status
+                    status: status,
+                    type: loanType
                 });
             });
 
@@ -1890,7 +1910,7 @@
             }
             
             if (sharePercent === 0) {
-                alert('지분율을 입력하세요');
+                // 지분율이 입력되지 않은 경우 조용히 종료
                 return;
             }
             
@@ -2002,6 +2022,13 @@
         // 지분 한도 계산기 라디오 버튼 이벤트
         document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
             radio.addEventListener('change', calculateIndividualShare);
+            // 반복 클릭해도 항상 재계산되도록 click 이벤트 추가
+            radio.addEventListener('click', function() {
+                // 약간의 지연을 두고 재계산하여 확실하게 실행
+                setTimeout(() => {
+                    calculateIndividualShare();
+                }, 50);
+            });
         });
         
         // 지분 계산에 영향을 주는 필드들 변경 시 자동 재계산
