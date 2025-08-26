@@ -768,6 +768,26 @@
             transform: translateY(-1px) !important;
             color: white !important;
         }
+        /* ================================== */
+        /* ✅ 대출 항목 정렬을 위한 CSS 클래스 */
+        /* ================================== */
+        .loan-row-header, .loan-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .loan-col {
+            padding: 0 0.25rem; /* 좌우 여백 추가 */
+        }
+
+        .loan-col-drag { flex: 0 0 32px; }
+        .loan-col-lender { flex: 1 1 30%; min-width: 120px; }
+        .loan-col-max-amount { flex: 1 1 15%; min-width: 90px; }
+        .loan-col-ratio { flex: 1 1 7%; min-width: 60px; }
+        .loan-col-principal { flex: 1 1 15%; min-width: 90px; }
+        .loan-col-status { flex: 1 1 12%; min-width: 80px; }
+        .loan-col-action { flex: 0 0 40px; display: flex; justify-content: flex-end; }
+
     </style>
 </head>
 <body>
@@ -864,15 +884,15 @@
                     <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
                 </div>
                 
-                <!-- ✨ 헤더 레이아웃: 드래그 핸들용 공간 추가 -->
-                <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
-                    <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
-                    <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
-                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
-                    <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
-                    <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
-                    <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
-                    <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
+                <!-- ✨ 헤더 레이아웃 (CSS 클래스로 수정) -->
+                <div class="loan-row-header border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem; height: 38px;">
+                    <div class="loan-col loan-col-drag"></div>
+                    <div class="loan-col loan-col-lender">설정자</div>
+                    <div class="loan-col loan-col-max-amount">채권최고액(만)</div>
+                    <div class="loan-col loan-col-ratio">비율(%)</div>
+                    <div class="loan-col loan-col-principal">원금(만)</div>
+                    <div class="loan-col loan-col-status">구분</div>
+                    <div class="loan-col loan-col-action"></div>
                 </div>
                 <div id="loan-items-container"></div>
             </div>
@@ -1209,27 +1229,27 @@
         };
         
         return `
-        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom" draggable="false">
-            <div style="flex: 0 0 24px;">
+        <div id="loan-item-${index}" class="loan-item py-2 border-bottom" draggable="false">
+            <div class="loan-col loan-col-drag">
                 <div class="drag-handle md-drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
             </div>
-            <div style="flex: 0 0 30%;">
+            <div class="loan-col loan-col-lender">
                 <div class="mobile-label">설정자</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" value="${loan.lender || ''}">
             </div>
-            <div style="flex: 0 0 15%; margin-left: 0.5rem;">
+            <div class="loan-col loan-col-max-amount">
                 <div class="mobile-label">채권최고액(만)</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="max_amount" value="${formatValue(loan.max_amount)}">
             </div>
-            <div style="flex: 0 0 7%; margin-left: 0.5rem;">
+            <div class="loan-col loan-col-ratio">
                 <div class="mobile-label">비율(%)</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" value="${loan.ratio || '120'}">
             </div>
-            <div style="flex: 0 0 15%; margin-left: 0.5rem;">
+            <div class="loan-col loan-col-principal">
                 <div class="mobile-label">원금(만)</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="principal" value="${formatValue(loan.principal)}">
             </div>
-            <div style="flex: 0 0 12%; margin-left: 0.5rem;">
+            <div class="loan-col loan-col-status">
                 <div class="mobile-label">구분</div>
                 <select class="form-select form-select-sm loan-input form-field md-loan-select" name="status">
                     <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
@@ -1240,7 +1260,7 @@
                     <option value="비동의" ${loan.status === '비동의' ? 'selected' : ''}>비동의</option>
                 </select>
             </div>
-            <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; justify-content: flex-end;" class="text-center">
+            <div class="loan-col loan-col-action">
                 <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
             </div>
         </div>`;
@@ -1938,7 +1958,8 @@
                     total_value: kbPrice,
                     ltv: ltv,
                     loans: loans,
-                    owners: owners
+                    owners: owners,
+                    loan_type: loanTypeInfo
                 };
 
                 const res = await fetch("/api/calculate_individual_share", {
@@ -1953,7 +1974,8 @@
                 
                 if (data.success && data.results.length > 0) {
                     const result = data.results[0];
-                    const finalLimit = result["최종한도(만원)"];
+                    const shareLimit = result["지분LTV한도(만원)"];
+                    const available = result["가용자금(만원)"];
                     
                     // 첫 번째 결과에서만 차주명과 지분율 표시
                     if (i === 0) {
@@ -1978,7 +2000,17 @@
                         individualShareMemo += `\n차주 ${ownerName} ${displayShare}`;
                     }
                     
-                    individualShareMemo += `\n${loanTypeInfo} LTV ${ltv}% 지분 ${finalLimit.toLocaleString()}만`;
+                    // --- ### 여기부터 수정 ### ---
+                    // 기본 메모 라인 (한도까지)
+                    let memoLine = `\n${loanTypeInfo} LTV ${ltv}% 지분 ${shareLimit.toLocaleString()}만`;
+                    
+                    // 'available' 값이 존재할 경우 (즉, 선순위일 경우)에만 '가용' 금액 추가
+                    if (available !== null && available !== undefined) {
+                        memoLine += ` 가용 ${available.toLocaleString()}만`;
+                    }
+                    
+                    individualShareMemo += memoLine;
+                    // --- ### 여기까지 수정 ### ---
                 }
             }
             
