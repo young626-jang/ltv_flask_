@@ -20,9 +20,9 @@
 <div class="main-container" id="main-layout-wrapper">
     <div class="pdf-viewer-column" id="pdf-column">
         <div id="upload-section">
-            <div>
-                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 4rem; color: #6c757d;"></i>
-                <h4 class="mt-3">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
+            <div class="upload-content">
+                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 6rem; color: #6c757d;"></i>
+                <h3 class="mt-4">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
                 <p class="text-muted" id="upload-text">등기부등본 파일을 올려주시면 주요 정보가 자동 입력됩니다.</p>
                 <div id="upload-spinner" class="spinner-border mt-3" role="status" style="display: none;"></div>
             </div>
@@ -31,7 +31,6 @@
         <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
             <div class="d-flex justify-content-between align-items-center mb-0 flex-shrink-0" style="padding: 0.25rem 0;">
                 <h6 id="file-name-display" class="mb-0 small text-muted"></h6>
-                <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
             </div>
             <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
         </div>
@@ -104,11 +103,6 @@
 
             <!-- ✅ 공통 대출항목 영역 -->
             <div id="loan-section" class="mt-3" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft);">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">대출 항목</h6>
-                    <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
-                </div>
-                
                 <!-- ✨ 헤더 레이아웃 (CSS 클래스로 수정) -->
                 <div class="loan-row-header border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem; height: 38px;">
                     <div class="loan-col loan-col-drag"></div>
@@ -116,7 +110,10 @@
                     <div class="loan-col loan-col-max-amount">채권최고액(만)</div>
                     <div class="loan-col loan-col-ratio">비율(%)</div>
                     <div class="loan-col loan-col-principal">원금(만)</div>
-                    <div class="loan-col loan-col-status">구분</div>
+                    <div class="loan-col loan-col-status d-flex align-items-center justify-content-between">
+                        <span>구분</span>
+                        <button type="button" class="btn md-btn md-btn-secondary py-0 px-2" id="add-loan-btn" style="line-height: 1.2;">+</button>
+                    </div>
                     <div class="loan-col loan-col-action"></div>
                 </div>
                 <div id="loan-items-container"></div>
@@ -202,13 +199,13 @@
                     <h6 class="mb-3">차주 선택</h6>
                     
                     <!-- 공유자 1 정보 입력 -->
-                    <div class="row mb-2">
+                    <div class="row mb-2 align-items-end">
                         <div class="col-auto pe-2">
-                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3); margin-top: 32px;">
+                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3);">
                         </div>
-                        <div class="col-5">
+                        <div class="col">
                           <label for="share-customer-name-1">공유자 1 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder=>
+                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="">
                         </div>
                         <div class="col">
                           <label for="share-customer-birth-1">지분율</label>
@@ -217,17 +214,17 @@
                     </div>
 
                     <!-- 공유자 2 정보 입력 -->
-                    <div class="row mb-2">
+                    <div class="row mb-2 align-items-end">
                         <div class="col-auto pe-2">
-                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3); margin-top: 32px;">
+                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3);">
                         </div>
-                        <div class="col-5">
+                        <div class="col">
                           <label for="share-customer-name-2">공유자 2 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder=>
+                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="">
                         </div>
                         <div class="col">
                           <label for="share-customer-birth-2">지분율</label>
-                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder=>
+                          <input type="text" class="form-control md-input" id="share-customer-birth-2">
                         </div>
                     </div>
                     
@@ -243,7 +240,8 @@
             </div>
             
             <div style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft);">
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <div class="d-grid gap-2 d-md-flex">
+                    <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary me-auto"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
                     <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
                     <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
                 </div>
