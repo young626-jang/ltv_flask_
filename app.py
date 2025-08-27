@@ -156,9 +156,9 @@ def generate_memo(data):
 
         valid_loans = []
         if loans and isinstance(loans, list):
-            status_order = {'선말소': 0, '대환': 1}
+            # status_order = {'선말소': 0, '대환': 1} # 자동 정렬 로직 비활성화
             valid_loans = [l for l in loans if isinstance(l, dict) and (parse_korean_number(l.get('max_amount', '0')) > 0 or parse_korean_number(l.get('principal', '0')) > 0)]
-            valid_loans.sort(key=lambda x: status_order.get(x.get('status'), 2))
+            # valid_loans.sort(key=lambda x: status_order.get(x.get('status'), 2)) # 자동 정렬 로직 비활성화
             loan_memo = [f"{i}. {item.get('lender', '-')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '-')}% | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '-')}" for i, item in enumerate(valid_loans, 1)]
             if loan_memo:
                 memo_lines.extend(loan_memo)
@@ -177,8 +177,10 @@ def generate_memo(data):
                 limit_str = f"{int(limit_val):,}만"
 
                 if loan_type == "후순위":
-                    # 후순위는 가용 표시 안 함
-                    ltv_memo.append(f"{loan_type} 한도 LTV {ltv_rate}% {limit_str}")
+                    # 후순위도 가용 표시 (수정됨)
+                    available_val = res.get('available', 0)
+                    available_str = f"{int(available_val):,}만"
+                    ltv_memo.append(f"{loan_type} 한도 LTV {ltv_rate}% {limit_str} 가용 {available_str}")
                 else:
                     # 선순위만 가용 표시
                     available_val = res.get('available', 0)
@@ -357,7 +359,7 @@ def calculate_individual_share():
 
         if not is_senior:  # 후순위
             for r in results:
-                r.pop("가용자금(만원)", None)  # 가용자금 제거
+                # r.pop("가용자금(만원)", None)  # 가용자금 제거 -> 주석 처리하여 가용자금 유지
                 # limit은 음수도 보존
                 if isinstance(r.get("지분LTV한도(만원)"), str):
                     r["지분LTV한도(만원)"] = int(r["지분LTV한도(만원)"])
