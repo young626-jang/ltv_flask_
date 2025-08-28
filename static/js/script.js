@@ -285,7 +285,23 @@
 
     // 대출 항목 제거
     function removeLoanItem(index) {
-        document.getElementById(`loan-item-${index}`)?.remove();
+        const container = document.getElementById('loan-items-container');
+        const allItems = container.querySelectorAll('.loan-item');
+        
+        // 마지막 하나 남은 경우, 필드 값만 지우고 항목은 유지
+        if (allItems.length === 1) {
+            const item = document.getElementById(`loan-item-${index}`);
+            if (item) {
+                // 모든 input 필드 값 지우기
+                item.querySelectorAll('input, select').forEach(field => {
+                    field.value = '';
+                });
+            }
+        } else {
+            // 2개 이상인 경우 항목 완전 제거
+            document.getElementById(`loan-item-${index}`)?.remove();
+        }
+        
         triggerMemoGeneration();
     }
     
