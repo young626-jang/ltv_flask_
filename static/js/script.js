@@ -195,9 +195,9 @@
     // createLoanItemHTML 함수 - 드래그 핸들 추가
     function createLoanItemHTML(index, loan = {}) {
         const formatValue = (val) => {
-            if (!val) return '0';
+            if (!val) return '';
             const numValue = Number(String(val).replace(/,/g, ''));
-            return numValue ? numValue.toLocaleString() : '0';
+            return numValue ? numValue.toLocaleString() : '';
         };
         
         return `
@@ -207,23 +207,24 @@
             </div>
             <div class="loan-col loan-col-lender">
                 <div class="mobile-label">설정자</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" value="${loan.lender || ''}">
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" placeholder="설정자" value="${loan.lender || ''}">
             </div>
             <div class="loan-col loan-col-max-amount">
                 <div class="mobile-label">채권최고액(만)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="max_amount" value="${formatValue(loan.max_amount)}">
+                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="max_amount" placeholder="채권최고액(만)" value="${formatValue(loan.max_amount)}">
             </div>
             <div class="loan-col loan-col-ratio">
                 <div class="mobile-label">비율(%)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" value="${loan.ratio || '120'}">
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" placeholder="비율(%)" value="${loan.ratio || ''}">
             </div>
             <div class="loan-col loan-col-principal">
                 <div class="mobile-label">원금(만)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="principal" value="${formatValue(loan.principal)}">
+                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="principal" placeholder="원금(만)" value="${formatValue(loan.principal)}">
             </div>
             <div class="loan-col loan-col-status">
                 <div class="mobile-label">구분</div>
                 <select class="form-select form-select-sm loan-input form-field md-loan-select" name="status">
+                    <option value="" selected>구분 선택...</option>
                     <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
                     <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
                     <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
@@ -233,7 +234,10 @@
                 </select>
             </div>
             <div class="loan-col loan-col-action">
-                <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
+                <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                    <button type="button" class="md-btn md-btn-secondary" onclick="addLoanItem()" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">+</button>
+                    <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
+                </div>
             </div>
         </div>`;
     }
@@ -1151,7 +1155,7 @@ if (balloonPrincipalPctInput) {
 document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
 document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
 document.getElementById('reset-btn').addEventListener('click', clearAllFields);
-document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
+// add-loan-btn 제거됨 - 각 행에서 개별적으로 처리
 document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
 document.getElementById('update-btn').addEventListener('click', updateCustomer);
 document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
