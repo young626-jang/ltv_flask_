@@ -16,7 +16,7 @@ def extract_area(text):
     area_section_match = re.search(r"전유부분의 건물의 표시([\s\S]*?)대지권의 표시", text)
     search_text = area_section_match.group(1) if area_section_match else text
     matches = re.findall(r"(\d+\.\d+)\s*㎡", search_text.replace('\n', ' '))
-    return matches[-1] if matches else ""
+    return f"{matches[-1]}㎡" if matches else ""
 
 def extract_owner_info(text):
 
