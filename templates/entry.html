@@ -50,10 +50,10 @@
             </div>
 
             <div id="basic-info-form" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="mb-2"><label for="address">주소</label><input type="text" class="form-control form-field md-input" id="address"></div>
+                <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
                 <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="customer_name">고객명 & 생년월일</label><input type="text" class="form-control form-field md-input" id="customer_name"></div>
-                    <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name" placeholder="공유자 1 고객명 & 생년월일"></div>
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name_2" placeholder="공유자 2 고객명 & 생년월일"></div>
                 </div>
 
                 <div class="row g-2 mb-2">
@@ -61,12 +61,13 @@
                         <option value="0" selected>지역 선택...</option>
                         {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
                     </select></div>
-                    <div class="col-md-6"><label for="deduction_amount">방공제 금액(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount"></div>
+                    <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
                 </div>
 
                 <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="kb_price">KB 시세(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="kb_price"></div>
-                    <div class="col-md-6"><label for="area">전용면적(㎡)</label><input type="text" class="form-control form-field md-input" id="area"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공제 금액(만)"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB 시세(만)"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field md-input" id="area" placeholder="전용면적(㎡)"></div>
                 </div>
                 
                 <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB시세</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn md-btn-secondary flex-fill">인터넷등기소</a></div>
@@ -103,19 +104,6 @@
 
             <!-- ✅ 공통 대출항목 영역 -->
             <div id="loan-section" class="mt-3" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft);">
-                <!-- ✨ 헤더 레이아웃 (CSS 클래스로 수정) -->
-                <div class="loan-row-header border-bottom pb-2 mb-1 fw-bold" style="font-size: 0.85rem; height: 38px;">
-                    <div class="loan-col loan-col-drag"></div>
-                    <div class="loan-col loan-col-lender">설정자</div>
-                    <div class="loan-col loan-col-max-amount">채권최고액(만)</div>
-                    <div class="loan-col loan-col-ratio">비율(%)</div>
-                    <div class="loan-col loan-col-principal">원금(만)</div>
-                    <div class="loan-col loan-col-status d-flex align-items-center justify-content-between">
-                        <span>구분</span>
-                        <button type="button" class="btn md-btn md-btn-secondary py-0 px-2" id="add-loan-btn" style="line-height: 1.2;">+</button>
-                    </div>
-                    <div class="loan-col loan-col-action"></div>
-                </div>
                 <div id="loan-items-container"></div>
             </div>
 
@@ -134,35 +122,30 @@
             <div class="tab-content" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem;">
                 <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
                     <div class="row g-2">
-                        <div class="col"><label>컨설팅(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" value="0"></div>
-                        <div class="col"><label>(%)</label><input type="text" class="form-control form-field md-input" id="consult_rate" value="1.5"></div>
-                        <div class="col"><label>브릿지(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" value="0"></div>
-                        <div class="col"><label>(%)</label><input type="text" class="form-control form-field md-input" id="bridge_rate" value="0.7"></div>
+                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설팅(만)"></div>
+                        <div class="col"><input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="(%)"></div>
+                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="브릿지(만)"></div>
+                        <div class="col"><input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="(%)"></div>
                     </div>
                 </div>
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="interest-loan-amount" class="form-label">대출금액 (만원)</label>
-                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="">
+                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="대출금액 (만원)">
                         </div>
                         <div class="col-md-6">
-                            <label for="interest-annual-rate" class="form-label">연이율 (%)</label>
-                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="">
+                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="연이율 (%)">
                         </div>
                     </div>
                     <div class="row g-3 mt-3">
                         <div class="col-md-4">
-                            <label class="form-label">하루 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-daily-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-daily-result" placeholder="하루 이자 (원)" readonly>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">한달 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-monthly-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-monthly-result" placeholder="한달 이자 (원)" readonly>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">1년 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-yearly-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-yearly-result" placeholder="1년 이자 (원)" readonly>
                         </div>
                     </div>
                     <hr class="my-4">
@@ -170,65 +153,54 @@
                     <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
-                            <label for="balloon-principal-pct" class="form-label">원금 분할 비율 (X%)</label>
-                            <input type="number" class="form-control md-input" id="balloon-principal-pct" value="7" min="0" max="100" step="0.1">
+                            <input type="number" class="form-control md-input" id="balloon-principal-pct" placeholder="분할율 (%)" min="0" max="100" step="0.1">
                         </div>
                         <div class="col-md-6">
-                            <label for="balloon-months" class="form-label">기간 (개월)</label>
-                            <input type="number" class="form-control md-input" id="balloon-months" value="60" min="1" step="1">
+                            <input type="number" class="form-control md-input" id="balloon-months" placeholder="개월수" min="1" step="1">
                         </div>
                     </div>
 
                     <div class="row g-2">
                         <div class="col-md-6">
-                            <label class="form-label text-success">매월 원금</label>
-                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" readonly>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" placeholder="매월 원금" readonly>
                             <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-info">첫 달 납입액</label>
-                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" readonly>
-                            <small class="text-muted" id="balloon-first-breakdown">(원금 + 이자)</small>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" placeholder="첫 달 납입액 (원금 0 + 이자 0)" readonly>
+                            <small class="text-muted" id="balloon-first-breakdown"></small>
                         </div>
                     </div>
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
                 <!-- ====================================================== -->
-                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel">
-                    <h6 class="mb-3">차주 선택</h6>
+                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
                     
                     <!-- 공유자 1 정보 입력 -->
-                    <div class="row mb-2 align-items-end">
-                        <div class="col-auto pe-2">
+                    <div class="row mb-2 align-items-center g-2">
+                        <div class="col-auto">
                           <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3);">
                         </div>
                         <div class="col">
-                          <label for="share-customer-name-1">공유자 1 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="">
+                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="공유자 1 고객명 & 생년월일">
                         </div>
                         <div class="col">
-                          <label for="share-customer-birth-1">지분율</label>
-                          <input type="text" class="form-control md-input" id="share-customer-birth-1">
+                          <input type="text" class="form-control md-input" id="share-customer-birth-1" placeholder="지분율">
                         </div>
                     </div>
 
                     <!-- 공유자 2 정보 입력 -->
-                    <div class="row mb-2 align-items-end">
-                        <div class="col-auto pe-2">
+                    <div class="row mb-2 align-items-center g-2">
+                        <div class="col-auto">
                           <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3);">
                         </div>
                         <div class="col">
-                          <label for="share-customer-name-2">공유자 2 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="">
+                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="공유자 1 고객명 & 생년월일">
                         </div>
                         <div class="col">
-                          <label for="share-customer-birth-2">지분율</label>
-                          <input type="text" class="form-control md-input" id="share-customer-birth-2">
+                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder="지분율">
                         </div>
                     </div>
-                    
-                    
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
