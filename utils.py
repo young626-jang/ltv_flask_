@@ -156,9 +156,9 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
         limit = int(total_value * (ltv / 100) - deduction)
         available = int(limit - principal_sum)
     else:
-        # 후순위: 가용은 무의미 → limit 만 계산
+        # 후순위: 한도 계산 후 가용자금은 한도와 동일
         limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = None  # 후순위에서는 사용하지 않음
+        available = limit  # 후순위에서는 한도와 동일
 
     import math
     limit = math.floor(limit / 100) * 100
@@ -167,7 +167,7 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
     return limit, available
 
 
-def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=True):
+def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False):
     results = []
     for owner in owners:
         share_percent = float(owner["지분율"].replace("%", ""))
@@ -177,24 +177,26 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
 
         if is_senior:
             ltv_limit = int(equity_value * (ltv / 100))
+            available = ltv_limit - existing_principal
         else:
             # ### 이 로직이 정확한 계산식입니다 ###
             # 후순위 한도 = (개별 지분가치 * LTV) - (부동산의 전체 유지 채권최고액)
             ltv_limit = int((equity_value * (ltv / 100)) - maintain_maxamt_sum)
+            # 후순위에서는 가용자금 = 한도와 동일
+            available = ltv_limit
             # ### -------------------------- ###
 
         ltv_limit = (ltv_limit // 100) * 100
-        available = ltv_limit - existing_principal if is_senior else None
+        available = (available // 100) * 100
 
         result = {
             "이름": owner["이름"],
             "지분율": owner["지분율"],
             "지분가치(만원)": equity_value,
             "지분LTV한도(만원)": ltv_limit,
+            "가용자금(만원)": available,
             "대출구분": "선순위" if is_senior else "후순위"
         }
-        if available is not None:
-            result["가용자금(만원)"] = available
 
         results.append(result)
 
