@@ -1009,7 +1009,9 @@ async function handleFileUpload(file) {
         document.getElementById('ltv1').value = '80';
         document.getElementById('consult_rate').value = '1.5';
         document.getElementById('bridge_rate').value = '0.7';
-        document.getElementById('deduction_amount').value = document.getElementById('deduction_region').value.toLocaleString();
+        const deductionRegionValue = document.getElementById('deduction_region').value;
+        document.getElementById('deduction_amount').value = (deductionRegionValue !== '0' && deductionRegionValue) ? 
+            parseInt(deductionRegionValue).toLocaleString() : '';
         document.getElementById('loan-items-container').innerHTML = '';
         loanItemCounter = 0;
         addLoanItem();
