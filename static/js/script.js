@@ -1,6 +1,88 @@
     let loanItemCounter = 0;
     let memoDebounceTimeout;
 
+    // 커스텀 알림창 함수 (닫기 버튼으로 즉시 닫힘)
+    function showCustomAlert(message, callback = null) {
+        // 기존 알림창이 있으면 제거
+        const existingAlert = document.getElementById('custom-alert-overlay');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        // 오버레이와 모달 생성
+        const overlay = document.createElement('div');
+        overlay.id = 'custom-alert-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 400px;
+            margin: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        `;
+
+        const messageDiv = document.createElement('div');
+        messageDiv.textContent = message;
+        messageDiv.style.cssText = `
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.4;
+            color: #333;
+        `;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '닫기';
+        closeBtn.style.cssText = `
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        `;
+
+        closeBtn.addEventListener('click', () => {
+            overlay.remove();
+            if (callback) callback();
+        });
+
+        // ESC 키로도 닫기
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', handleKeydown);
+                if (callback) callback();
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
+
+        // 모달 조립 및 표시
+        modal.appendChild(messageDiv);
+        modal.appendChild(closeBtn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // 버튼에 포커스
+        closeBtn.focus();
+    }
+
     // 레이아웃 설정 저장/복원 기능
     function saveLayoutSettings() {
         const mainContainer = document.getElementById('main-layout-wrapper');
@@ -10,10 +92,8 @@
         
         const layoutSettings = {
             isHorizontalMode: isHorizontal,
-            pdfColumnWidth: pdfColumn.style.width || (isHorizontal ? '100%' : '62.5%'),
-            pdfColumnHeight: pdfColumn.style.height || (isHorizontal ? '60%' : 'calc(100vh - 2rem)'),
-            formColumnWidth: formColumn.style.width || (isHorizontal ? '100%' : '37.5%'),
-            formColumnHeight: formColumn.style.height || (isHorizontal ? '38%' : 'calc(100vh - 2rem)'),
+            pdfColumnFlex: pdfColumn.style.flex || (isHorizontal ? '3' : '2'),
+            formColumnFlex: formColumn.style.flex || (isHorizontal ? '2' : '3'),
             timestamp: Date.now()
         };
         
@@ -44,11 +124,13 @@
                 btn.innerHTML = '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
             }
             
-            // 컬럼 크기 복원
-            pdfColumn.style.width = settings.pdfColumnWidth;
-            pdfColumn.style.height = settings.pdfColumnHeight;
-            formColumn.style.width = settings.formColumnWidth;
-            formColumn.style.height = settings.formColumnHeight;
+            // 컬럼 크기 복원 (flex 기반)
+            if (settings.pdfColumnFlex) {
+                pdfColumn.style.flex = settings.pdfColumnFlex;
+            }
+            if (settings.formColumnFlex) {
+                formColumn.style.flex = settings.formColumnFlex;
+            }
             
         } catch (error) {
             console.error('레이아웃 설정 로드 실패:', error);
@@ -471,38 +553,48 @@
         });
     }
 
-    // 모든 폼 데이터 수집
-    function collectAllData() {
-        const regionSelect = document.getElementById('deduction_region');
-        const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
-        const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
-            lender: item.querySelector('[name="lender"]').value, 
-            status: item.querySelector('[name="status"]').value,
-            max_amount: item.querySelector('[name="max_amount"]').value, 
-            principal: item.querySelector('[name="principal"]').value,
-            ratio: item.querySelector('[name="ratio"]').value,
-        }));
-        return {
-            inputs: {
-                customer_name: document.getElementById('customer_name').value, 
-                address: document.getElementById('address').value,
-                kb_price: document.getElementById('kb_price').value, 
-                area: document.getElementById('area').value,
-                deduction_region_text: selectedRegionText, 
-                deduction_amount: document.getElementById('deduction_amount').value,
-                ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
-                share_rate1: document.getElementById('share-customer-birth-1').value,
-                share_rate2: document.getElementById('share-customer-birth-2').value,
-            }, 
-            fees: {
-                consult_amt: document.getElementById('consult_amt').value, 
-                consult_rate: document.getElementById('consult_rate').value,
-                bridge_amt: document.getElementById('bridge_amt').value, 
-                bridge_rate: document.getElementById('bridge_rate').value,
-            }, 
-            loans: loanItems
-        };
-    }
+
+// 모든 폼 데이터 수집
+function collectAllData() {
+    const regionSelect = document.getElementById('deduction_region');
+    const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
+    const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
+        lender: item.querySelector('[name="lender"]').value,
+        status: item.querySelector('[name="status"]').value,
+        max_amount: item.querySelector('[name="max_amount"]').value,
+        principal: item.querySelector('[name="principal"]').value,
+        ratio: item.querySelector('[name="ratio"]').value,
+    }));
+
+    // return 구문 바깥에서 변수를 먼저 선언합니다.
+    const name1 = document.getElementById('customer_name').value.trim();
+    const name2 = document.getElementById('customer_name_2').value.trim();
+    
+    // 두 개의 이름을 합쳐 하나의 문자열로 만듭니다. (빈 값은 알아서 제외됩니다)
+    const combinedCustomerName = [name1, name2].filter(Boolean).join(', ');
+
+    return {
+        inputs: {
+            // 위에서 만든 변수를 여기서 사용합니다.
+            customer_name: combinedCustomerName,
+            address: document.getElementById('address').value,
+            kb_price: document.getElementById('kb_price').value,
+            area: document.getElementById('area').value,
+            deduction_region_text: selectedRegionText,
+            deduction_amount: document.getElementById('deduction_amount').value,
+            ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
+            share_rate1: document.getElementById('share-customer-birth-1').value,
+            share_rate2: document.getElementById('share-customer-birth-2').value,
+        },
+        fees: {
+            consult_amt: document.getElementById('consult_amt').value,
+            consult_rate: document.getElementById('consult_rate').value,
+            bridge_amt: document.getElementById('bridge_amt').value,
+            bridge_rate: document.getElementById('bridge_rate').value,
+        },
+        loans: loanItems
+    };
+}
     
     // 메모 생성 요청 (디바운스 적용)
     function triggerMemoGeneration() {
@@ -564,44 +656,67 @@
         }
     }
 
-    // 특정 고객 데이터 불러오기
-    async function loadCustomerData() {
-        const select = document.getElementById('customer-history');
-        const pageId = select.value;
-        if (!pageId) return;
-        try {
-            const response = await fetch(`/api/customer/${pageId}`);
-            if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
-            const data = await response.json();
-            if (data.error) { alert(`데이터 로드 실패: ${data.error}`); return; }
-            
-            document.getElementById('customer_name').value = data.customer_name || '';
-            document.getElementById('address').value = data.address || '';
-            document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
-            document.getElementById('area').value = data.area || '';
-            document.getElementById('ltv1').value = data.ltv1 || '80';
-            document.getElementById('ltv2').value = data.ltv2 || '';
-            document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
-            document.getElementById('consult_rate').value = data.consult_rate || '1.5';
-            document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
-            document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
-            
-            const regionSelect = document.getElementById('deduction_region');
-            const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
-            if(regionOption) {
-                regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
-            } else if(regionSelect.options.length > 0) {
-                regionSelect.selectedIndex = 0;
-            }
-            document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
-            document.getElementById('loan-items-container').innerHTML = '';
-            loanItemCounter = 0;
 
-            if (data.loans && data.loans.length > 0) {
-                data.loans.forEach(loan => addLoanItem(loan));
-            } else { 
-                addLoanItem(); 
+// 특정 고객 데이터 불러오기
+async function loadCustomerData() {
+    const select = document.getElementById('customer-history');
+    const pageId = select.value;
+    if (!pageId) return;
+    try {
+        const response = await fetch(`/api/customer/${pageId}`);
+        if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
+        const data = await response.json();
+        if (data.error) { alert(`데이터 로드 실패: ${data.error}`); return; }
+        
+        // --- ▼▼▼ 여기가 핵심 수정 부분입니다 ▼▼▼ ---
+        // Notion에서 온 '홍길동 800101, 김철수 900202' 같은 데이터를 나눕니다.
+        if (data.customer_name) {
+            const owners = data.customer_name.split(',').map(name => name.trim());
+            document.getElementById('customer_name').value = owners[0] || '';
+            document.getElementById('customer_name_2').value = owners[1] || '';
+        } else {
+            document.getElementById('customer_name').value = '';
+            document.getElementById('customer_name_2').value = '';
+        }
+        // --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
+        
+        document.getElementById('address').value = data.address || '';
+        document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
+        document.getElementById('area').value = data.area || '';
+        document.getElementById('ltv1').value = data.ltv1 || '80';
+        document.getElementById('ltv2').value = data.ltv2 || '';
+        document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
+        document.getElementById('consult_rate').value = data.consult_rate || '1.5';
+        document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
+        document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
+        
+        const regionSelect = document.getElementById('deduction_region');
+        const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
+        if(regionOption) {
+            regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
+        } else if(regionSelect.options.length > 0) {
+            regionSelect.selectedIndex = 0;
+        }
+        document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
+        document.getElementById('loan-items-container').innerHTML = '';
+        loanItemCounter = 0;
+
+        if (data.loans && data.loans.length > 0) {
+            data.loans.forEach(loan => addLoanItem(loan));
+        } else { 
+            addLoanItem(); 
+        }
+
+        // customer_name 데이터를 지분한도 계산기 탭 공유자 필드에 자동 입력
+        if (data.customer_name) {
+            const owners = data.customer_name.split(',').map(name => name.trim());
+            if (owners.length >= 1) {
+                document.getElementById('share-customer-name-1').value = owners[0];
             }
+            if (owners.length >= 2) {
+                document.getElementById('share-customer-name-2').value = owners[1];
+            }
+        }
 
             // customer_name 데이터를 지분한도 계산기 탭 공유자 필드에 자동 입력
             if (data.customer_name) {
@@ -627,8 +742,9 @@
             alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
         }
     }
+
     
-    // 지분율 자동 계산 함수
+    // 지분율 자동 계산 함수 (개선됨)
     function autoCalculateShareRatio(inputIndex, targetIndex) {
         const inputField = document.getElementById(`share-customer-birth-${inputIndex}`);
         const targetField = document.getElementById(`share-customer-birth-${targetIndex}`);
@@ -641,13 +757,56 @@
             return;
         }
         
-        // 숫자만 추출
-        const inputRatio = parseFloat(inputValue.replace(/[^0-9.]/g, ''));
-        if (isNaN(inputRatio) || inputRatio < 0 || inputRatio > 100) return;
+        let inputRatio = 0;
+        
+        // 다양한 형태의 지분율 입력 처리
+        if (inputValue.includes('/')) {
+            // 분수 형태: "1/2", "3/4" 등
+            const parts = inputValue.split('/');
+            if (parts.length === 2) {
+                const numerator = parseFloat(parts[0]);
+                const denominator = parseFloat(parts[1]);
+                if (!isNaN(numerator) && !isNaN(denominator) && denominator !== 0) {
+                    inputRatio = (numerator / denominator) * 100;
+                    // 원본 입력을 백분율로 포맷
+                    inputField.value = `${parts[0]}/${parts[1]} (${inputRatio.toFixed(1)}%)`;
+                }
+            }
+        } else if (inputValue.includes('(') && inputValue.includes('%')) {
+            // 이미 괄호가 있는 형태: "1/2 (50%)" 등
+            const percentMatch = inputValue.match(/\(([\d.]+)%?\)/);
+            if (percentMatch) {
+                inputRatio = parseFloat(percentMatch[1]);
+            }
+        } else {
+            // 일반 숫자 입력: "50", "50%", "50.5" 등
+            inputRatio = parseFloat(inputValue.replace(/[^0-9.]/g, ''));
+            if (!isNaN(inputRatio) && inputRatio > 0 && inputRatio <= 100) {
+                // 입력을 백분율 형태로 포맷
+                inputField.value = `${inputRatio}%`;
+            }
+        }
+        
+        // 유효성 검사
+        if (isNaN(inputRatio) || inputRatio <= 0 || inputRatio >= 100) return;
         
         // 나머지 지분율 계산
         const remainingRatio = 100 - inputRatio;
-        targetField.value = remainingRatio.toString();
+        
+        // 분수와 백분율 형태로 대상 필드 설정
+        if (inputRatio === 50) {
+            targetField.value = `1/2 (${remainingRatio}%)`;
+        } else if (inputRatio === 33.3 || Math.abs(inputRatio - 33.333) < 0.1) {
+            targetField.value = `2/3 (${remainingRatio.toFixed(1)}%)`;
+        } else if (inputRatio === 66.7 || Math.abs(inputRatio - 66.667) < 0.1) {
+            targetField.value = `1/3 (${remainingRatio.toFixed(1)}%)`;
+        } else if (inputRatio === 25) {
+            targetField.value = `3/4 (${remainingRatio}%)`;
+        } else if (inputRatio === 75) {
+            targetField.value = `1/4 (${remainingRatio}%)`;
+        } else {
+            targetField.value = `${remainingRatio.toFixed(1)}%`;
+        }
     }
     
     // 텍스트에리어 크기 자동 조절 함수
@@ -740,53 +899,62 @@
         }
     }
 
-    // PDF 파일 업로드 핸들러
-    async function handleFileUpload(file) {
-        console.log("--- handleFileUpload 함수 실행 ---");
-        const spinner = document.getElementById('upload-spinner');
-        spinner.style.display = 'block';
-        const formData = new FormData();
-        formData.append('pdf_file', file);
-        try {
-            console.log("서버로 파일 업로드 요청 전송...");
-            const response = await fetch('/api/upload', { method: 'POST', body: formData });
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.error || `서버 에러: ${response.status}`);
-            }
-            const result = await response.json();
-            console.log("업로드 성공. 서버 결과:", result);
-            if (result.success) {
-                const scraped = result.scraped_data;
-                document.getElementById('customer_name').value = scraped.customer_name || '';
-                document.getElementById('address').value = scraped.address || '';
-                document.getElementById('area').value = scraped.area || '';
-                if (scraped.owner_shares && scraped.owner_shares.length > 0) {
-                    scraped.owner_shares.forEach((line, idx) => {
-                        const [nameBirth, shareInfo] = line.split("  지분율 ");
-                        const nameField = document.getElementById(`share-customer-name-${idx+1}`);
-                        const shareField = document.getElementById(`share-customer-birth-${idx+1}`);
-                        if (nameField) nameField.value = nameBirth;
-                        if (shareField) shareField.value = "지분율 " + shareInfo;
-                    });
-                }
-                // FileReader API를 사용해서 클라이언트에서 바로 PDF 표시
-                const fileURL = URL.createObjectURL(file);
-                document.getElementById('pdf-viewer').src = fileURL;
-                document.getElementById('upload-section').style.display = 'none';
-                document.getElementById('viewer-section').style.display = 'block';
-                document.getElementById('file-name-display').textContent = file.name;
-                triggerMemoGeneration();
-            } else { 
-                alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
-            }
-        } catch (error) {
-            console.error("!!!!! 파일 업로드 중 예외 발생:", error);
-            alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
-        } finally {
-            spinner.style.display = 'none';
+// PDF 파일 업로드 핸들러
+async function handleFileUpload(file) {
+    const spinner = document.getElementById('upload-spinner');
+    spinner.style.display = 'block';
+    const formData = new FormData();
+    formData.append('pdf_file', file);
+    try {
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!response.ok) {
+            const errorResult = await response.json();
+            throw new Error(errorResult.error || `서버 에러: ${response.status}`);
         }
+        const result = await response.json();
+        if (result.success) {
+            const scraped = result.scraped_data;
+            
+            // PDF에서 스크래핑한 고객명을 나누어 두 필드에 입력
+            if (scraped.customer_name) {
+                const owners = scraped.customer_name.split(',').map(name => name.trim());
+                document.getElementById('customer_name').value = owners[0] || '';
+                document.getElementById('customer_name_2').value = owners[1] || '';
+            } else {
+                document.getElementById('customer_name').value = '';
+                document.getElementById('customer_name_2').value = '';
+            }
+
+            document.getElementById('address').value = scraped.address || '';
+            // 전용면적 - 이미 단위가 있으면 그대로, 없으면 단위 추가
+            const areaValue = scraped.area || '';
+            document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
+
+            if (scraped.owner_shares && scraped.owner_shares.length > 0) {
+                scraped.owner_shares.forEach((line, idx) => {
+                    const [nameBirth, shareInfo] = line.split("  지분율 ");
+                    const nameField = document.getElementById(`share-customer-name-${idx+1}`);
+                    const shareField = document.getElementById(`share-customer-birth-${idx+1}`);
+                    if (nameField) nameField.value = nameBirth;
+                    if (shareField) shareField.value = "지분율 " + shareInfo;
+                });
+            }
+            const fileURL = URL.createObjectURL(file);
+            document.getElementById('pdf-viewer').src = fileURL;
+            document.getElementById('upload-section').style.display = 'none';
+            document.getElementById('viewer-section').style.display = 'block';
+            document.getElementById('file-name-display').textContent = file.name;
+            triggerMemoGeneration();
+        } else { 
+            alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
+        }
+
+    } catch (error) {
+        alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
+    } finally {
+        spinner.style.display = 'none';
     }
+}
 
     // 레이아웃 토글
     function toggleLayout() {
@@ -794,14 +962,15 @@
         const btn = document.getElementById('layout-toggle-btn');
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
-        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
-        
+        if (!mainContainer || !btn || !pdfColumn || !formColumn) return;
+
         mainContainer.classList.toggle('horizontal-mode');
-        btn.innerHTML = !isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
+        btn.innerHTML = isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
         
         // 컬럼 크기 초기화
-        if (!isHorizontal) {
-            // 가로모드로 전환 - flex 기반 반응형
+        if (isHorizontal) {
+            // [정상 동작] 가로모드: JS는 높이를 비우고, CSS flex가 자동 계산
             pdfColumn.style.width = '100%';
             pdfColumn.style.height = '';
             pdfColumn.style.flex = '3';
@@ -809,27 +978,28 @@
             formColumn.style.height = '';
             formColumn.style.flex = '2';
         } else {
-            // 세로모드로 전환
-            pdfColumn.style.width = '62.5%';
-            pdfColumn.style.height = 'calc(100vh - 2rem)';
-            pdfColumn.style.flex = '';
-            formColumn.style.width = '37.5%';
-            formColumn.style.height = 'calc(100vh - 2rem)';
-            formColumn.style.flex = '';
+            // [수정 완료] 세로모드: JS가 높이를 비워서, CSS가 자동 계산하도록 변경
+            pdfColumn.style.width = '100%';
+            pdfColumn.style.height = ''; // ★★★ 핵심: 문제가 되었던 calc() 코드를 삭제했습니다.
+            pdfColumn.style.flex = '3';
+            formColumn.style.width = '100%';
+            formColumn.style.height = ''; // ★★★ 핵심: 문제가 되었던 calc() 코드를 삭제했습니다.
+            formColumn.style.flex = '2';
         }
         
-        // 레이아웃 상태 저장
+        // 레이아웃 상태 저장 및 리사이즈 바 재설정
         saveLayoutSettings();
         
-        // 리사이즈 바 이벤트 리스너 재설정
         setTimeout(() => {
             initializeResizeBar();
         }, 100);
     }
-    
+
     // 전체 초기화
     function clearAllFields() {
         document.querySelectorAll('.form-field').forEach(field => {
+        document.getElementById('customer_name_2').value = ''; // 이 줄을 추가해주세요.
+        document.getElementById('ltv1').value = '80';    
             if(field.tagName === 'SELECT') { 
                 field.selectedIndex = 0; 
             } else { 
@@ -922,7 +1092,8 @@
             }
             
             if (sharePercent === 0) {
-                // 지분율이 입력되지 않은 경우 조용히 종료
+                // 지분율이 입력되지 않은 경우 경고창 표시
+                showCustomAlert("지분율을 선택해주세요");
                 return;
             }
             
@@ -1016,187 +1187,130 @@
         }
     }
     
-    // 모든 이벤트 리스너 최초 연결
-    function attachAllEventListeners() {
-        const uploadSection = document.getElementById('upload-section');
-        const fileInput = document.getElementById('file-input');
-        uploadSection.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => { 
-            if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
-        });
-        
-        ['dragover','dragleave','drop'].forEach(eventName => {
-            uploadSection.addEventListener(eventName, e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-            }, false);
-        });
-        
-        uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
-        uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
-        uploadSection.addEventListener('drop', (e) => {
-            uploadSection.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
-        });
+// 모든 이벤트 리스너 최초 연결
+function attachAllEventListeners() {
+    const uploadSection = document.getElementById('upload-section');
+    const fileInput = document.getElementById('file-input');
+    uploadSection.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => { 
+        if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
+    });
+    
+    ['dragover','dragleave','drop'].forEach(eventName => {
+        uploadSection.addEventListener(eventName, e => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+        }, false);
+    });
+    
+    uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
+    uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
+    uploadSection.addEventListener('drop', (e) => {
+        uploadSection.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
+    });
 
-        document.querySelectorAll('.manwon-format').forEach(input => {
-            input.addEventListener('blur', formatManwonValue);
+    document.querySelectorAll('.manwon-format').forEach(input => {
+        input.addEventListener('blur', formatManwonValue);
+    });
+    
+    document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
+        radio.addEventListener('change', calculateIndividualShare);
+        radio.addEventListener('click', function() {
+            setTimeout(() => {
+                calculateIndividualShare();
+            }, 50);
         });
-        
-        // 지분 한도 계산기 라디오 버튼 이벤트
-        document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
-            radio.addEventListener('change', calculateIndividualShare);
-            // 반복 클릭해도 항상 재계산되도록 click 이벤트 추가
-            radio.addEventListener('click', function() {
-                // 약간의 지연을 두고 재계산하여 확실하게 실행
-                setTimeout(() => {
-                    calculateIndividualShare();
-                }, 50);
-            });
-        });
-        
-        // 지분 계산에 영향을 주는 필드들 변경 시 자동 재계산
-        document.getElementById('ltv1')?.addEventListener('change', calculateIndividualShare);
-        document.getElementById('ltv1')?.addEventListener('blur', calculateIndividualShare);
-        document.getElementById('kb_price')?.addEventListener('change', calculateIndividualShare);
-        document.getElementById('kb_price')?.addEventListener('blur', calculateIndividualShare);
-        
-        // 지분율 입력 필드 변경 시 자동 재계산 + 상호 지분율 자동 계산
-        document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
-            autoCalculateShareRatio(1, 2);
-            calculateIndividualShare();
-        });
-        document.getElementById('share-customer-birth-1')?.addEventListener('blur', function() {
-            autoCalculateShareRatio(1, 2);
-            calculateIndividualShare();
-        });
-        document.getElementById('share-customer-birth-2')?.addEventListener('change', function() {
-            autoCalculateShareRatio(2, 1);
-            calculateIndividualShare();
-        });
-        document.getElementById('share-customer-birth-2')?.addEventListener('blur', function() {
-            autoCalculateShareRatio(2, 1);
-            calculateIndividualShare();
-        });
-        
-        const loanAmountInput = document.getElementById('interest-loan-amount');
-        const annualRateInput = document.getElementById('interest-annual-rate');
+    });
+    
+    document.getElementById('ltv1')?.addEventListener('change', calculateIndividualShare);
+    document.getElementById('ltv1')?.addEventListener('blur', calculateIndividualShare);
+    document.getElementById('kb_price')?.addEventListener('change', calculateIndividualShare);
+    document.getElementById('kb_price')?.addEventListener('blur', calculateIndividualShare);
+    
+    document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
+        autoCalculateShareRatio(1, 2);
+        calculateIndividualShare();
+    });
+    document.getElementById('share-customer-birth-1')?.addEventListener('blur', function() {
+        autoCalculateShareRatio(1, 2);
+        calculateIndividualShare();
+    });
+    document.getElementById('share-customer-birth-2')?.addEventListener('change', function() {
+        autoCalculateShareRatio(2, 1);
+        calculateIndividualShare();
+    });
+    document.getElementById('share-customer-birth-2')?.addEventListener('blur', function() {
+        autoCalculateShareRatio(2, 1);
+        calculateIndividualShare();
+    });
+    
+    const loanAmountInput = document.getElementById('interest-loan-amount');
+    const annualRateInput = document.getElementById('interest-annual-rate');
+    const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
+    const balloonMonthsInput = document.getElementById('balloon-months');
 
-        // 키보드를 누를 때마다 이자 다시 계산
-        loanAmountInput.addEventListener('keyup', calculateSimpleInterest);
-        annualRateInput.addEventListener('keyup', calculateSimpleInterest);
-
-        // 대출금액 입력 필드에서 포커스가 벗어날 때 숫자 포맷팅 (콤마 추가)
-        loanAmountInput.addEventListener('blur', (e) => {
-            const value = e.target.value.replace(/,/g, '');
-            const num = parseInt(value, 10);
-            if (!isNaN(num) && num > 0) {
-                e.target.value = num.toLocaleString();
-            } else {
-                e.target.value = '';
-            }
-        });
-
-            // ✨ 원금 분할 계산기 함수들 추가
-    function formatNumberWithCommas(value) {
-        return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-
-    function parseFormattedNumber(value) {
-        return Number(value.replace(/,/g, '')) || 0;
-    }
-
-    function calculateBalloonLoan() {
-        // 기존 이자계산기 필드에서 값 가져오기
-        const loanAmountInput = document.getElementById('interest-loan-amount');
-        const annualRateInput = document.getElementById('interest-annual-rate');
-        const principalPctInput = document.getElementById('balloon-principal-pct');
-        const monthsInput = document.getElementById('balloon-months');
-
-        // 기존 필드값 사용 (만원 단위를 원 단위로 변환)
-        const loanManwon = parseFloat(loanAmountInput.value.replace(/,/g, '')) || 0;
-        const loan = loanManwon * 10000; // 만원을 원으로 변환
-        const annualRate = Number(annualRateInput.value) || 0;
-        const principalPct = Math.max(0, Math.min(100, Number(principalPctInput.value) || 0));
-        const months = Number(monthsInput.value) || 0;
-
-        const monthlyRate = annualRate > 0 ? annualRate / 100 / 12 : 0;
-        const principalPortion = loan * (principalPct / 100);
-        const monthlyPrincipal = months > 0 ? principalPortion / months : 0;
-        const firstMonthInterest = loan * monthlyRate;
-        const firstMonthPayment = monthlyPrincipal + firstMonthInterest;
-
-        document.getElementById('balloon-monthly-principal').value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
-        document.getElementById('balloon-first-payment').value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
-        document.getElementById('balloon-first-breakdown').textContent = 
-            `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
-    }
-
-    function handleBalloonLoanInput(event) {
-        const input = event.target;
-        const value = input.value.replace(/,/g, '');
-        const num = parseInt(value, 10);
-        
-        if (!isNaN(num) && num > 0) {
-            input.value = num.toLocaleString();
-        } else {
-            input.value = '';
-        }
-        
+    function updateAllInterestCalculators() {
+        calculateSimpleInterest();
         calculateBalloonLoan();
     }
+    loanAmountInput.addEventListener('keyup', updateAllInterestCalculators);
+    annualRateInput.addEventListener('keyup', updateAllInterestCalculators);
+
+    loanAmountInput.addEventListener('blur', (e) => {
+        const value = e.target.value.replace(/,/g, '');
+        const num = parseInt(value, 10);
+        if (!isNaN(num) && num > 0) {
+            e.target.value = num.toLocaleString();
+        } else {
+            e.target.value = '';
+        }
+    });
+
+    if (balloonPrincipalPctInput) {
+       balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
+       balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
+    }
+
+    document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
+    document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
+    document.getElementById('reset-btn').addEventListener('click', clearAllFields);
+    document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
+    document.getElementById('update-btn').addEventListener('click', updateCustomer);
+    document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+
+    // 방공제 지역 선택 시 자동 금액 설정
+    document.getElementById('deduction_region').addEventListener('change', (e) => {
+        document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
+            parseInt(e.target.value).toLocaleString() : '';
+        checkTenantDeductionWarning(); 
+        triggerMemoGeneration();
+    });
+
+    // 방공제 금액 수기 입력 시 지역 선택 확인
+    document.getElementById('deduction_amount').addEventListener('input', (e) => {
+        const deductionRegionSelect = document.getElementById('deduction_region');
+        const deductionAmount = e.target.value.trim();
         
-
-    // 기존 이자계산기 이벤트 리스너에 원금 분할 계산 추가
-    loanAmountInput.addEventListener('keyup', () => {
-        calculateSimpleInterest();
-        calculateBalloonLoan(); // 추가
+        // 방공제 금액이 입력되었는데 지역이 선택되지 않은 경우
+        if (deductionAmount && (!deductionRegionSelect.value || deductionRegionSelect.value === '0')) {
+            showCustomAlert("방공제지역을 선택하여 주세요", () => {
+                // 확인/닫기 버튼 클릭 시 포커스를 지역 선택으로 이동
+                deductionRegionSelect.focus();
+            });
+        }
+        
+        triggerMemoGeneration();
     });
-    annualRateInput.addEventListener('keyup', () => {
-        calculateSimpleInterest();
-        calculateBalloonLoan(); // 추가
+
+    document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
+       field.addEventListener('change', triggerMemoGeneration);
+       if (field.type === 'text' && !field.classList.contains('manwon-format')) {
+           field.addEventListener('keyup', triggerMemoGeneration);
+       }
     });
-// 원금 분할 계산기 전용 필드들
-const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
-const balloonMonthsInput = document.getElementById('balloon-months');
+} // <--- 이 닫는 괄호가 핵심입니다.
 
-if (balloonPrincipalPctInput) {
-   balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
-   balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
-   
-   // 초기 계산 실행
-   calculateBalloonLoan();
-}
-
-document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
-document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
-document.getElementById('reset-btn').addEventListener('click', clearAllFields);
-// add-loan-btn 제거됨 - 각 행에서 개별적으로 처리
-document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
-document.getElementById('update-btn').addEventListener('click', updateCustomer);
-document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
-
-// ✨ [수정] 방공제 지역 변경 시 경고 확인 로직만 유지
-document.getElementById('deduction_region').addEventListener('change', (e) => {
-    // ✅ 신규 고객용: 방공제 금액 자동 설정
-    document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
-        parseInt(e.target.value).toLocaleString() : '';
-    
-    checkTenantDeductionWarning(); 
-    triggerMemoGeneration();
-});
-
-document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
-   field.addEventListener('change', triggerMemoGeneration);
-   if (field.type === 'text' && !field.classList.contains('manwon-format')) {
-       field.addEventListener('keyup', triggerMemoGeneration);
-   }
-});
-
-document.querySelectorAll('.manwon-format').forEach(input => {
-   input.addEventListener('blur', formatManwonValue);
-});
-}
 
 
     // 리사이즈 바 기능 구현
@@ -1264,23 +1378,26 @@ document.querySelectorAll('.manwon-format').forEach(input => {
                 
             } else {
                 // --- 세로 모드 (좌우 분할) ---
+                /* ▼▼▼ 이 코드로 교체하세요 ▼▼▼ */
                 const deltaX = clientX - startPos;
                 const containerWidth = mainContainer.clientWidth;
                 const resizeBarWidth = newResizeBar.clientWidth;
                 const availableWidth = containerWidth - resizeBarWidth;
-                const minWidth = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 너비
+                const minWidth = 150;
 
+                // PDF 컬럼의 새로운 너비 계산 (최소/최대 제한 포함)
                 let newPdfWidth = startPdfSize + deltaX;
-
-                // 최소/최대 너비 제한을 두어 레이아웃이 깨지지 않게 합니다.
                 newPdfWidth = Math.max(minWidth, newPdfWidth);
                 newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
+
+                // 폼 컬럼의 새로운 너비 계산
+                const newFormWidth = availableWidth - newPdfWidth;
                 
-                const pdfPercent = (newPdfWidth / availableWidth) * 100;
-                const formPercent = 100 - pdfPercent;
-                
-                pdfColumn.style.width = `${pdfPercent}%`;
-                formColumn.style.width = `${formPercent}%`;
+                // 계산된 너비 비율에 따라 flex 값을 동적으로 설정 (가로 모드와 로직 통일)
+                const totalFlexWidth = newPdfWidth + newFormWidth;
+                pdfColumn.style.flex = `${(newPdfWidth / totalFlexWidth) * 5}`;
+                formColumn.style.flex = `${(newFormWidth / totalFlexWidth) * 5}`;
+                /* ▲▲▲ 여기까지 교체 ▲▲▲ */
             }
         }
         
@@ -1449,3 +1566,46 @@ document.addEventListener('visibilitychange', () => {
         saveLayoutSettings();
     }
 });
+
+
+
+// ✨ 원금 분할 계산기 함수들
+function formatNumberWithCommas(value) {
+    if (value === null || value === undefined) return '';
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function parseFormattedNumber(value) {
+    if (typeof value !== 'string') return 0;
+    return Number(value.replace(/,/g, '')) || 0;
+}
+
+function calculateBalloonLoan() {
+    // 이자 계산기 탭의 원금 분할 계산을 담당합니다.
+    const loanAmountInput = document.getElementById('interest-loan-amount');
+    const annualRateInput = document.getElementById('interest-annual-rate');
+    const principalPctInput = document.getElementById('balloon-principal-pct');
+    const monthsInput = document.getElementById('balloon-months');
+    if (!loanAmountInput || !annualRateInput || !principalPctInput || !monthsInput) return;
+
+    const loanManwon = parseFloat(loanAmountInput.value.replace(/,/g, '')) || 0;
+    const loan = loanManwon * 10000;
+    const annualRate = Number(annualRateInput.value) || 0;
+    const principalPct = Math.max(0, Math.min(100, Number(principalPctInput.value) || 0));
+    const months = Number(monthsInput.value) || 0;
+
+    const monthlyRate = annualRate > 0 ? annualRate / 100 / 12 : 0;
+    const principalPortion = loan * (principalPct / 100);
+    const monthlyPrincipal = months > 0 ? principalPortion / months : 0;
+    const firstMonthInterest = loan * monthlyRate;
+    const firstMonthPayment = monthlyPrincipal + firstMonthInterest;
+
+    const monthlyPrincipalEl = document.getElementById('balloon-monthly-principal');
+    const firstPaymentEl = document.getElementById('balloon-first-payment');
+    const breakdownEl = document.getElementById('balloon-first-breakdown');
+
+    if (monthlyPrincipalEl) monthlyPrincipalEl.value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
+    if (firstPaymentEl) firstPaymentEl.value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
+    if (breakdownEl) breakdownEl.textContent = 
+        `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
+}
