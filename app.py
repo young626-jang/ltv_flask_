@@ -155,9 +155,7 @@ def generate_memo(data):
 
         valid_loans = []
         if loans and isinstance(loans, list):
-            status_order = {'선말소': 0, '대환': 1}
             valid_loans = [l for l in loans if isinstance(l, dict) and (parse_korean_number(l.get('max_amount', '0')) > 0 or parse_korean_number(l.get('principal', '0')) > 0)]
-            valid_loans.sort(key=lambda x: status_order.get(x.get('status'), 2))
             loan_memo = [f"{i}. {item.get('lender', '-')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '-')}% | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '-')}" for i, item in enumerate(valid_loans, 1)]
             if loan_memo:
                 memo_lines.extend(loan_memo)
