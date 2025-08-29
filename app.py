@@ -314,21 +314,39 @@ def calculate_individual_share():
         owners = data.get("owners", [])
         senior_lien = 0
 
-        # 차감할 대출 (선순위만, 채권최고액 우선, 없으면 원금)
+        # 차감할 대출 및 선순위/후순위 판별
+        maintain_maxamt_sum = 0  # 유지되는 후순위 대출 채권최고액
+        existing_principal = 0   # 갚아야 할 원금
+        
+        # 후순위를 만드는 상태들
+        subordinate_statuses = ["유지", "동의", "비동의"]
+        # 선순위(선말소) 상태들  
+        senior_statuses = ["선순위", "대환", "퇴거자금", "선말소"]
+        
+        has_subordinate = False
+        
         for loan in loans:
             status = loan.get("status", "").strip()
-            # 선순위, 유지, 대환만 차감 (후순위는 제외)
-            if status in ["선순위", "유지", "대환"]:
-                max_amt = int(loan.get("max_amount", 0))
-                principal = int(loan.get("principal", 0))
-                senior_lien += max_amt if max_amt else principal
+            max_amt = int(loan.get("max_amount", 0))
+            principal = int(loan.get("principal", 0))
+            
+            if status in subordinate_statuses:
+                # 후순위로 만드는 대출 - 채권최고액으로 차감
+                maintain_maxamt_sum += max_amt if max_amt else principal
+                has_subordinate = True
+            elif status in senior_statuses:
+                # 선말소/대환 - 갚아야 할 원금
+                existing_principal += principal
 
+        # 선순위인지 후순위인지 판별
+        is_senior = not has_subordinate
+        
         # 디버깅용 로그
-        logger.info(f"지분 계산 - 시세: {total_value}만, LTV: {ltv}%, 선순위: {senior_lien}만")
+        logger.info(f"지분 계산 - 시세: {total_value}만, LTV: {ltv}%, 후순위차감: {maintain_maxamt_sum}만, 갚을원금: {existing_principal}만, 선순위여부: {is_senior}")
         logger.info(f"대출 데이터: {loans}")
         
         # 지분별 한도 계산
-        results = calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien)
+        results = calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum, existing_principal, is_senior)
 
         return jsonify({"success": True, "results": results})
     except Exception as e:
