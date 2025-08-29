@@ -15,7 +15,12 @@ def extract_area(text):
     """텍스트에서 전용 면적을 추출합니다."""
     area_section_match = re.search(r"전유부분의 건물의 표시([\s\S]*?)대지권의 표시", text)
     search_text = area_section_match.group(1) if area_section_match else text
-    matches = re.findall(r"(\d+\.\d+)\s*㎡", search_text.replace('\n', ' '))
+    
+    # 줄바꿈으로 분리된 면적 처리 (박규생님 등기 등)
+    clean_text = re.sub(r'구조(\d+)\s*\n\s*\.', r'구조\1.', search_text)
+    clean_text = re.sub(r'\s+', ' ', clean_text)
+    
+    matches = re.findall(r"(\d+\.\d+)\s*㎡", clean_text)
     return f"{matches[-1]}㎡" if matches else ""
 
 def extract_owner_info(text):
