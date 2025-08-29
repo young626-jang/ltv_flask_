@@ -41,11 +41,26 @@
             flex: 2; /* <-- 변경: 2/5 비율 (기존 40% 역할) */
             display: flex; 
             flex-direction: column; 
-            transition: flex 0.1s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
+            transition: flex 0.3s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: #F2EDD7;
             border-radius: 12px;
             padding: 0;
             box-shadow: var(--shadow-soft);
+        }
+        
+        /* PDF 업로드 전 상태 - 드래그앤드롭만 보이는 컴팩트 모드 */
+        .pdf-viewer-column.compact {
+            flex: 1;
+            min-width: 200px;
+            /* max-width 제거하여 리사이즈 가능하게 함 */
+        }
+        
+        .pdf-viewer-column.compact #upload-section {
+            display: flex !important;
+        }
+        
+        .pdf-viewer-column.compact #viewer-section {
+            display: none !important;
         }
         .form-column { 
             flex: 3; /* <-- 변경: 3/5 비율 (기존 60% 역할) */
@@ -67,9 +82,11 @@
             flex-shrink: 0;
             user-select: none;
             z-index: 10;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             touch-action: none; /* 터치 스크롤 방지 */
         }
+        
+        /* PDF 컴팩트 상태에서 리사이즈 바는 정상 동작 */
         
         .resize-bar:hover {
             background: linear-gradient(to bottom, #6c757d, #495057, #6c757d);
