@@ -101,10 +101,15 @@ def generate_memo(data):
         fees = data.get('fees', {})
 
         def format_manwon(value):
-            num_val = parse_korean_number(str(value))
-            if isinstance(num_val, (int, float)):
-                return f"{num_val:,}만"
-            return "0만"
+            try:
+                # 먼저 value를 숫자로 변환 시도
+                num_val = float(str(value).replace(",", ""))
+                # 콤마를 포함하여 포맷팅 (음수도 정상적으로 처리됨)
+                return f"{int(num_val):,}만"
+            except (ValueError, TypeError):
+                # 숫자로 변환 실패 시, 기존의 한글 파서 사용 (입력이 '10억' 등일 경우 대비)
+                num_val = parse_korean_number(str(value))
+                return f"{num_val:,}만" if isinstance(num_val, (int, float)) else "0만"
 
         # --- 1. 계산 로직 (이전과 동일) ---
         address = inputs.get('address', '')
