@@ -137,6 +137,29 @@
         }
     }
 
+    // PDF 컬럼 컴팩트/확장 함수들
+    function setPdfColumnCompact() {
+        const pdfColumn = document.getElementById('pdf-column');
+        const formColumn = document.getElementById('form-column-wrapper');
+        if (pdfColumn && formColumn) {
+            pdfColumn.classList.add('compact');
+            // 컴팩트 모드에서도 리사이즈 가능하도록 flex 설정
+            pdfColumn.style.flex = '1';
+            formColumn.style.flex = '2.5';
+        }
+    }
+
+    function setPdfColumnExpanded() {
+        const pdfColumn = document.getElementById('pdf-column');
+        const formColumn = document.getElementById('form-column-wrapper');
+        if (pdfColumn && formColumn) {
+            pdfColumn.classList.remove('compact');
+            // 확장 모드에서의 기본 비율
+            pdfColumn.style.flex = '2';
+            formColumn.style.flex = '3';
+        }
+    }
+
     // 고급 금액 파싱 함수
     function parseAdvancedAmount(text) {
         if (!text) return 0;
@@ -944,6 +967,7 @@ async function handleFileUpload(file) {
             document.getElementById('upload-section').style.display = 'none';
             document.getElementById('viewer-section').style.display = 'block';
             document.getElementById('file-name-display').textContent = file.name;
+            setPdfColumnExpanded(); // PDF 업로드 시 PDF 컬럼 확장
             triggerMemoGeneration();
         } else { 
             alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
@@ -1026,6 +1050,7 @@ async function handleFileUpload(file) {
         document.getElementById('share-customer-name-2').value = '';
         document.getElementById('share-customer-birth-2').value = '';
         document.getElementById('viewer-section').style.display = 'none';
+        setPdfColumnCompact(); // 전체 초기화 시 PDF 컬럼 컴팩트
         alert("모든 입력 내용이 초기화되었습니다.");
         triggerMemoGeneration();
     }
@@ -1321,11 +1346,13 @@ function attachAllEventListeners() {
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
         const mainContainer = document.getElementById('main-layout-wrapper');
-        const pdfViewer = document.getElementById('pdf-viewer'); // iframe 요소를 미리 찾아둡니다.
+        const pdfViewer = document.getElementById('pdf-viewer');
         
-        // 기존 이벤트 리스너 제거 (중복 방지)
-        const newResizeBar = resizeBar.cloneNode(true);
-        resizeBar.parentNode.replaceChild(newResizeBar, resizeBar);
+        if (!resizeBar || !pdfColumn || !formColumn) return;
+        
+        // 이미 초기화된 경우 중복 방지
+        if (resizeBar.dataset.initialized === 'true') return;
+        resizeBar.dataset.initialized = 'true';
         
         let isResizing = false;
         let startPos = 0;
@@ -1337,7 +1364,7 @@ function attachAllEventListeners() {
             isResizing = true;
             
             // [수정 1] 드래그를 시작할 때 iframe의 마우스 이벤트를 '끈다'.
-            pdfViewer.style.pointerEvents = 'none';
+            if (pdfViewer) pdfViewer.style.pointerEvents = 'none';
             
             // 트랜지션 효과를 잠시 꺼서 드래그가 끊기지 않게 합니다.
             pdfColumn.style.transition = 'none';
@@ -1383,7 +1410,7 @@ function attachAllEventListeners() {
                 /* ▼▼▼ 이 코드로 교체하세요 ▼▼▼ */
                 const deltaX = clientX - startPos;
                 const containerWidth = mainContainer.clientWidth;
-                const resizeBarWidth = newResizeBar.clientWidth;
+                const resizeBarWidth = resizeBar.clientWidth;
                 const availableWidth = containerWidth - resizeBarWidth;
                 const minWidth = 150;
 
@@ -1425,7 +1452,7 @@ function attachAllEventListeners() {
         // --- 이벤트 리스너 등록 ---
         
         // 마우스 이벤트
-        newResizeBar.addEventListener('mousedown', (e) => {
+        resizeBar.addEventListener('mousedown', (e) => {
             e.preventDefault();
             startResize(e.clientX, e.clientY);
         });
@@ -1441,7 +1468,7 @@ function attachAllEventListeners() {
         document.addEventListener('mouseleave', endResize); // 마우스가 창 밖으로 나가도 드래그가 멈추도록 추가
         
         // 터치 이벤트 (모바일)
-        newResizeBar.addEventListener('touchstart', (e) => {
+        resizeBar.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             startResize(touch.clientX, touch.clientY);
@@ -1459,7 +1486,7 @@ function attachAllEventListeners() {
         document.addEventListener('touchcancel', endResize);
         
         // 더블클릭으로 기본 비율 복원
-        newResizeBar.addEventListener('dblclick', () => {
+        resizeBar.addEventListener('dblclick', () => {
             if (isHorizontalMode()) {
                 pdfColumn.style.flex = '3';
                 formColumn.style.flex = '2';
@@ -1540,11 +1567,11 @@ document.addEventListener('DOMContentLoaded', () => {
    triggerMemoGeneration();
    initializeResizeBar(); // 리사이즈 바 초기화 추가
    initializeDragAndDrop(); // 드래그앤드롭 초기화 추가
+   setPdfColumnCompact(); // 페이지 로드 시 PDF 컬럼 컴팩트
    
    // 저장된 레이아웃 설정 복원
    setTimeout(() => {
        loadLayoutSettings();
-       initializeResizeBar(); // 레이아웃 복원 후 리사이즈 바 재초기화
    }, 200);
    
    // 고객명 & 생년월일 필드에 이벤트 리스너 추가
