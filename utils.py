@@ -151,41 +151,46 @@ def auto_convert_loan_amounts(loan_data):
 
 # 기존의 핵심 LTV 계산 로직
 def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
+    import math
+
     if is_senior:
-        # 선순위: limit 과 available 모두 계산
+        # 선순위 로직 (기존과 동일)
         limit = int(total_value * (ltv / 100) - deduction)
         available = int(limit - principal_sum)
     else:
-        # 후순위: 한도 계산 후 가용자금은 한도와 동일
+        # 후순위 로직 (수정됨)
         limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = limit  # 후순위에서는 한도와 동일
+        # 가용자금 = 한도 - 대환/선말소 원금 합계
+        available = int(limit - principal_sum) # <--- 이 줄을 추가하여 가용 금액을 별도로 계산
 
-    import math
+    # 절사 로직은 음수도 올바르게 처리해야 함
     limit = math.floor(limit / 100) * 100
     if available is not None:
         available = math.floor(available / 100) * 100
+        
     return limit, available
 
 
 def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False):
     results = []
     for owner in owners:
+        # ... (지분 가치 계산은 동일) ...
         share_percent = float(owner["지분율"].replace("%", ""))
         share_ratio = share_percent / 100
-
         equity_value = int(total_value * share_ratio)
 
         if is_senior:
             ltv_limit = int(equity_value * (ltv / 100))
             available = ltv_limit - existing_principal
         else:
-            # ### 이 로직이 정확한 계산식입니다 ###
-            # 후순위 한도 = (개별 지분가치 * LTV) - (부동산의 전체 유지 채권최고액)
+            # 후순위 한도 계산
             ltv_limit = int((equity_value * (ltv / 100)) - maintain_maxamt_sum)
-            # 후순위에서는 가용자금 = 한도와 동일
-            available = ltv_limit
-            # ### -------------------------- ###
+            
+            # <--- [핵심 수정] --- >
+            # 가용 금액 계산 시, 한도에서 갚아야 할 원금(existing_principal)을 차감합니다.
+            available = ltv_limit - existing_principal
 
+        # 절사 로직 (음수 값도 올바르게 처리하기 위해 math.floor 사용을 권장하지만, 기존 로직 유지)
         ltv_limit = (ltv_limit // 100) * 100
         available = (available // 100) * 100
 
