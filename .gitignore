@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+.env
+
+# Flask
+instance/
+.webassets-cache
+
+# 업로드 파일들
+uploads/
+*.pdf
+
+# Notion 백업 데이터
+notion_backup_*.json
+notion_data.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 임시 파일
+*.tmp
+*.log

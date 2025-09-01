@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>단순 LTV 계산기</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f8f9fa; }
+        .main-container { width: 100%; padding: 1rem; }
+        .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; border-radius: 1rem; }
+        .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 1rem 1rem 0 0 !important; }
+        .upload-zone { border: 2px dashed #adb5bd; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        .upload-zone:hover { border-color: #0d6efd; background-color: #e9ecef; }
+        .upload-zone.dragover { border-color: #0d6efd; background-color: #e9ecef; }
+        #upload-section.dragover { border-color: #0d6efd; background-color: #e9ecef; }
+        .ltv-checkbox { cursor: pointer; padding: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.5rem; margin: 0.25rem; }
+        .ltv-checkbox:hover { background: #e9ecef; }
+        .ltv-checkbox input:checked + label { color: #0d6efd; font-weight: bold; }
+        .result-card { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        #file-input { display: none; }
+        .resize-handle {
+            width: 10px;
+            background: #dee2e6;
+            cursor: col-resize;
+            position: absolute;
+            top: 0;
+            right: -5px;
+            height: 100%;
+            z-index: 10;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+        }
+        .resize-handle:hover {
+            background: #0d6efd;
+            width: 12px;
+            right: -6px;
+        }
+        .resize-handle:before {
+            content: '⋮⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #6c757d;
+            font-size: 12px;
+            letter-spacing: -2px;
+        }
+        .resizable-row {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="row resizable-row" style="display: flex; width: 100%;">
+            <!-- 왼쪽: PDF 뷰어 & 업로드 -->
+            <div id="pdf-column" class="col-lg-7" style="position: relative;">
+                <!-- PDF 업로드 섹션 -->
+                <div id="upload-section" style="border: 2px dashed #adb5bd; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; text-align: center; height: 400px; cursor: pointer; transition: all 0.3s ease;">
+                    <div class="text-center">
+                        <i class="bi bi-cloud-upload fs-1 text-muted"></i>
+                        <h4 class="mt-3">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
+                        <p class="text-muted">등기부등본 파일을 올려주시면 주요 정보가 자동 입력됩니다.</p>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept=".pdf" style="display: none;">
+                
+                <!-- PDF 뷰어 섹션 -->
+                <div id="viewer-section" style="display: none;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> <span id="file-name-display"></span></h5>
+                            <button class="btn btn-outline-light btn-sm" onclick="resetUpload()">
+                                <i class="bi bi-arrow-clockwise"></i> 다시 업로드
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <iframe id="pdf-viewer" style="width: 100%; height: calc(100vh - 80px); border: none;"></iframe>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 크기 조절 핸들 -->
+                <div class="resize-handle" id="resize-handle"></div>
+            </div>
+
+            <!-- 오른쪽: 입력폼 & 결과 -->
+            <div id="form-column" class="col-lg-5">
+                <!-- 기본 정보 -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-info-circle"></i> 기본 정보</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer-name" class="form-label">고객명</label>
+                                <input type="text" class="form-control form-control-sm" id="customer-name" placeholder="PDF에서 자동 입력">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="area" class="form-label">면적 (㎡)</label>
+                                <input type="text" class="form-control form-control-sm" id="area" placeholder="PDF에서 자동 입력">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">주소</label>
+                            <input type="text" class="form-control form-control-sm" id="address" placeholder="PDF에서 자동 입력">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="kb-price" class="form-label">KB시세 (만원) *</label>
+                                <input type="number" class="form-control form-control-sm" id="kb-price" placeholder="예: 50000" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="deduction-amount" class="form-label">방공제 (만원)</label>
+                                <input type="number" class="form-control form-control-sm" id="deduction-amount" placeholder="예: 2800" value="2500">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="region-select" class="form-label">방공제 지역 선택</label>
+                            <select class="form-select form-select-sm" id="region-select" onchange="updateDeduction()">
+                                {% for region, amount in region_map.items() %}
+                                <option value="{{ amount }}">{{ region }} ({{ amount }}만원)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">LTV 비율 입력 (%)</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" id="ltv-rate-1" placeholder="예: 80" min="1" max="100" value="80">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" id="ltv-rate-2" placeholder="예: 70" min="1" max="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 대출 정보 -->
+                <!-- 대출 정보 -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-credit-card"></i> 대출 정보</h5>
+                        <button class="btn btn-light btn-sm" onclick="addLoanItem()">
+                            <i class="bi bi-plus"></i> 추가
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="loan-items">
+                            <!-- 대출 항목들이 여기에 추가됩니다 -->
+                        </div>
+                        <button class="btn btn-success w-100 mt-3" onclick="calculateLTV()">
+                            <i class="bi bi-calculator"></i> LTV 계산하기
+                        </button>
+                        <div id="calc-status" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- 계산 결과 -->
+                <div class="card result-card" id="result-card" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-graph-up"></i> 계산 결과</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="ltv-results">
+                            <!-- 계산 결과가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let loanCounter = 0;
+
+        // 페이지 로드 시 기본 대출 항목 추가
+        document.addEventListener('DOMContentLoaded', function() {
+            addLoanItem();
+            setupDragAndDrop();
+            setupResizer();
+        });
+
+        // PDF 업로드 설정
+        function setupDragAndDrop() {
+            const uploadSection = document.getElementById('upload-section');
+            const fileInput = document.getElementById('file-input');
+            
+            // 클릭 이벤트
+            uploadSection.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // 파일 선택 이벤트  
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+            
+            // 드래그 이벤트들
+            uploadSection.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('dragover');
+            });
+            
+            uploadSection.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                        handleFileUpload(file);
+                    }
+                }
+            });
+        }
+        
+        // 크기 조절 기능
+        function setupResizer() {
+            const resizeHandle = document.getElementById('resize-handle');
+            const pdfColumn = document.getElementById('pdf-column');
+            const formColumn = document.getElementById('form-column');
+            const container = document.querySelector('.main-container');
+            let isResizing = false;
+            let startX = 0;
+            let startLeftWidth = 0;
+            
+            resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                
+                const containerRect = container.getBoundingClientRect();
+                const pdfRect = pdfColumn.getBoundingClientRect();
+                startLeftWidth = ((pdfRect.width / containerRect.width) * 100);
+                
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            function handleResize(e) {
+                if (!isResizing) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const deltaX = e.clientX - startX;
+                const deltaPercent = (deltaX / containerRect.width) * 100;
+                const newLeftWidth = startLeftWidth + deltaPercent;
+                
+                // 최소/최대 크기 제한 (25% ~ 85%)
+                if (newLeftWidth >= 25 && newLeftWidth <= 85) {
+                    const rightWidth = 100 - newLeftWidth;
+                    
+                    // Bootstrap 클래스 제거
+                    pdfColumn.className = pdfColumn.className.replace(/col-lg-\d+/, '').trim();
+                    formColumn.className = formColumn.className.replace(/col-lg-\d+/, '').trim();
+                    
+                    // flex 속성 사용으로 더 정확한 크기 조절
+                    pdfColumn.style.flex = `0 0 ${newLeftWidth}%`;
+                    formColumn.style.flex = `0 0 ${rightWidth}%`;
+                }
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        }
+        
+        // 파일 업로드 처리
+        function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('pdf_file', file);
+
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const scraped = data.scraped_data;
+                    
+                    // 추출된 정보를 폼에 입력
+                    if (scraped.customer_name) {
+                        document.getElementById('customer-name').value = scraped.customer_name;
+                    }
+                    if (scraped.address) {
+                        document.getElementById('address').value = scraped.address;
+                    }
+                    if (scraped.area) {
+                        document.getElementById('area').value = scraped.area;
+                    }
+                    
+                    // PDF 뷰어 표시
+                    document.getElementById('file-name-display').textContent = file.name;
+                    document.getElementById('pdf-viewer').src = `/view_pdf/${data.filename}`;
+                    
+                    // 업로드 섹션 숨기고 뷰어 섹션 표시
+                    document.getElementById('upload-section').style.display = 'none';
+                    document.getElementById('viewer-section').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('업로드 오류:', error);
+                alert('PDF 업로드 중 오류가 발생했습니다.');
+            });
+        }
+        
+        // 업로드 리셋
+        function resetUpload() {
+            document.getElementById('upload-section').style.display = 'flex';
+            document.getElementById('viewer-section').style.display = 'none';
+            document.getElementById('file-input').value = '';
+            
+            // 원래 크기로 복원
+            const pdfColumn = document.getElementById('pdf-column');
+            const formColumn = document.getElementById('form-column');
+            
+            pdfColumn.className = 'col-lg-7';
+            pdfColumn.style.flex = '';
+            pdfColumn.style.width = '';
+            formColumn.className = 'col-lg-5';
+            formColumn.style.flex = '';
+            formColumn.style.width = '';
+            formColumn.style.display = 'block';
+        }
+
+
+        // 대출 항목 추가
+        function addLoanItem() {
+            loanCounter++;
+            const loanItems = document.getElementById('loan-items');
+            
+            const loanItem = document.createElement('div');
+            loanItem.className = 'border rounded p-3 mb-3';
+            loanItem.id = `loan-${loanCounter}`;
+            
+            loanItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">대출 ${loanCounter}</h6>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeLoanItem(${loanCounter})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">대출기관</label>
+                        <input type="text" class="form-control form-control-sm" name="lender" placeholder="대출기관명">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">채권최고액 (만원)</label>
+                        <input type="number" class="form-control form-control-sm" name="max-amount" placeholder="채권최고액" onchange="calculatePrincipal(${loanCounter})">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">비율 (%)</label>
+                        <input type="number" class="form-control form-control-sm" name="ratio" value="100" min="1" max="200" onchange="calculatePrincipal(${loanCounter})">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">원금 (만원)</label>
+                        <input type="number" class="form-control form-control-sm" name="principal" placeholder="자동계산">
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">상태</label>
+                        <select class="form-select form-select-sm" name="status">
+                            <option value="대환">대환</option>
+                            <option value="선말소">선말소</option>
+                            <option value="퇴거자금">퇴거자금</option>
+                            <option value="유지">유지</option>
+                            <option value="동의">동의</option>
+                            <option value="비동의">비동의</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            loanItems.appendChild(loanItem);
+        }
+
+        // 대출 항목 제거
+        function removeLoanItem(id) {
+            const loanItem = document.getElementById(`loan-${id}`);
+            if (loanItem) {
+                loanItem.remove();
+            }
+        }
+
+        // 원금 자동 계산
+        function calculatePrincipal(loanId) {
+            const loanItem = document.getElementById(`loan-${loanId}`);
+            const maxAmount = loanItem.querySelector('input[name="max-amount"]').value;
+            const ratio = loanItem.querySelector('input[name="ratio"]').value;
+            
+            if (maxAmount && ratio) {
+                fetch('/api/calculate_principal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        max_amount: parseFloat(maxAmount) || 0,
+                        ratio: parseFloat(ratio) || 100
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loanItem.querySelector('input[name="principal"]').value = data.principal;
+                    }
+                })
+                .catch(error => {
+                    console.error('원금 계산 오류:', error);
+                });
+            }
+        }
+
+        // LTV 계산
+        function calculateLTV() {
+            const inputs = {
+                customer_name: document.getElementById('customer-name').value,
+                address: document.getElementById('address').value,
+                area: document.getElementById('area').value,
+                kb_price: document.getElementById('kb-price').value,
+                deduction_amount: document.getElementById('deduction-amount').value,
+                ltv_rates: [
+                    document.getElementById('ltv-rate-1').value,
+                    document.getElementById('ltv-rate-2').value
+                ].filter(rate => rate && parseInt(rate) > 0)
+            };
+
+            const loans = [];
+            document.querySelectorAll('[id^="loan-"]').forEach(item => {
+                loans.push({
+                    lender: item.querySelector('input[name="lender"]').value,
+                    max_amount: item.querySelector('input[name="max-amount"]').value,
+                    ratio: item.querySelector('input[name="ratio"]').value,
+                    principal: item.querySelector('input[name="principal"]').value,
+                    status: item.querySelector('select[name="status"]').value
+                });
+            });
+
+            if (inputs.ltv_rates.length === 0) {
+                showStatus('calc-status', '❌ LTV 비율을 하나 이상 선택해주세요.', 'danger');
+                return;
+            }
+
+            if (!inputs.kb_price) {
+                showStatus('calc-status', '❌ KB시세를 입력해주세요.', 'danger');
+                return;
+            }
+
+            showStatus('calc-status', '🔄 LTV 계산 중...', 'info');
+
+            fetch('/api/generate_text_memo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: inputs,
+                    loans: loans,
+                    fees: {}
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.memo) {
+                    displayResults(data.memo, inputs.ltv_rates);
+                    showStatus('calc-status', '✅ 계산 완료!', 'success');
+                    document.getElementById('result-card').style.display = 'block';
+                } else {
+                    showStatus('calc-status', '❌ 계산 중 오류가 발생했습니다.', 'danger');
+                }
+            })
+            .catch(error => {
+                showStatus('calc-status', '❌ 서버 연결 오류가 발생했습니다.', 'danger');
+            });
+        }
+
+        // 결과 표시
+        function displayResults(memo, ltvRates) {
+            const resultsDiv = document.getElementById('ltv-results');
+            
+            // 메모에서 LTV 정보 추출하여 카드 형태로 표시
+            const lines = memo.split('\n');
+            let ltvResults = [];
+            
+            lines.forEach(line => {
+                if (line.includes('LTV') && line.includes('%') && line.includes('한도')) {
+                    ltvResults.push(line.trim());
+                }
+            });
+
+            let resultsHTML = '';
+            if (ltvResults.length > 0) {
+                ltvResults.forEach(result => {
+                    resultsHTML += `<p class="mb-2"><strong>${result}</strong></p>`;
+                });
+            } else {
+                resultsHTML = `<pre class="text-white">${memo}</pre>`;
+            }
+            
+            resultsDiv.innerHTML = resultsHTML;
+        }
+
+        // 방공제 지역 선택 시 자동 업데이트
+        function updateDeduction() {
+            const regionSelect = document.getElementById('region-select');
+            const deductionInput = document.getElementById('deduction-amount');
+            deductionInput.value = regionSelect.value;
+        }
+
+        // 상태 메시지 표시
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="alert alert-${type} alert-sm mb-0">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
