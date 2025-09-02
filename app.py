@@ -147,7 +147,7 @@ def generate_memo(data):
 
         if inputs and (inputs.get('customer_name') or inputs.get('address')):
             memo_lines.append(f"고객명: {inputs.get('customer_name', '')}")
-            area_str = f"면적: {inputs.get('area', '')}㎡" if inputs.get('area') else ""
+            area_str = f"면적: {inputs.get('area', '')}" if inputs.get('area') else ""
             kb_price_str = ""
             if total_value > 0:
                 price_info = f" ({price_type})" if price_type else ""
