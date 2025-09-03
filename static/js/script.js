@@ -1218,7 +1218,12 @@ async function handleFileUpload(file) {
 function attachAllEventListeners() {
     const uploadSection = document.getElementById('upload-section');
     const fileInput = document.getElementById('file-input');
+    const reuploadBtn = document.getElementById('reupload-btn');
+    
     uploadSection.addEventListener('click', () => fileInput.click());
+    if (reuploadBtn) {
+        reuploadBtn.addEventListener('click', () => fileInput.click());
+    }
     fileInput.addEventListener('change', () => { 
         if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
     });
@@ -1399,7 +1404,7 @@ function attachAllEventListeners() {
                 newPdfHeight = Math.max(minHeight, newPdfHeight);
                 newPdfHeight = Math.min(containerHeight - minHeight, newPdfHeight);
 
-                const newFormHeight = containerHeight - newPdfHeight - newResizeBar.clientHeight;
+                const newFormHeight = containerHeight - newPdfHeight - resizeBar.clientHeight;
                 
                 const totalFlexHeight = newPdfHeight + newFormHeight;
                 pdfColumn.style.flex = `${(newPdfHeight / totalFlexHeight) * 5}`;
