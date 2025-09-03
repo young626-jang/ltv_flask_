@@ -129,7 +129,7 @@
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
         }
         #upload-section { 
-            border: 3px dashed var(--primary-accent); 
+            border: 3px dashed #2BAE66; 
             border-radius: 12px; 
             display: flex; 
             align-items: center; 
@@ -151,7 +151,7 @@
             justify-content: center;
         }
         #upload-section.dragover { 
-            border-color: var(--primary-accent); 
+            border-color: #2BAE66; 
             background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
             color: var(--primary-accent);
         }
@@ -831,13 +831,13 @@
         }
         
         .md-btn-secondary {
-            background: #757575 !important;
-            border-color: #757575 !important;
+            background: #2BAE66 !important;
+            border-color: #2BAE66 !important;
             color: white !important;
         }
         
         .md-btn-secondary:hover {
-            background: #616161 !important;
+            background: #239c56 !important;
             color: white !important;
         }
         
@@ -876,7 +876,7 @@
         
         /* LTV 컨트롤 스타일 */
         .md-input {
-            border: 1px solid #ddd !important;
+            border: 1px solid #757575 !important;
             border-radius: 4px !important;
             padding: 8px 12px !important;
             font-size: 14px !important;
@@ -891,13 +891,13 @@
         }
         
         .md-ltv-btn {
-            border: 1px solid #ddd !important;
+            border: 1px solid #2BAE66 !important;
             border-radius: 4px !important;
             padding: 8px 12px !important;
             font-weight: 500 !important;
             transition: all 0.2s ease !important;
-            background: #f5f5f5 !important;
-            color: #333 !important;
+            background: #2BAE66 !important;
+            color: white !important;
             font-size: 14px !important;
             cursor: pointer !important;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
@@ -905,10 +905,10 @@
         }
         
         .md-ltv-btn:hover {
-            background: #e0e0e0 !important;
+            background: #239c56 !important;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
             transform: translateY(-1px) !important;
-            color: #333 !important;
+            color: white !important;
         }
         
         .md-ltv-btn.danger {
@@ -952,10 +952,10 @@
         }
         
         .md-loan-input {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 6px 8px !important;
-            font-size: 13px !important;
+            border: 2px solid var(--border-light) !important;
+            border-radius: 8px !important;
+            padding: 0.75rem !important;
+            font-size: 14px !important;
             background: #fff !important;
             transition: all 0.2s ease !important;
         }
@@ -967,10 +967,10 @@
         }
         
         .md-loan-select {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 6px 8px !important;
-            font-size: 13px !important;
+            border: 2px solid var(--border-light) !important;
+            border-radius: 8px !important;
+            padding: 0.75rem !important;
+            font-size: 14px !important;
             background: #fff !important;
             transition: all 0.2s ease !important;
         }
