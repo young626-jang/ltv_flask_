@@ -83,6 +83,42 @@
         closeBtn.focus();
     }
 
+    // 등기 경고 표시 함수
+    function displayRegistrationWarning(ageCheck) {
+        const warningElement = document.getElementById('registration-warning');
+        const titleElement = document.getElementById('warning-title');
+        const messageElement = document.getElementById('warning-message');
+        const datetimeElement = document.getElementById('warning-datetime');
+        
+        if (!ageCheck || !warningElement) {
+            return;
+        }
+        
+        if (ageCheck.is_old) {
+            // 경고 표시
+            titleElement.textContent = '⚠️ 주의: 오래된 등기 데이터';
+            messageElement.textContent = `이 등기는 ${ageCheck.age_days}일 전 데이터입니다 (한 달 이상 경과)`;
+            datetimeElement.textContent = `열람일시: ${ageCheck.viewing_date || '-'}`;
+            warningElement.style.display = 'block';
+            
+            // 자동 스크롤하여 경고가 보이도록
+            setTimeout(() => {
+                warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        } else {
+            // 경고 숨김
+            warningElement.style.display = 'none';
+        }
+    }
+    
+    // 경고 숨김 함수
+    function hideRegistrationWarning() {
+        const warningElement = document.getElementById('registration-warning');
+        if (warningElement) {
+            warningElement.style.display = 'none';
+        }
+    }
+
     // 레이아웃 설정 저장/복원 기능
     function saveLayoutSettings() {
         const mainContainer = document.getElementById('main-layout-wrapper');
@@ -952,6 +988,9 @@ async function handleFileUpload(file) {
             // 전용면적 - 이미 단위가 있으면 그대로, 없으면 단위 추가
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
+            
+            // 등기 경고 표시
+            displayRegistrationWarning(scraped.age_check);
 
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
                 scraped.owner_shares.forEach((line, idx) => {
@@ -1050,6 +1089,10 @@ async function handleFileUpload(file) {
         document.getElementById('share-customer-name-2').value = '';
         document.getElementById('share-customer-birth-2').value = '';
         document.getElementById('viewer-section').style.display = 'none';
+        
+        // 등기 경고 숨김
+        hideRegistrationWarning();
+        
         setPdfColumnCompact(); // 전체 초기화 시 PDF 컬럼 컴팩트
         alert("모든 입력 내용이 초기화되었습니다.");
         triggerMemoGeneration();
