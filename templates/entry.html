@@ -58,6 +58,18 @@
                 </div>
             </div>
 
+            <!-- 등기 경고 영역 -->
+            <div id="registration-warning" class="alert alert-warning" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                    <div>
+                        <div class="fw-bold text-danger" id="warning-title">⚠️ 주의: 오래된 등기 데이터</div>
+                        <div class="small" id="warning-message">이 등기는 오래된 데이터입니다</div>
+                        <div class="small text-muted" id="warning-datetime">열람일시: -</div>
+                    </div>
+                </div>
+            </div>
+
             <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
                 <div class="row g-2 mb-2">
