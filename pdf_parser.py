@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF 라이브러리
 import re
+import datetime
 
 def extract_address(text):
     """텍스트에서 주소를 추출합니다."""
@@ -47,6 +48,56 @@ def extract_owner_info(text):
     
     return ", ".join(owner_details)
 
+def extract_viewing_datetime(text):
+    """텍스트에서 열람일시를 추출합니다."""
+    patterns = [
+        r'열람일시\s*[:：]?\s*(\d{4})년(\d{2})월(\d{2})일\s*(\d{2})시(\d{2})분(\d{2})초',
+        r'열람일시\s*[:：]?\s*(\d{4})[년/\-](\d{1,2})[월/\-](\d{1,2})[일]?\s*(\d{1,2})[시:](\d{1,2})[분:](\d{1,2})[초]?'
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            year, month, day, hour, minute, second = match.groups()
+            return f"{year}-{month.zfill(2)}-{day.zfill(2)} {hour.zfill(2)}:{minute.zfill(2)}:{second.zfill(2)}"
+    
+    return ""
+
+def check_registration_age(viewing_datetime):
+    """등기 열람일시가 한 달 이상 오래되었는지 확인"""
+    if not viewing_datetime:
+        return {"is_old": False, "age_days": 0, "message": "열람일시를 찾을 수 없습니다"}
+    
+    try:
+        # 열람일시를 datetime 객체로 변환
+        viewing_date = datetime.datetime.strptime(viewing_datetime, "%Y-%m-%d %H:%M:%S")
+        current_date = datetime.datetime.now()
+        
+        # 날짜 차이 계산
+        age_delta = current_date - viewing_date
+        age_days = age_delta.days
+        
+        # 한 달(30일) 이상 차이나는지 확인
+        is_old = age_days >= 30
+        
+        if is_old:
+            message = f"⚠️ 주의: 등기가 {age_days}일 전 데이터입니다 (한 달 이상 경과)"
+        elif age_days > 7:
+            message = f"등기가 {age_days}일 전 데이터입니다"
+        else:
+            message = f"최신 등기 데이터입니다 ({age_days}일 전)"
+            
+        return {
+            "is_old": is_old,
+            "age_days": age_days,
+            "message": message,
+            "viewing_date": viewing_datetime,
+            "current_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+    except Exception as e:
+        return {"is_old": False, "age_days": 0, "message": f"날짜 분석 오류: {str(e)}"}
+
 def parse_pdf_for_ltv(pdf_path):
     try:
         doc = fitz.open(pdf_path)
@@ -59,12 +110,17 @@ def parse_pdf_for_ltv(pdf_path):
         area = extract_area(full_text)
         customer_details = extract_owner_info(full_text)
         
-        # 고객명에 모든 정보를 담고, 생년월일 필드는 비웁니다.
+        # 열람일시와 나이 검사 추가
+        viewing_datetime = extract_viewing_datetime(full_text)
+        age_check = check_registration_age(viewing_datetime)
+        
         return {
             "customer_name": customer_details,
             "birth_date": "", 
             "address": address,
-            "area": area
+            "area": area,
+            "viewing_datetime": viewing_datetime,
+            "age_check": age_check
         }
     except Exception as e:
         print(f"PDF 파싱 중 오류 발생: {e}")
