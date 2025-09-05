@@ -73,9 +73,9 @@ def check_registration_age(viewing_datetime):
         viewing_date = datetime.datetime.strptime(viewing_datetime, "%Y-%m-%d %H:%M:%S")
         current_date = datetime.datetime.now()
         
-        # 날짜 차이 계산
+        # 날짜 차이 계산 (실제 경과 일수로 계산)
         age_delta = current_date - viewing_date
-        age_days = age_delta.days
+        age_days = round(age_delta.total_seconds() / 86400)
         
         # 한 달(30일) 이상 차이나는지 확인
         is_old = age_days >= 30
