@@ -225,3 +225,56 @@ def extract_owner_shares_with_birth(pdf_path):
     except Exception as e:
         print(f"PDF 파싱 중 오류 발생: {e}")
         return []
+    
+# <<< 여기에 근저당권 분석 함수를 추가합니다 >>>
+def extract_rights_info(full_text):
+    """
+    텍스트에서 '주요 등기사항 요약'의 근저당권 정보를 추출하여 최종 상태 목록을 반환합니다.
+    """
+    table_match = re.search(
+        r'3\.\s*\([근|전].*?대상소유자([\s\S]*?)\[\s*참\s*고\s*사\s*항\s*\]',
+        full_text,
+        re.DOTALL
+    )
+    if not table_match:
+        return {"근저당권": []}
+    
+    table_text = table_match.group(1)
+    entries = re.split(r'\n\s*(?=(?:\d{1,2}-\d{1,2}|\d{1,2})\s)', table_text)
+    
+    all_entries = []
+    for entry_text in entries:
+        clean_text = ' '.join(entry_text.split())
+        if not clean_text: continue
+
+        seq_match = re.search(r'^\s*(\d{1,2}(?:-\d{1,2})?)', entry_text)
+        if not seq_match: continue
+        
+        seq = seq_match.group(1)
+        main_key = seq.split('-')[0]
+
+        amount_match = re.search(r'채권최고액\s*금\s*([\d,]+)원', clean_text)
+        creditor_match = re.search(r'근저당권자\s*(\S+)', clean_text)
+
+        info_parts = []
+        if amount_match: info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
+        if creditor_match: info_parts.append(f"근저당권자 {creditor_match.group(1)}")
+        
+        if info_parts:
+            all_entries.append({
+                'main_key': main_key,
+                '주요등기사항': " ".join(info_parts)
+            })
+
+    final_mortgages = {}
+    for entry in reversed(all_entries):
+        if entry['main_key'] not in final_mortgages:
+            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '근저당권자' in item['주요등기사항']), None)
+            if '근저당권자' not in entry['주요등기사항'] and original_info:
+                 creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
+                 if creditor_part:
+                     entry['주요등기사항'] += " " + creditor_part.group(0)
+            final_mortgages[entry['main_key']] = entry
+            
+    sorted_final_list = sorted(list(final_mortgages.values()), key=lambda x: int(x['main_key']))
+    return {"근저당권": sorted_final_list}
