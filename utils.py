@@ -44,21 +44,22 @@ def parse_advanced_amount(text: str) -> int:
     if not text:
         return 0
         
-    clean_text = str(text).replace(",", "").strip()
+    # 1. [수정] 여기서 '금' 같은 불필요한 글자를 먼저 제거합니다.
+    clean_text = re.sub(r"[^0-9억만천원,]", "", str(text)).replace(",", "").strip()
     
-    # 1. 한글 금액 처리 (억, 만, 천, 원 포함)
-    if re.search(r'억|만|천|원', clean_text):
+    # 2. [수정] '원'은 한글 단위 처리에서 제외하여 잘못된 처리를 방지합니다.
+    if re.search(r'억|만|천', clean_text):
         return parse_korean_amount_advanced(clean_text)
     
-    # 2. 원 단위 금액 처리 (8자리 이상이거나 '원'으로 끝나는 경우)
-    if clean_text.endswith('원') or len(re.sub(r'[^\d]', '', clean_text)) >= 8:
+    # 3. 원 단위 금액 처리 (7자리 이상이거나 '원'으로 끝나는 경우)
+    if clean_text.endswith('원') or len(re.sub(r'[^\d]', '', clean_text)) >= 7:
         num_only = re.sub(r'[^\d]', '', clean_text)
         if num_only:
             won_amount = int(num_only)
             # 원을 만원으로 변환
             return won_amount // 10000
     
-    # 3. 일반 숫자 처리
+    # 4. 일반 숫자 처리
     num_only = re.sub(r'[^\d]', '', clean_text)
     return int(num_only) if num_only else 0
 
