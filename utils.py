@@ -26,7 +26,7 @@ def parse_korean_number(text: str) -> int:
         
     if total == 0:
         try:
-            return int(re.sub(r"[^\d]", "", text))
+            return int(re.sub(r"[^\d-]", "", str(text)))
         except (ValueError, TypeError):
             return 0
             
