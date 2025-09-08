@@ -83,6 +83,42 @@
         closeBtn.focus();
     }
 
+    // 등기 경고 표시 함수
+    function displayRegistrationWarning(ageCheck) {
+        const warningElement = document.getElementById('registration-warning');
+        const titleElement = document.getElementById('warning-title');
+        const messageElement = document.getElementById('warning-message');
+        const datetimeElement = document.getElementById('warning-datetime');
+        
+        if (!ageCheck || !warningElement) {
+            return;
+        }
+        
+        if (ageCheck.is_old) {
+            // 경고 표시
+            titleElement.textContent = '⚠️ 주의: 오래된 등기 데이터';
+            messageElement.textContent = `이 등기는 ${ageCheck.age_days}일 전 데이터입니다 (한 달 이상 경과)`;
+            datetimeElement.textContent = `열람일시: ${ageCheck.viewing_date || '-'}`;
+            warningElement.style.display = 'block';
+            
+            // 자동 스크롤하여 경고가 보이도록
+            setTimeout(() => {
+                warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        } else {
+            // 경고 숨김
+            warningElement.style.display = 'none';
+        }
+    }
+    
+    // 경고 숨김 함수
+    function hideRegistrationWarning() {
+        const warningElement = document.getElementById('registration-warning');
+        if (warningElement) {
+            warningElement.style.display = 'none';
+        }
+    }
+
     // 레이아웃 설정 저장/복원 기능
     function saveLayoutSettings() {
         const mainContainer = document.getElementById('main-layout-wrapper');
@@ -171,8 +207,8 @@
             return parseKoreanAmountAdvanced(cleanText);
         }
         
-        // 2. 원 단위 금액 처리 (8자리 이상이거나 '원'으로 끝나는 경우)
-        if (cleanText.endsWith('원') || cleanText.replace(/[^\d]/g, '').length >= 8) {
+        // 2. 원 단위 금액 처리 (7자리 이상이거나 '원'으로 끝나는 경우)
+        if (cleanText.endsWith('원') || cleanText.replace(/[^\d]/g, '').length >= 7) {
             const numOnly = cleanText.replace(/[^\d]/g, '');
             if (numOnly) {
                 const wonAmount = parseInt(numOnly);
@@ -205,20 +241,6 @@
             remainingText = remainingText.replace(cheonmanMatch[0], '');
         }
         
-        // 백만 단위 처리 (예: 8백45만 = 845만)
-        const baekmanMatch = remainingText.match(/(\d+)백(\d+)만/);
-        if (baekmanMatch) {
-            total += parseInt(baekmanMatch[1]) * 100 + parseInt(baekmanMatch[2]);
-            remainingText = remainingText.replace(baekmanMatch[0], '');
-        } else {
-            // 백만 단위만 있는 경우 (예: 8백만 = 800만)
-            const baekMatch = remainingText.match(/(\d+)백만/);
-            if (baekMatch) {
-                total += parseInt(baekMatch[1]) * 100;
-                remainingText = remainingText.replace(baekMatch[0], '');
-            }
-        }
-        
         // 만 단위 처리
         const manMatch = remainingText.match(/(\d+)만/);
         if (manMatch) {
@@ -231,15 +253,6 @@
         if (cheonMatch) {
             total += parseInt(cheonMatch[1]) / 10; // 천원을 만원으로 변환
             remainingText = remainingText.replace(cheonMatch[0], '');
-        }
-        
-        // 순수 숫자 처리 (원 단위를 만원으로 변환)
-        const numOnly = remainingText.replace(/[^\d]/g, '');
-        if (numOnly && parseInt(numOnly) > 0) {
-            const wonAmount = parseInt(numOnly);
-            if (wonAmount >= 10000) { // 1만원 이상일 때만 변환
-                total += Math.floor(wonAmount / 10000);
-            }
         }
         
         return Math.floor(total);
@@ -343,7 +356,7 @@
             </div>
             <div class="loan-col loan-col-ratio">
                 <div class="mobile-label">비율(%)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" placeholder="비율(%)" value="${loan.ratio || ''}">
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" placeholder="비율(%)" value="${loan.ratio || '120'}">
             </div>
             <div class="loan-col loan-col-principal">
                 <div class="mobile-label">원금(만)</div>
@@ -945,12 +958,13 @@ async function loadCustomerData() {
         }
     }
 
-// PDF 파일 업로드 핸들러
+// PDF 파일 업로드 핸들러 (최종 완성본)
 async function handleFileUpload(file) {
     const spinner = document.getElementById('upload-spinner');
     spinner.style.display = 'block';
     const formData = new FormData();
     formData.append('pdf_file', file);
+
     try {
         const response = await fetch('/api/upload', { method: 'POST', body: formData });
         if (!response.ok) {
@@ -958,10 +972,15 @@ async function handleFileUpload(file) {
             throw new Error(errorResult.error || `서버 에러: ${response.status}`);
         }
         const result = await response.json();
+
         if (result.success) {
-            const scraped = result.scraped_data;
+            // 1. 서버가 보내준 데이터를 각각의 변수에 저장합니다.
+            const scraped = result.scraped_data;  // 기본 정보 (주소, 소유자, 지분 등)
+            const rights_info = result.rights_info; // 근저당권 정보
+
+            // --- 2. 추출된 기본 정보를 각 필드에 자동으로 채워 넣습니다. ---
             
-            // PDF에서 스크래핑한 고객명을 나누어 두 필드에 입력
+            // 소유자 이름 & 생년월일 (2명까지 지원)
             if (scraped.customer_name) {
                 const owners = scraped.customer_name.split(',').map(name => name.trim());
                 document.getElementById('customer_name').value = owners[0] || '';
@@ -972,26 +991,74 @@ async function handleFileUpload(file) {
             }
 
             document.getElementById('address').value = scraped.address || '';
-            // 전용면적 - 이미 단위가 있으면 그대로, 없으면 단위 추가
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
 
+            // 등기 경고 표시 (오래된 등기인지 등)
+            displayRegistrationWarning(scraped.age_check);
+
+            // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
                 scraped.owner_shares.forEach((line, idx) => {
-                    const [nameBirth, shareInfo] = line.split("  지분율 ");
-                    const nameField = document.getElementById(`share-customer-name-${idx+1}`);
-                    const shareField = document.getElementById(`share-customer-birth-${idx+1}`);
-                    if (nameField) nameField.value = nameBirth;
-                    if (shareField) shareField.value = "지분율 " + shareInfo;
+                    // '이름 생년월일 지분율' 포맷에서 이름+생년월일과 지분율을 분리
+                    const parts = line.split('  지분율 ');
+                    if (parts.length === 2) {
+                        const nameBirth = parts[0];
+                        const shareInfo = parts[1];
+                        const nameField = document.getElementById(`share-customer-name-${idx + 1}`);
+                        const shareField = document.getElementById(`share-customer-birth-${idx + 1}`);
+                        if (nameField) nameField.value = nameBirth;
+                        if (shareField) shareField.value = shareInfo; // '1/2 (50.0%)' 같은 값
+                    }
                 });
             }
+
+            // --- 3. 추출된 근저당권 정보를 대출 항목에 자동으로 채워 넣습니다. ---
+
+            // 기존 대출 항목들을 모두 깨끗하게 지웁니다.
+            document.getElementById('loan-items-container').innerHTML = '';
+            loanItemCounter = 0;
+
+            // 서버에서 받은 근저당권 정보가 있는지 확인합니다.
+            if (rights_info && rights_info.근저당권 && rights_info.근저당권.length > 0) {
+                // 각 근저당권 정보를 순회하면서 새 대출 항목을 만듭니다.
+                rights_info.근저당권.forEach(mortgage => {
+                    const details = mortgage.주요등기사항;
+                    const amountMatch = details.match(/채권최고액\s*금([\d,]+)원/);
+                    const lenderMatch = details.match(/근저당권자\s*(\S+)/);
+
+                    const maxAmount = amountMatch ? amountMatch[1] : ''; // e.g., '238,800,000'
+                    const lender = lenderMatch ? lenderMatch[1] : '';   // e.g., '신한은행'
+
+                    addLoanItem({
+                        lender: lender,
+                        max_amount: maxAmount,
+                        status: '유지' // 기본 상태는 '유지'로 설정
+                    });
+                });
+            } else {
+                // 근저당 정보가 없으면, 깨끗한 기본 대출 항목 하나만 추가합니다.
+                addLoanItem();
+            }
+
+            // --- 4. 모든 자동 입력이 끝난 후, 후속 처리를 실행합니다. ---
+            
+            // 새로 추가된 모든 대출 항목의 금액 변환을 강제로 실행시킵니다.
+            document.querySelectorAll('.loan-item [name="max_amount"]').forEach(input => {
+                input.dispatchEvent(new Event('blur'));
+            });
+
+            // PDF 뷰어를 표시하고 파일 이름을 보여줍니다.
             const fileURL = URL.createObjectURL(file);
             document.getElementById('pdf-viewer').src = fileURL;
             document.getElementById('upload-section').style.display = 'none';
             document.getElementById('viewer-section').style.display = 'block';
             document.getElementById('file-name-display').textContent = file.name;
             setPdfColumnExpanded(); // PDF 업로드 시 PDF 컬럼 확장
+
+            // 최종적으로 메모를 업데이트합니다.
             triggerMemoGeneration();
+
         } else { 
             alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
         }
@@ -1073,6 +1140,10 @@ async function handleFileUpload(file) {
         document.getElementById('share-customer-name-2').value = '';
         document.getElementById('share-customer-birth-2').value = '';
         document.getElementById('viewer-section').style.display = 'none';
+        
+        // 등기 경고 숨김
+        hideRegistrationWarning();
+        
         setPdfColumnCompact(); // 전체 초기화 시 PDF 컬럼 컴팩트
         alert("모든 입력 내용이 초기화되었습니다.");
         triggerMemoGeneration();
@@ -1102,7 +1173,7 @@ async function handleFileUpload(file) {
             let loans = [];
             document.querySelectorAll("#loan-items-container .loan-item").forEach(item => {
                 const maxAmount = item.querySelector("input[name='max_amount']")?.value.replace(/,/g,'') || "0";
-                const ratio = item.querySelector("input[name='ratio']")?.value || "100";
+                const ratio = item.querySelector("input[name='ratio']")?.value || "120";
                 const principal = item.querySelector("input[name='principal']")?.value.replace(/,/g,'') || "0";
                 const status = item.querySelector("select[name='status']")?.value || "-";
                 
@@ -1111,7 +1182,7 @@ async function handleFileUpload(file) {
                 
                 loans.push({
                     max_amount: parseInt(maxAmount) || 0,
-                    ratio: parseFloat(ratio) || 100,
+                    ratio: parseFloat(ratio) || 120,
                     principal: parseInt(principal) || 0,
                     status: status,
                     type: loanType
@@ -1241,7 +1312,12 @@ async function handleFileUpload(file) {
 function attachAllEventListeners() {
     const uploadSection = document.getElementById('upload-section');
     const fileInput = document.getElementById('file-input');
+    const reuploadBtn = document.getElementById('reupload-btn');
+    
     uploadSection.addEventListener('click', () => fileInput.click());
+    if (reuploadBtn) {
+        reuploadBtn.addEventListener('click', () => fileInput.click());
+    }
     fileInput.addEventListener('change', () => { 
         if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
     });
@@ -1422,7 +1498,7 @@ function attachAllEventListeners() {
                 newPdfHeight = Math.max(minHeight, newPdfHeight);
                 newPdfHeight = Math.min(containerHeight - minHeight, newPdfHeight);
 
-                const newFormHeight = containerHeight - newPdfHeight - newResizeBar.clientHeight;
+                const newFormHeight = containerHeight - newPdfHeight - resizeBar.clientHeight;
                 
                 const totalFlexHeight = newPdfHeight + newFormHeight;
                 pdfColumn.style.flex = `${(newPdfHeight / totalFlexHeight) * 5}`;
