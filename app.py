@@ -163,7 +163,7 @@ def generate_memo(data):
         valid_loans = []
         if loans and isinstance(loans, list):
             valid_loans = [l for l in loans if isinstance(l, dict) and (parse_korean_number(l.get('max_amount', '0')) > 0 or parse_korean_number(l.get('principal', '0')) > 0)]
-            loan_memo = [f"{i}. {item.get('lender', '-')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '') + '%' if item.get('ratio', '') and item.get('ratio', '') != '-' else '-'} | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '-')}" for i, item in enumerate(valid_loans, 1)]
+            loan_memo = [f"{i}. {item.get('lender', '/')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '') + '%' if item.get('ratio', '') and item.get('ratio', '') != '/' else '/'} | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '/')}" for i, item in enumerate(valid_loans, 1)]
             if loan_memo:
                 memo_lines.extend(loan_memo)
                 memo_lines.append("")
@@ -217,7 +217,7 @@ def generate_memo(data):
                     })
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도 LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '-'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = [f"{res.get('loan_type', '기타')} 한도 LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '/'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 ltv_lines_exist = True
@@ -256,8 +256,8 @@ def generate_memo(data):
                 bridge_rate = float(fees.get('bridge_rate', '0') or 0)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
-                if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({consult_rate + '%' if consult_rate else '-'}): {format_manwon(consult_fee)}")
-                if bridge_amt > 0: fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({bridge_rate + '%' if bridge_rate else '-'}): {format_manwon(bridge_fee)}")
+                if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({consult_rate + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
+                if bridge_amt > 0: fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({bridge_rate + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
                 
                 if fee_memo:
                     memo_lines.append("")
