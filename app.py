@@ -256,8 +256,8 @@ def generate_memo(data):
                 bridge_rate = float(fees.get('bridge_rate', '0') or 0)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
-                if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({consult_rate + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
-                if bridge_amt > 0: fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({bridge_rate + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
+                if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
+                if bridge_amt > 0: fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({str(bridge_rate) + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
                 
                 if fee_memo:
                     memo_lines.append("")
