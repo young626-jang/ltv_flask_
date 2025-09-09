@@ -265,15 +265,23 @@ def generate_memo(data):
         except Exception as e:
             logger.warning(f"수수료 계산 중 오류 (무시됨): {e}")
         
-        # 시세 타입 결정 및 반환
+        # 시세 타입 결정 및 반환 - 층수 기준으로 변경
         memo_text = "\n".join(memo_lines)
         price_type = ""
         
         if kb_price_str:
-            if any("후순위" in line for line in memo_lines):
-                price_type = "하안가 적용"
+            # 주소에서 층수 추출 (제X층 또는 X층 패턴)
+            address = inputs.get('address', '')
+            floor_match = re.search(r'(?:제)?(\d+)층', address)
+            
+            if floor_match:
+                floor = int(floor_match.group(1))
+                if floor <= 2:
+                    price_type = "하안가 적용"
+                else:
+                    price_type = "일반가 적용"
             else:
-                price_type = "일반가 적용"
+                price_type = "층수입력필요"  # 층수를 찾을 수 없으면 입력 요청
         
         return {
             'memo': memo_text,
