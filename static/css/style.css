@@ -371,9 +371,27 @@
                 margin: 0;
             }
             
-            /* 리사이즈 바 숨기기 */
+            /* 모바일에서도 리사이즈 바 표시하되 터치에 최적화 */
             .resize-bar {
-                display: none;
+                width: 100% !important;
+                height: 12px; /* 터치하기 쉽도록 높이 확대 */
+                cursor: row-resize;
+                background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
+                touch-action: none;
+                position: relative;
+                z-index: 999;
+            }
+            
+            .resize-bar::before {
+                width: 40px !important; /* 터치 영역 확대 */
+                height: 3px !important;
+                background: rgba(0,0,0,0.3) !important;
+            }
+            
+            .resize-bar::after {
+                width: 6px !important;
+                height: 30px !important;
+                background: rgba(255,255,255,0.8) !important;
             }
             
             /* 버튼들을 터치하기 편하게 크게 */
@@ -424,12 +442,7 @@
                 display: none !important;
             }
             
-            /* 모바일에서 각 필드에 라벨 추가 */
-            .loan-col-lender:before { content: "설정자: "; font-weight: bold; }
-            .loan-col-max-amount:before { content: "채권최고액(만): "; font-weight: bold; }
-            .loan-col-ratio:before { content: "비율(%): "; font-weight: bold; }
-            .loan-col-principal:before { content: "원금(만): "; font-weight: bold; }
-            .loan-col-status:before { content: "구분: "; font-weight: bold; }
+            /* 모바일에서는 불필요한 라벨 제거 - placeholder로 충분 */
             
             /* 업로드 영역 모바일 최적화 */
             #upload-section {
@@ -776,8 +789,7 @@
         
         @media (max-width: 576px) {
             .mobile-label {
-                display: block !important;
-                font-weight: 600;
+                display: none !important; /* 모바일에서 라벨 숨기기 */
                 margin-bottom: 0.25rem;
                 color: #495057;
                 font-size: 0.8rem;
