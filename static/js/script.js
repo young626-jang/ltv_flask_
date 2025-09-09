@@ -679,10 +679,14 @@ function collectAllData() {
                 priceTypeField.value = result.price_type;
                 
                 // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
-                priceTypeField.classList.remove('text-danger', 'text-primary');
+                priceTypeField.classList.remove('text-danger', 'text-primary', 'text-warning');
 
                 // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
-                if (result.price_type.includes('일반가')) {
+                if (result.price_type === '층수입력필요') {
+                    // 층수 입력 팝업 표시
+                    showFloorInputPopup();
+                    priceTypeField.classList.add('text-warning');
+                } else if (result.price_type.includes('일반가')) {
                     priceTypeField.classList.add('text-primary'); // '일반가'는 파란색
                 } else if (result.price_type.includes('하안가')) {
                     priceTypeField.classList.add('text-danger');  // '하안가'는 빨간색
@@ -690,7 +694,7 @@ function collectAllData() {
             } else {
                 // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
                 priceTypeField.value = '';
-                priceTypeField.classList.remove('text-danger', 'text-primary');
+                priceTypeField.classList.remove('text-danger', 'text-primary', 'text-warning');
             }
         } catch (error) {
             memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
@@ -1736,4 +1740,118 @@ function calculateBalloonLoan() {
     if (firstPaymentEl) firstPaymentEl.value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
     if (breakdownEl) breakdownEl.textContent = 
         `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
+}
+
+// 층수 입력 팝업 함수
+function showFloorInputPopup() {
+    // 기존 팝업이 있으면 제거
+    const existingPopup = document.getElementById('floor-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+    
+    // 팝업 HTML 생성
+    const popupHTML = `
+        <div id="floor-popup" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        ">
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                text-align: center;
+                min-width: 350px;
+            ">
+                <h4 style="margin-bottom: 20px; color: #2D3748;">층수를 입력해 주세요</h4>
+                <p style="color: #718096; margin-bottom: 25px;">주소에서 층수를 찾을 수 없습니다.<br>해당 건물의 층수를 입력해주세요.</p>
+                <input type="number" id="floor-input" placeholder="층수 입력 (예: 3)" min="1" style="
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #E2E8F0;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    text-align: center;
+                    margin-bottom: 20px;
+                ">
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button onclick="applyFloorInput()" style="
+                        background: #D946EF;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">적용</button>
+                    <button onclick="closeFloorPopup()" style="
+                        background: #718096;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">닫기</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 팝업을 body에 추가
+    document.body.insertAdjacentHTML('beforeend', popupHTML);
+    
+    // 입력 필드에 포커스
+    document.getElementById('floor-input').focus();
+    
+    // Enter 키로도 적용 가능하게
+    document.getElementById('floor-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFloorInput();
+        }
+    });
+}
+
+// 층수 적용 함수
+function applyFloorInput() {
+    const floorInput = document.getElementById('floor-input');
+    const floor = parseInt(floorInput.value);
+    
+    if (isNaN(floor) || floor < 1) {
+        alert('올바른 층수를 입력해주세요.');
+        return;
+    }
+    
+    // 층수에 따라 가격 타입 결정
+    const priceTypeField = document.getElementById('price_type_field');
+    const priceType = floor <= 2 ? '하안가 적용' : '일반가 적용';
+    
+    priceTypeField.value = priceType;
+    priceTypeField.classList.remove('text-danger', 'text-primary', 'text-warning');
+    
+    if (priceType.includes('하안가')) {
+        priceTypeField.classList.add('text-danger'); // 하안가는 빨간색
+    } else {
+        priceTypeField.classList.add('text-primary'); // 일반가는 파란색
+    }
+    
+    // 팝업 닫기
+    closeFloorPopup();
+}
+
+// 팝업 닫기 함수
+function closeFloorPopup() {
+    const popup = document.getElementById('floor-popup');
+    if (popup) {
+        popup.remove();
+    }
 }
