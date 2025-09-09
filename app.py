@@ -281,7 +281,7 @@ def generate_memo(data):
                 else:
                     price_type = "일반가 적용"
             else:
-                price_type = "일반가 적용"  # 층수를 찾을 수 없으면 기본값으로 일반가
+                price_type = ""  # 층수를 찾을 수 없으면 비워둠
         else:
             price_type = ""  # 주소가 없으면 시세적용 표시 안함
         
