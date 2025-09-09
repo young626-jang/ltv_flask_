@@ -253,7 +253,7 @@ def generate_memo(data):
                 fee_memo = []
                 consult_rate = float(fees.get('consult_rate', '0') or 0)
                 consult_fee = int(consult_amt * consult_rate / 100)
-                bridge_rate = float(fees.get('bridge_rate', '0') or 0)
+                bridge_rate = float(fees.get('bridge_rate', '0.7') or 0.7)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
                 if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
