@@ -147,7 +147,7 @@ def generate_memo(data):
         deduction_str = ""
         if deduction_amount_val > 0 and deduction_region_text:
             if deduction_region_text.strip() and deduction_region_text != "지역 선택...":
-                deduction_str = f"방공제: {deduction_region_text}: {format_manwon(deduction_amount_val)}"
+                deduction_str = f"방공제: {format_manwon(deduction_amount_val)}"
         
         # 면적 정보 처리
         area_str = f"면적: {inputs.get('area', '')}" if inputs.get('area') else ""
