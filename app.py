@@ -203,6 +203,7 @@ def generate_memo(data):
             loan_memo = [f"{i}. {item.get('lender', '/')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '') + '%' if item.get('ratio', '') and item.get('ratio', '') != '/' else '/'} | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '/')}" for i, item in enumerate(valid_loans, 1)]
             if loan_memo:
                 memo_lines.extend(loan_memo)
+                memo_lines.append("")
 
         # LTV 계산 부분 (기존 코드 유지)
         ltv_rates = []
