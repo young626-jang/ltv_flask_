@@ -275,11 +275,14 @@ def generate_memo(data):
         if has_status_sum:
             if ltv_lines_exist:
                 memo_lines.append("")
+                memo_lines.append("--------------------------------------------------")  # 1번째 구분선 (LTV 한도 다음)
             for status in order:
                 if status in status_sums:
                     data = status_sums[status]
                     if data['principal']['sum'] > 0:
                         memo_lines.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
+            # 2번째 구분선 (상태별 합계 다음)
+            memo_lines.append("--------------------------------------------------")
         
         # 수수료 계산
         try:
@@ -293,12 +296,22 @@ def generate_memo(data):
                 bridge_rate = float(fees.get('bridge_rate', '0.7') or 0.7)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
-                if consult_amt > 0: fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
-                if bridge_amt > 0: fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({str(bridge_rate) + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
+                # 수수료 정보 추가
+                memo_lines.append("")
+                
+                if consult_amt > 0: 
+                    fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
+                if bridge_amt > 0: 
+                    fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({str(bridge_rate) + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
                 
                 if fee_memo:
-                    memo_lines.append("")
                     memo_lines.extend(fee_memo)
+                    
+                # 총 컨설팅 합계 추가
+                total_fee = consult_fee + bridge_fee
+                if total_fee > 0:
+                    memo_lines.append(f"총 컨설팅 합계: {format_manwon(total_fee)}")
+                    
         except Exception as e:
             logger.warning(f"수수료 계산 중 오류 (무시됨): {e}")
         
