@@ -273,16 +273,13 @@ def generate_memo(data):
                     has_status_sum = True
         
         if has_status_sum:
-            if ltv_lines_exist:
-                memo_lines.append("")
-                memo_lines.append("--------------------------------------------------")  # 1번째 구분선 (LTV 한도 다음)
+            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 앞)
             for status in order:
                 if status in status_sums:
                     data = status_sums[status]
                     if data['principal']['sum'] > 0:
                         memo_lines.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
-            # 2번째 구분선 (상태별 합계 다음)
-            memo_lines.append("--------------------------------------------------")
+            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 뒤)
         
         # 수수료 계산
         try:
@@ -297,7 +294,6 @@ def generate_memo(data):
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
                 # 수수료 정보 추가
-                memo_lines.append("")
                 
                 if consult_amt > 0: 
                     fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
