@@ -147,7 +147,7 @@ def generate_memo(data):
         deduction_str = ""
         if deduction_amount_val > 0 and deduction_region_text:
             if deduction_region_text.strip() and deduction_region_text != "지역 선택...":
-                deduction_str = f"{deduction_region_text}: {format_manwon(deduction_amount_val)}"
+                deduction_str = f"방공제: {deduction_region_text}: {format_manwon(deduction_amount_val)}"
         
         # 면적 정보 처리
         area_str = f"면적: {inputs.get('area', '')}" if inputs.get('area') else ""
@@ -158,13 +158,43 @@ def generate_memo(data):
         # 고객명 정보 추가 (메모 맨 위에 표시)
         customer_name = inputs.get('customer_name', '')
         if customer_name.strip():
-            memo_lines.append(customer_name)
-            memo_lines.append("")
+            memo_lines.append(f"고객명: {customer_name}")
         
-        address_parts = [inputs.get('address', ''), area_str, kb_price_str, deduction_str]
-        address_line = " | ".join([part for part in address_parts if part.strip()])
-        if address_line:
-            memo_lines.append(address_line)
+        # 주소와 면적을 한 줄에 표시
+        address = inputs.get('address', '')
+        address_area_parts = []
+        if address.strip():
+            address_area_parts.append(f"주소: {address}")
+        if area_str:
+            address_area_parts.append(area_str)
+        
+        if address_area_parts:
+            memo_lines.append(" | ".join(address_area_parts))
+        
+        # KB시세, 시세적용, 방공제를 한 줄에 표시
+        price_info_parts = []
+        if kb_price_str:
+            price_info_parts.append(kb_price_str)
+        
+        # 시세적용 정보 추가 (층수 기준)
+        price_type = ""
+        if address and address.strip():
+            floor_match = re.search(r'(?:제)?(\d+)층', address)
+            if floor_match:
+                floor = int(floor_match.group(1))
+                price_type = "하안가 적용" if floor <= 2 else "일반가 적용"
+        
+        if price_type:
+            price_info_parts.append(price_type)
+        
+        if deduction_str:
+            price_info_parts.append(deduction_str)
+            
+        if price_info_parts:
+            memo_lines.append(" | ".join(price_info_parts))
+        
+        # 기본 정보와 대출 정보 사이에 빈 줄 추가
+        if memo_lines:
             memo_lines.append("")
 
         valid_loans = []
@@ -224,7 +254,7 @@ def generate_memo(data):
                     })
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도 LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '/'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '/'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 ltv_lines_exist = True
