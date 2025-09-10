@@ -299,9 +299,9 @@ def generate_memo(data):
                 
                 # 수수료 정보 추가
                 if consult_amt > 0: 
-                    fee_memo.append(f"필요금 {format_manwon(consult_amt)} 컨설팅비용({str(consult_rate) + '%' if consult_rate else '/'}): {format_manwon(consult_fee)}")
+                    fee_memo.append(f"필요금: {format_manwon(consult_amt)} 컨설팅비용:({str(consult_rate) + '%' if consult_rate else '/'}) {format_manwon(consult_fee)}")
                 if bridge_amt > 0: 
-                    fee_memo.append(f"브릿지 {format_manwon(bridge_amt)} 브릿지비용({str(bridge_rate) + '%' if bridge_rate else '/'}): {format_manwon(bridge_fee)}")
+                    fee_memo.append(f"브릿지: {format_manwon(bridge_amt)} 브릿지비용:({str(bridge_rate) + '%' if bridge_rate else '/'}) {format_manwon(bridge_fee)}")
                 
                 if fee_memo:
                     memo_lines.extend(fee_memo)
