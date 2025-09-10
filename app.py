@@ -154,6 +154,13 @@ def generate_memo(data):
         
         # 기본 정보 라인 생성
         memo_lines = []
+        
+        # 고객명 정보 추가 (메모 맨 위에 표시)
+        customer_name = inputs.get('customer_name', '')
+        if customer_name.strip():
+            memo_lines.append(customer_name)
+            memo_lines.append("")
+        
         address_parts = [inputs.get('address', ''), area_str, kb_price_str, deduction_str]
         address_line = " | ".join([part for part in address_parts if part.strip()])
         if address_line:
