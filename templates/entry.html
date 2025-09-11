@@ -260,11 +260,39 @@ if ('serviceWorker' in navigator) {
 
 // PWA 설치 프롬프트 처리
 let deferredPrompt;
+const installButton = document.createElement('button');
+installButton.innerHTML = '📱 앱 설치';
+installButton.className = 'btn btn-primary btn-sm position-fixed';
+installButton.style.cssText = 'top: 10px; right: 10px; z-index: 1000; display: none; border-radius: 20px; padding: 5px 15px; font-size: 12px;';
+installButton.id = 'install-button';
+document.body.appendChild(installButton);
+
 window.addEventListener('beforeinstallprompt', (e) => {
     console.log('PWA install prompt triggered');
+    e.preventDefault(); // 기본 설치 배너 숨기기
     deferredPrompt = e;
-    // 브라우저의 기본 설치 배너 숨기기 (선택적)
-    // e.preventDefault();
+    installButton.style.display = 'block'; // 커스텀 버튼 표시
+});
+
+// 설치 버튼 클릭 이벤트
+installButton.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('User choice:', outcome);
+        if (outcome === 'accepted') {
+            console.log('User accepted install');
+        }
+        deferredPrompt = null;
+        installButton.style.display = 'none';
+    }
+});
+
+// 이미 설치된 경우 버튼 숨기기
+window.addEventListener('appinstalled', () => {
+    console.log('PWA was installed');
+    installButton.style.display = 'none';
+    deferredPrompt = null;
 });
 
 // 설치 완료 후 처리
