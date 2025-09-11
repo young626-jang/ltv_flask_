@@ -228,9 +228,8 @@ def extract_owner_shares_with_birth(pdf_path):
     
 # <<< 여기에 근저당권 분석 함수를 추가합니다 >>>
 def extract_rights_info(full_text):
-    """
-    텍스트에서 '주요 등기사항 요약'의 근저당권 정보를 추출하여 최종 상태 목록을 반환합니다.
-    """
+    
+    # 1. '시작/종료 마커'로 테이블 영역을 정확히 추출
     table_match = re.search(
         r'3\.\s*\([근|전].*?대상소유자([\s\S]*?)\[\s*참\s*고\s*사\s*항\s*\]',
         full_text,
@@ -240,6 +239,8 @@ def extract_rights_info(full_text):
         return {"근저당권": []}
     
     table_text = table_match.group(1)
+
+    # 2. 테이블 내용을 '순위번호' 기준으로 모든 항목을 임시 리스트에 저장
     entries = re.split(r'\n\s*(?=(?:\d{1,2}-\d{1,2}|\d{1,2})\s)', table_text)
     
     all_entries = []
@@ -253,28 +254,46 @@ def extract_rights_info(full_text):
         seq = seq_match.group(1)
         main_key = seq.split('-')[0]
 
+        date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_text)
         amount_match = re.search(r'채권최고액\s*금\s*([\d,]+)원', clean_text)
         creditor_match = re.search(r'근저당권자\s*(\S+)', clean_text)
 
         info_parts = []
-        if amount_match: info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
-        if creditor_match: info_parts.append(f"근저당권자 {creditor_match.group(1)}")
+        if amount_match:
+            info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
+        if creditor_match:
+            info_parts.append(f"근저당권자 {creditor_match.group(1)}")
         
         if info_parts:
             all_entries.append({
                 'main_key': main_key,
+                '접수일': date_match.group(1).strip() if date_match else "",
                 '주요등기사항': " ".join(info_parts)
             })
 
+    # 3. [수정됨] 이력 덮어쓰기 로직: 누락된 정보를 원본에서 가져와 병합
     final_mortgages = {}
     for entry in reversed(all_entries):
         if entry['main_key'] not in final_mortgages:
-            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '근저당권자' in item['주요등기사항']), None)
-            if '근저당권자' not in entry['주요등기사항'] and original_info:
-                 creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
-                 if creditor_part:
-                     entry['주요등기사항'] += " " + creditor_part.group(0)
+            # 원본 항목(보통 채권최고액이 명시된 첫 항목)을 찾음
+            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '채권최고액' in item['주요등기사항']), None)
+            
+            if original_info:
+                # 현재 항목에 '채권최고액'이 없으면 원본에서 가져와 맨 앞에 추가
+                if '채권최고액' not in entry['주요등기사항']:
+                    amount_part = re.search(r'채권최고액\s*금[\d,]+원', original_info['주요등기사항'])
+                    if amount_part:
+                        entry['주요등기사항'] = amount_part.group(0) + " " + entry['주요등기사항']
+                
+                # 현재 항목에 '근저당권자'가 없으면 원본에서 가져와 뒤에 추가
+                if '근저당권자' not in entry['주요등기사항']:
+                    creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
+                    if creditor_part:
+                        entry['주요등기사항'] += " " + creditor_part.group(0)
+
             final_mortgages[entry['main_key']] = entry
             
+    # 4. 원래 순서대로 정렬하여 반환
     sorted_final_list = sorted(list(final_mortgages.values()), key=lambda x: int(x['main_key']))
+
     return {"근저당권": sorted_final_list}
