@@ -254,7 +254,7 @@ def generate_memo(data):
                     })
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '/'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 ltv_lines_exist = True
