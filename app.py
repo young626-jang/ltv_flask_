@@ -227,7 +227,7 @@ def generate_memo(data):
                         principal = parse_korean_number(item.get('principal', '0'))
                         max_amount = parse_korean_number(item.get('max_amount', '0'))
                         
-                        if status == '유지':
+                        if status in ['유지', '동의', '비동의']:
                             maintain_sum += max_amount if max_amount > 0 else principal
                         elif status == '대환':
                             replace_sum += principal
