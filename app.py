@@ -158,7 +158,7 @@ def generate_memo(data):
         # 고객명 정보 추가 (메모 맨 위에 표시)
         customer_name = inputs.get('customer_name', '')
         if customer_name.strip():
-            memo_lines.append(f"고객명: {customer_name}")
+            memo_lines.append(f"소유자: {customer_name}")
         
         # 주소와 면적을 한 줄에 표시
         address = inputs.get('address', '')
