@@ -20,8 +20,7 @@ from pdf_parser import (
     check_registration_age,
     extract_owner_shares_with_birth,
     extract_rights_info,  # <-- 핵심! 근저당권 분석 함수 추가!
-    extract_ownership_transfer_date, # <-- 괄호 안으로 이동
-    analyze_eligibility_from_pdf_text # <-- [핵심] 심사 기준 분석 함수 추가!
+    extract_ownership_transfer_date # <-- 괄호 안으로 이동
 )
 from history_manager_flask import (
     fetch_all_customers, 
@@ -104,15 +103,12 @@ def upload_and_parse_pdf():
         # 근저당권 정보도 추출
         rights_info = extract_rights_info(full_text)
 
-        # ▼▼▼ [핵심 수정] 누락되었던 심사 기준 분석 로직 호출 ▼▼▼
-        eligibility_checks = analyze_eligibility_from_pdf_text(full_text)
-
         # 3. 추출된 모든 정보를 하나의 JSON으로 묶어서 웹페이지에 전송
         return jsonify({
             "success": True, 
             "scraped_data": scraped_data,  # 기본 정보 + 지분 정보
             "rights_info": rights_info,    # 모든 근저당권 정보,
-            "eligibility_checks": eligibility_checks # [핵심 수정] 심사 기준 분석 결과 추가
+            "eligibility_checks": [] # 심사 기준 분석 로직 제거
         })
 
     except Exception as e:
