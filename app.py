@@ -19,7 +19,9 @@ from pdf_parser import (
     extract_viewing_datetime,
     check_registration_age,
     extract_owner_shares_with_birth,
-    extract_rights_info  # <-- 핵심! 근저당권 분석 함수 추가!
+    extract_rights_info,  # <-- 핵심! 근저당권 분석 함수 추가!
+    extract_ownership_transfer_date, # <-- 괄호 안으로 이동
+    analyze_eligibility_from_pdf_text # <-- [핵심] 심사 기준 분석 함수 추가!
 )
 from history_manager_flask import (
     fetch_all_customers, 
@@ -86,23 +88,31 @@ def upload_and_parse_pdf():
 
         # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
         viewing_dt = extract_viewing_datetime(full_text)
+        transfer_date = extract_ownership_transfer_date(full_text)
+        logger.info(f"추출된 소유권 이전일: {transfer_date}")
+
         scraped_data = {
             'address': extract_address(full_text),
             'area': extract_area(full_text),
             'customer_name': extract_owner_info(full_text),
             'viewing_datetime': viewing_dt,
             'age_check': check_registration_age(viewing_dt),
+            'transfer_date': transfer_date,
             'owner_shares': extract_owner_shares_with_birth(full_text)
         }
         
         # 근저당권 정보도 추출
         rights_info = extract_rights_info(full_text)
 
+        # ▼▼▼ [핵심 수정] 누락되었던 심사 기준 분석 로직 호출 ▼▼▼
+        eligibility_checks = analyze_eligibility_from_pdf_text(full_text)
+
         # 3. 추출된 모든 정보를 하나의 JSON으로 묶어서 웹페이지에 전송
         return jsonify({
             "success": True, 
             "scraped_data": scraped_data,  # 기본 정보 + 지분 정보
-            "rights_info": rights_info     # 모든 근저당권 정보
+            "rights_info": rights_info,    # 모든 근저당권 정보,
+            "eligibility_checks": eligibility_checks # [핵심 수정] 심사 기준 분석 결과 추가
         })
 
     except Exception as e:
@@ -128,6 +138,45 @@ def format_manwon(value):
     except:
         return str(value)
 
+def _generate_memo_header(inputs):
+    """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
+    memo_lines = []
+    
+    # 고객명
+    customer_name = inputs.get('customer_name', '')
+    if customer_name.strip():
+        memo_lines.append(f"소유자: {customer_name}")
+
+    # 주소와 면적
+    address = inputs.get('address', '')
+    area_str = f"면적: {inputs.get('area', '')}" if inputs.get('area') else ""
+    address_area_parts = []
+    if address.strip(): address_area_parts.append(f"주소: {address}")
+    if area_str: address_area_parts.append(area_str)
+    if address_area_parts: memo_lines.append(" | ".join(address_area_parts))
+
+    # KB시세, 시세적용, 방공제
+    kb_price_raw = inputs.get('kb_price', '')
+    kb_price_val = parse_korean_number(kb_price_raw)
+    kb_price_str = f"KB시세: {format_manwon(kb_price_val)}" if kb_price_val > 0 else ""
+    
+    deduction_amount_raw = inputs.get('deduction_amount', '')
+    deduction_amount_val = parse_korean_number(deduction_amount_raw)
+    deduction_region_text = inputs.get('deduction_region_text', '')
+    deduction_str = ""
+    if deduction_amount_val > 0 and deduction_region_text and deduction_region_text.strip() and deduction_region_text != "지역 선택...":
+        deduction_str = f"방공제: {format_manwon(deduction_amount_val)}"
+
+    price_info_parts = []
+    if kb_price_str: price_info_parts.append(kb_price_str)
+    
+    price_type = get_price_type_from_address(address)
+    if price_type: price_info_parts.append(price_type)
+    if deduction_str: price_info_parts.append(deduction_str)
+    if price_info_parts: memo_lines.append(" | ".join(price_info_parts))
+    
+    return memo_lines, kb_price_val, deduction_amount_val
+
 def generate_memo(data):
     """텍스트 메모 생성 함수"""
     try:
@@ -139,6 +188,8 @@ def generate_memo(data):
         kb_price_raw = inputs.get('kb_price', '')
         kb_price_val = parse_korean_number(kb_price_raw)
         kb_price_str = f"KB시세: {format_manwon(kb_price_val)}" if kb_price_val > 0 else ""
+        # 1. 헤더 정보 생성 (리팩토링된 함수 호출)
+        memo_lines, kb_price_val, deduction_amount_val = _generate_memo_header(inputs)
         
         # 방공제 정보 처리
         deduction_amount_raw = inputs.get('deduction_amount', '')
@@ -333,6 +384,7 @@ def generate_memo(data):
                 price_type = ""  # 층수를 찾을 수 없으면 비워둠
         else:
             price_type = ""  # 주소가 없으면 시세적용 표시 안함
+        price_type = get_price_type_from_address(address)
         
         return {
             'memo': memo_text,
@@ -348,6 +400,22 @@ def generate_memo(data):
             'ltv_results': []
         }
     
+
+def get_price_type_from_address(address):
+    """주소 문자열에서 층수를 분석하여 시세 적용 타입을 반환합니다."""
+    if not address or not address.strip():
+        return ""
+        
+    floor_match = re.search(r'(?:제)?(\d+)층', address)
+    if not floor_match:
+        return ""
+        
+    try:
+        floor = int(floor_match.group(1))
+        return "하안가 적용" if floor <= 2 else "일반가 적용"
+    except (ValueError, IndexError):
+        return ""
+
 @app.route('/api/generate_text_memo', methods=['POST'])
 def generate_text_memo_route():
     data = request.get_json() or {}
