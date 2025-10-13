@@ -19,7 +19,8 @@ from pdf_parser import (
     extract_viewing_datetime,
     check_registration_age,
     extract_owner_shares_with_birth,
-    extract_rights_info  # <-- 핵심! 근저당권 분석 함수 추가!
+    extract_rights_info,  # <-- 핵심! 근저당권 분석 함수 추가!
+    extract_ownership_transfer_date # <-- 괄호 안으로 이동
 )
 from history_manager_flask import (
     fetch_all_customers, 
@@ -86,12 +87,16 @@ def upload_and_parse_pdf():
 
         # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
         viewing_dt = extract_viewing_datetime(full_text)
+        transfer_date = extract_ownership_transfer_date(full_text)
+        logger.info(f"추출된 소유권 이전일: {transfer_date}")
+
         scraped_data = {
             'address': extract_address(full_text),
             'area': extract_area(full_text),
             'customer_name': extract_owner_info(full_text),
             'viewing_datetime': viewing_dt,
             'age_check': check_registration_age(viewing_dt),
+            'transfer_date': transfer_date,
             'owner_shares': extract_owner_shares_with_birth(full_text)
         }
         
@@ -102,7 +107,8 @@ def upload_and_parse_pdf():
         return jsonify({
             "success": True, 
             "scraped_data": scraped_data,  # 기본 정보 + 지분 정보
-            "rights_info": rights_info     # 모든 근저당권 정보
+            "rights_info": rights_info,    # 모든 근저당권 정보,
+            "eligibility_checks": [] # 심사 기준 분석 로직 제거
         })
 
     except Exception as e:
@@ -128,6 +134,45 @@ def format_manwon(value):
     except:
         return str(value)
 
+def _generate_memo_header(inputs):
+    """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
+    memo_lines = []
+    
+    # 고객명
+    customer_name = inputs.get('customer_name', '')
+    if customer_name.strip():
+        memo_lines.append(f"소유자: {customer_name}")
+
+    # 주소와 면적
+    address = inputs.get('address', '')
+    area_str = f"면적: {inputs.get('area', '')}" if inputs.get('area') else ""
+    address_area_parts = []
+    if address.strip(): address_area_parts.append(f"주소: {address}")
+    if area_str: address_area_parts.append(area_str)
+    if address_area_parts: memo_lines.append(" | ".join(address_area_parts))
+
+    # KB시세, 시세적용, 방공제
+    kb_price_raw = inputs.get('kb_price', '')
+    kb_price_val = parse_korean_number(kb_price_raw)
+    kb_price_str = f"KB시세: {format_manwon(kb_price_val)}" if kb_price_val > 0 else ""
+    
+    deduction_amount_raw = inputs.get('deduction_amount', '')
+    deduction_amount_val = parse_korean_number(deduction_amount_raw)
+    deduction_region_text = inputs.get('deduction_region_text', '')
+    deduction_str = ""
+    if deduction_amount_val > 0 and deduction_region_text and deduction_region_text.strip() and deduction_region_text != "지역 선택...":
+        deduction_str = f"방공제: {format_manwon(deduction_amount_val)}"
+
+    price_info_parts = []
+    if kb_price_str: price_info_parts.append(kb_price_str)
+    
+    price_type = get_price_type_from_address(address)
+    if price_type: price_info_parts.append(price_type)
+    if deduction_str: price_info_parts.append(deduction_str)
+    if price_info_parts: memo_lines.append(" | ".join(price_info_parts))
+    
+    return memo_lines, kb_price_val, deduction_amount_val
+
 def generate_memo(data):
     """텍스트 메모 생성 함수"""
     try:
@@ -139,6 +184,8 @@ def generate_memo(data):
         kb_price_raw = inputs.get('kb_price', '')
         kb_price_val = parse_korean_number(kb_price_raw)
         kb_price_str = f"KB시세: {format_manwon(kb_price_val)}" if kb_price_val > 0 else ""
+        # 1. 헤더 정보 생성 (리팩토링된 함수 호출)
+        memo_lines, kb_price_val, deduction_amount_val = _generate_memo_header(inputs)
         
         # 방공제 정보 처리
         deduction_amount_raw = inputs.get('deduction_amount', '')
@@ -158,7 +205,7 @@ def generate_memo(data):
         # 고객명 정보 추가 (메모 맨 위에 표시)
         customer_name = inputs.get('customer_name', '')
         if customer_name.strip():
-            memo_lines.append(f"고객명: {customer_name}")
+            memo_lines.append(f"소유자: {customer_name}")
         
         # 주소와 면적을 한 줄에 표시
         address = inputs.get('address', '')
@@ -227,7 +274,7 @@ def generate_memo(data):
                         principal = parse_korean_number(item.get('principal', '0'))
                         max_amount = parse_korean_number(item.get('max_amount', '0'))
                         
-                        if status == '유지':
+                        if status in ['유지', '동의', '비동의']:
                             maintain_sum += max_amount if max_amount > 0 else principal
                         elif status == '대환':
                             replace_sum += principal
@@ -254,7 +301,7 @@ def generate_memo(data):
                     })
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {str(res.get('ltv_rate', 0)) + '%' if res.get('ltv_rate', 0) else '/'} {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 ltv_lines_exist = True
@@ -272,14 +319,14 @@ def generate_memo(data):
                     status_sums[status]['principal']['count'] += 1
                     has_status_sum = True
         
-        # 상태별 합계 정보를 별도로 저장
-        status_summary = []
         if has_status_sum:
+            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 앞)
             for status in order:
                 if status in status_sums:
                     data = status_sums[status]
                     if data['principal']['sum'] > 0:
-                        status_summary.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
+                        memo_lines.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
+            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 뒤)
         
         # 수수료 계산
         try:
@@ -293,8 +340,9 @@ def generate_memo(data):
                 bridge_rate = float(fees.get('bridge_rate', '0.7') or 0.7)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
-                # 수수료 정보 전에 구분선 추가
-                memo_lines.append("--------------------------------------------------")
+                # 수수료 정보 전에 구분선 추가 (상태별 합계가 없는 경우)
+                if not has_status_sum:
+                    memo_lines.append("--------------------------------------------------")
                 
                 # 수수료 정보 추가
                 if consult_amt > 0: 
@@ -332,12 +380,12 @@ def generate_memo(data):
                 price_type = ""  # 층수를 찾을 수 없으면 비워둠
         else:
             price_type = ""  # 주소가 없으면 시세적용 표시 안함
+        price_type = get_price_type_from_address(address)
         
         return {
             'memo': memo_text,
             'price_type': price_type,
-            'ltv_results': ltv_results,
-            'status_summary': status_summary
+            'ltv_results': ltv_results
         }
         
     except Exception as e:
@@ -345,10 +393,25 @@ def generate_memo(data):
         return {
             'memo': f"메모 생성 중 오류가 발생했습니다: {str(e)}",
             'price_type': "",
-            'ltv_results': [],
-            'status_summary': []
+            'ltv_results': []
         }
     
+
+def get_price_type_from_address(address):
+    """주소 문자열에서 층수를 분석하여 시세 적용 타입을 반환합니다."""
+    if not address or not address.strip():
+        return ""
+        
+    floor_match = re.search(r'(?:제)?(\d+)층', address)
+    if not floor_match:
+        return ""
+        
+    try:
+        floor = int(floor_match.group(1))
+        return "하안가 적용" if floor <= 2 else "일반가 적용"
+    except (ValueError, IndexError):
+        return ""
+
 @app.route('/api/generate_text_memo', methods=['POST'])
 def generate_text_memo_route():
     data = request.get_json() or {}
