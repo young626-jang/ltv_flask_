@@ -1,7 +1,6 @@
 import fitz  # PyMuPDF 라이브러리
 import re
-from datetime import datetime, date
-from dateutil.relativedelta import relativedelta
+import datetime
 
 def extract_address(text):
     """텍스트에서 주소를 추출합니다."""
@@ -68,11 +67,11 @@ def check_registration_age(viewing_datetime):
     """등기 열람일시가 한 달 이상 오래되었는지 확인"""
     if not viewing_datetime:
         return {"is_old": False, "age_days": 0, "message": "열람일시를 찾을 수 없습니다"}
-
+    
     try:
         # 열람일시를 datetime 객체로 변환
-        viewing_date = datetime.strptime(viewing_datetime, "%Y-%m-%d %H:%M:%S")
-        current_date = datetime.now()
+        viewing_date = datetime.datetime.strptime(viewing_datetime, "%Y-%m-%d %H:%M:%S")
+        current_date = datetime.datetime.now()
         
         # 날짜 차이 계산 (실제 경과 일수로 계산)
         age_delta = current_date - viewing_date
@@ -99,52 +98,29 @@ def check_registration_age(viewing_datetime):
     except Exception as e:
         return {"is_old": False, "age_days": 0, "message": f"날짜 분석 오류: {str(e)}"}
 
-def _extract_text_from_pdf(filepath: str) -> str:
-    """PDF 파일에서 텍스트를 추출합니다."""
+def parse_pdf_for_ltv(pdf_path):
     try:
-        doc = fitz.open(filepath)
+        doc = fitz.open(pdf_path)
         full_text = ""
         for page in doc:
             full_text += page.get_text("text")
         doc.close()
-        return full_text
-    except Exception as e:
-        print(f"PDF 텍스트 추출 중 오류 발생: {e}")
-        return ""
-
-def parse_pdf_for_ltv(pdf_path):
-    try:
-        full_text = _extract_text_from_pdf(pdf_path)
-        if not full_text:
-            return {}
-
-        # 1. 텍스트를 구조화된 섹션으로 분리
-        sections = _split_text_into_sections(full_text)
-
-        # 2. 섹션 기반으로 정보 추출
-        address = _parse_address(sections.get('full', ''))
-        area = _parse_area(sections.get('full', ''))
-        customer_details = _parse_owners(sections)
-
+        
+        address = extract_address(full_text)
+        area = extract_area(full_text)
+        customer_details = extract_owner_info(full_text)
+        
         # 열람일시와 나이 검사 추가
         viewing_datetime = extract_viewing_datetime(full_text)
         age_check = check_registration_age(viewing_datetime)
-
-        # 소유권 이전일 추출
-        ownership_date = extract_ownership_transfer_date(full_text)
-
-        # 3. 섹션 기반으로 심사 기준 분석 실행
-        eligibility_checks = analyze_eligibility_from_sections(sections)
-
+        
         return {
             "customer_name": customer_details,
-            "birth_date": "",
+            "birth_date": "", 
             "address": address,
             "area": area,
             "viewing_datetime": viewing_datetime,
-            "age_check": age_check,
-            "ownership_date": ownership_date,
-            "eligibility_checks": eligibility_checks
+            "age_check": age_check
         }
     except Exception as e:
         print(f"PDF 파싱 중 오류 발생: {e}")
@@ -193,65 +169,57 @@ def extract_owner_shares_linewise(pdf_path):
         return []
 
 
-def extract_owner_shares_with_birth(full_text):
+def extract_owner_shares_with_birth(pdf_path):
     """
-    등기부등본 텍스트에서 '이름 생년월일 지분율' 형태로 추출합니다.
+    PDF에서 '이름 생년월일 지분율' 형태로 추출합니다.
     (예: '이승욱 810319 지분율 1/2 (50.0%)')
-
-    Args:
-        full_text (str): PDF에서 추출된 전체 텍스트
-
-    Returns:
-        list: 소유자별 지분 정보 리스트
     """
     try:
-        # '주요 등기사항 요약' 섹션으로 검색 범위를 좁혀 정확도 향상
-        summary_match = re.search(r"주요 등기사항 요약([\s\S]*)", full_text)
-        if not summary_match:
-            return []
-        summary_text = summary_match.group(1)
-        lines = [line.strip() for line in summary_text.splitlines() if line.strip()]
-
-        owner_details = []
-        num_owners = 0
-        # 먼저 공유자 수를 센다
-        for line in lines:
-            if re.search(r"([가-힣]{2,})\s*\((소유자|공유자)\)", line):
-                num_owners += 1
+        import fitz, re
+        doc = fitz.open(pdf_path)
+        full_text = "\n".join([page.get_text("text") for page in doc])
+        doc.close()
 
         results = []
-        # 소유자 정보를 순차적으로 파싱
+        lines = [line.strip() for line in full_text.splitlines() if line.strip()]
+        
+        # 소유자 정보를 찾기 위한 패턴들
+        owner_info = {}
+        
         for i, line in enumerate(lines):
-            name_match = re.search(r"([가-힣]{2,})\s*\((소유자|공유자)\)", line)
+            # 이름과 공유자 패턴 찾기
+            name_match = re.search(r"([가-힣]{2,})\s*\(공유자\)", line)
             if name_match:
                 name = name_match.group(1)
-                birth = ""
-                share_info = ""
-
-                # 다음 줄에서 생년월일 찾기
-                if i + 1 < len(lines) and re.search(r"^\d{6}-", lines[i+1]):
-                    birth = re.search(r"(\d{6})-", lines[i+1]).group(1)
-
-                # 다음 두 줄 내에서 지분 정보 찾기
-                for j in range(i + 1, min(i + 3, len(lines))):
-                    share_match = re.search(r"지분\s*(\d+)\s*분의\s*(\d+)", lines[j])
-                    if share_match:
-                        denom, num = int(share_match.group(1)), int(share_match.group(2))
-                        percent = round(num / denom * 100, 1)
-                        share_info = f"지분율 {num}/{denom} ({percent}%)"
-                        break
                 
-                # 지분 정보가 없으면 단독/공동 소유에 따라 처리
-                if not share_info:
-                    if num_owners > 1:
-                        percent = round(100 / num_owners, 1)
-                        share_info = f"지분율 1/{num_owners} ({percent}%)"
-                    else:
-                        share_info = "지분율 1/1 (100.0%)"
-
-                if name and birth:
-                    results.append(f"{name} {birth}  {share_info}")
-
+                # 다음 줄에서 주민번호 찾기
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1]
+                    birth_match = re.search(r"(\d{6})-", next_line)
+                    if birth_match:
+                        birth = birth_match.group(1)
+                        
+                        # 그 다음 줄에서 지분 정보 찾기
+                        if i + 2 < len(lines):
+                            share_line = lines[i + 2]
+                            share_match = re.search(r"(\d+)분의\s*(\d+)", share_line)
+                            if share_match:
+                                denom = int(share_match.group(1))
+                                num = int(share_match.group(2))
+                                percent = round(num / denom * 100, 1)
+                                results.append(f"{name} {birth}  지분율 {num}/{denom} ({percent}%)")
+                            else:
+                                # 지분이 명시되지 않은 경우 공동소유로 가정
+                                owner_info[name] = birth
+        
+        # 지분 정보가 명확하지 않은 경우 공동소유로 처리
+        if not results and owner_info:
+            num_owners = len(owner_info)
+            if num_owners > 1:
+                for name, birth in owner_info.items():
+                    percent = round(100 / num_owners, 1)
+                    results.append(f"{name} {birth}  지분율 1/{num_owners} ({percent}%)")
+        
         return results
 
     except Exception as e:
@@ -260,8 +228,9 @@ def extract_owner_shares_with_birth(full_text):
     
 # <<< 여기에 근저당권 분석 함수를 추가합니다 >>>
 def extract_rights_info(full_text):
-    
-    # 1. '시작/종료 마커'로 테이블 영역을 정확히 추출
+    """
+    텍스트에서 '주요 등기사항 요약'의 근저당권 정보를 추출하여 최종 상태 목록을 반환합니다.
+    """
     table_match = re.search(
         r'3\.\s*\([근|전].*?대상소유자([\s\S]*?)\[\s*참\s*고\s*사\s*항\s*\]',
         full_text,
@@ -271,8 +240,6 @@ def extract_rights_info(full_text):
         return {"근저당권": []}
     
     table_text = table_match.group(1)
-
-    # 2. 테이블 내용을 '순위번호' 기준으로 모든 항목을 임시 리스트에 저장
     entries = re.split(r'\n\s*(?=(?:\d{1,2}-\d{1,2}|\d{1,2})\s)', table_text)
     
     all_entries = []
@@ -286,96 +253,28 @@ def extract_rights_info(full_text):
         seq = seq_match.group(1)
         main_key = seq.split('-')[0]
 
-        date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_text)
         amount_match = re.search(r'채권최고액\s*금\s*([\d,]+)원', clean_text)
         creditor_match = re.search(r'근저당권자\s*(\S+)', clean_text)
 
         info_parts = []
-        if amount_match:
-            info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
-        if creditor_match:
-            info_parts.append(f"근저당권자 {creditor_match.group(1)}")
+        if amount_match: info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
+        if creditor_match: info_parts.append(f"근저당권자 {creditor_match.group(1)}")
         
         if info_parts:
             all_entries.append({
                 'main_key': main_key,
-                '접수일': date_match.group(1).strip() if date_match else "",
                 '주요등기사항': " ".join(info_parts)
             })
 
-    # 3. [수정됨] 이력 덮어쓰기 로직: 누락된 정보를 원본에서 가져와 병합
     final_mortgages = {}
     for entry in reversed(all_entries):
         if entry['main_key'] not in final_mortgages:
-            # 원본 항목(보통 채권최고액이 명시된 첫 항목)을 찾음
-            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '채권최고액' in item['주요등기사항']), None)
-            
-            if original_info:
-                # 현재 항목에 '채권최고액'이 없으면 원본에서 가져와 맨 앞에 추가
-                if '채권최고액' not in entry['주요등기사항']:
-                    amount_part = re.search(r'채권최고액\s*금[\d,]+원', original_info['주요등기사항'])
-                    if amount_part:
-                        entry['주요등기사항'] = amount_part.group(0) + " " + entry['주요등기사항']
-                
-                # 현재 항목에 '근저당권자'가 없으면 원본에서 가져와 뒤에 추가
-                if '근저당권자' not in entry['주요등기사항']:
-                    creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
-                    if creditor_part:
-                        entry['주요등기사항'] += " " + creditor_part.group(0)
-
+            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '근저당권자' in item['주요등기사항']), None)
+            if '근저당권자' not in entry['주요등기사항'] and original_info:
+                 creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
+                 if creditor_part:
+                     entry['주요등기사항'] += " " + creditor_part.group(0)
             final_mortgages[entry['main_key']] = entry
             
-    # 4. 원래 순서대로 정렬하여 반환
     sorted_final_list = sorted(list(final_mortgages.values()), key=lambda x: int(x['main_key']))
-
     return {"근저당권": sorted_final_list}
-
-def extract_ownership_transfer_date(text):
-    """
-    【갑구】에서 '소유권이전'의 '접수' 날짜를 모두 찾아 가장 최신 날짜를
-    "YYYY-MM-DD" 형식의 문자열로 반환합니다.
-    """
-    try:
-        # '갑구' 섹션만으로 범위를 좁혀서 정확도를 높입니다. (패턴 유연성 강화)
-        kapgu_match = re.search(r'【\s*갑\s*구\s*】(?:\s*\(소유권에 관한 사항\))?(.*?)(?=【\s*을\s*구\s*】|주요 등기사항 요약)', text, re.DOTALL)
-        if not kapgu_match:
-            return ""
-        search_text = kapgu_match.group(1)
-
-        # 여러 패턴을 하나로 통합하여 '소유권이전' 관련 날짜를 찾습니다.
-        # 각 패턴은 년, 월, 일을 별도의 그룹으로 캡처합니다.
-        pattern = re.compile(
-            r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*제\d+호\s*.*?소유권\s*이전|"  # 날짜가 앞에 오는 경우
-            r"등기목적\s*소유권\s*이전.*?(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일"      # 날짜가 뒤에 오는 경우
-        )
-
-        matches = pattern.findall(search_text)
-
-        if not matches:
-            return ""
-
-        # 찾은 날짜들을 datetime 객체로 변환하여 리스트에 저장
-        dates = []
-        for match in matches:
-            # findall은 튜플의 리스트를 반환하므로, 비어있지 않은 그룹을 찾습니다.
-            # 예: ('2023', '10', '26', '', '', '') 또는 ('', '', '', '2023', '10', '26')
-            parts = [p for p in match if p]
-            if len(parts) != 3:
-                continue
-            
-            try:
-                year, month, day = map(int, parts)
-                dates.append(datetime(year, month, day))
-            except (ValueError, TypeError):
-                continue
-
-        if not dates:
-            return ""
-
-        # 가장 최신 날짜를 찾아 "YYYY-MM-DD" 형식으로 반환
-        latest_date = max(dates)
-        return latest_date.strftime('%Y-%m-%d')
-
-    except Exception as e:
-        print(f"소유권 이전일 파싱 중 오류: {e}")
-        return ""
