@@ -84,30 +84,66 @@
     }
 
     // 등기 경고 표시 함수
-    function displayRegistrationWarning(ageCheck) {
+    function displayRegistrationWarning(ageCheck, transferDate) {
         const warningElement = document.getElementById('registration-warning');
         const titleElement = document.getElementById('warning-title');
         const messageElement = document.getElementById('warning-message');
         const datetimeElement = document.getElementById('warning-datetime');
-        
-        if (!ageCheck || !warningElement) {
+        const transferDateElement = document.getElementById('warning-transfer-date');
+
+        if (!warningElement) {
             return;
         }
-        
+
+        // 소유권 이전일 표시 (항상 표시)
+        if (transferDateElement && transferDate) {
+            transferDateElement.textContent = `소유권 이전일: ${transferDate}`;
+            transferDateElement.style.display = 'block';
+        } else if (transferDateElement) {
+            transferDateElement.style.display = 'none';
+        }
+
+        if (!ageCheck) {
+            // ageCheck 데이터가 없지만 소유권 이전일이 있으면 표시
+            if (transferDate) {
+                warningElement.style.display = 'block';
+                titleElement.style.display = 'none';
+                messageElement.style.display = 'none';
+                datetimeElement.style.display = 'none';
+            } else {
+                warningElement.style.display = 'none';
+            }
+            return;
+        }
+
         if (ageCheck.is_old) {
             // 경고 표시
+            titleElement.style.display = 'block';
+            messageElement.style.display = 'block';
+            datetimeElement.style.display = 'block';
             titleElement.textContent = '⚠️ 주의: 오래된 등기 데이터';
             messageElement.textContent = `이 등기는 ${ageCheck.age_days}일 전 데이터입니다 (한 달 이상 경과)`;
             datetimeElement.textContent = `열람일시: ${ageCheck.viewing_date || '-'}`;
             warningElement.style.display = 'block';
-            
+            warningElement.style.borderLeft = '4px solid #dc3545';
+            warningElement.style.backgroundColor = '#fff5f5';
+
             // 자동 스크롤하여 경고가 보이도록
             setTimeout(() => {
                 warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 300);
         } else {
-            // 경고 숨김
-            warningElement.style.display = 'none';
+            // 오래된 등기는 아니지만 소유권 이전일은 표시
+            if (transferDate) {
+                titleElement.style.display = 'none';
+                messageElement.style.display = 'none';
+                datetimeElement.style.display = 'none';
+                warningElement.style.display = 'block';
+                warningElement.style.borderLeft = '4px solid #28a745';
+                warningElement.style.backgroundColor = '#f0f9f4';
+            } else {
+                warningElement.style.display = 'none';
+            }
         }
     }
     
@@ -994,8 +1030,8 @@ async function handleFileUpload(file) {
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
 
-            // 등기 경고 표시 (오래된 등기인지 등)
-            displayRegistrationWarning(scraped.age_check);
+            // 등기 경고 표시 (오래된 등기인지 등) + 소유권 이전일 전달
+            displayRegistrationWarning(scraped.age_check, scraped.transfer_date);
 
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
