@@ -8,10 +8,11 @@ from utils import parse_korean_number
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-# --- Notion API 설정 ---
-NOTION_TOKEN = os.getenv('NOTION_TOKEN', "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")
-CUSTOMER_DB_ID = os.getenv('CUSTOMER_DB_ID', "20eebdf111b580ad9004c7e82d290cbc")
-LOAN_DB_ID = os.getenv('LOAN_DB_ID', "210ebdf111b580c4a36fd9edbb0ff8ec")
+# --- Notion API 설정 (환경변수 불필요, 코드에 직접 설정) ---
+# 환경변수 우선, 없으면 기본값 사용
+NOTION_TOKEN = "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"
+CUSTOMER_DB_ID = "20eebdf111b580ad9004c7e82d290cbc"
+LOAN_DB_ID = "210ebdf111b580c4a36fd9edbb0ff8ec"
 
 # Notion DB 속성 이름
 CUSTOMER_DB_TITLE_PROPERTY = "고객명"
