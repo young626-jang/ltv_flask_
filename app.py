@@ -34,10 +34,14 @@ from history_manager_flask import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Flask 앱 설정 (기존과 동일) ---
+# --- Flask 앱 설정 ---
 app = Flask(__name__)
+
+# 배포 환경에서는 /tmp 사용, 로컬에서는 uploads 사용
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/tmp' if os.path.exists('/tmp') else 'uploads')
+
 app.config.update(
-    UPLOAD_FOLDER='uploads',
+    UPLOAD_FOLDER=UPLOAD_FOLDER,
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,
     SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 )
@@ -73,17 +77,21 @@ def upload_and_parse_pdf():
     file = request.files['pdf_file']
     if not file.filename: return jsonify({"success": False, "error": "선택된 파일이 없습니다."}), 400
     if not allowed_file(file.filename): return jsonify({"success": False, "error": "PDF 파일만 업로드 가능합니다."}), 400
-    
+
     filepath = None  # finally 블록에서 사용하기 위해 미리 선언
     try:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        logger.info(f"파일 저장 경로: {filepath}")
         file.save(filepath)
+        logger.info(f"파일 저장 완료: {filepath}")
 
         # 1. PDF에서 텍스트를 한번만 추출하여 변수에 저장
+        logger.info("PDF 텍스트 추출 시작")
         doc = fitz.open(filepath)
         full_text = "".join(page.get_text("text") for page in doc)
         doc.close()
+        logger.info(f"PDF 텍스트 추출 완료: {len(full_text)} 글자")
 
         # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
         viewing_dt = extract_viewing_datetime(full_text)
