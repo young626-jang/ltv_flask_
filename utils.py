@@ -26,7 +26,7 @@ def parse_korean_number(text: str) -> int:
         
     if total == 0:
         try:
-            return int(re.sub(r"[^\d]", "", text))
+            return int(re.sub(r"[^\d-]", "", str(text)))
         except (ValueError, TypeError):
             return 0
             
@@ -44,21 +44,22 @@ def parse_advanced_amount(text: str) -> int:
     if not text:
         return 0
         
-    clean_text = str(text).replace(",", "").strip()
+    # 1. [수정] 여기서 '금' 같은 불필요한 글자를 먼저 제거합니다.
+    clean_text = re.sub(r"[^0-9억만천원,]", "", str(text)).replace(",", "").strip()
     
-    # 1. 한글 금액 처리 (억, 만, 천, 원 포함)
-    if re.search(r'억|만|천|원', clean_text):
+    # 2. [수정] '원'은 한글 단위 처리에서 제외하여 잘못된 처리를 방지합니다.
+    if re.search(r'억|만|천', clean_text):
         return parse_korean_amount_advanced(clean_text)
     
-    # 2. 원 단위 금액 처리 (8자리 이상이거나 '원'으로 끝나는 경우)
-    if clean_text.endswith('원') or len(re.sub(r'[^\d]', '', clean_text)) >= 8:
+    # 3. 원 단위 금액 처리 (7자리 이상이거나 '원'으로 끝나는 경우)
+    if clean_text.endswith('원') or len(re.sub(r'[^\d]', '', clean_text)) >= 7:
         num_only = re.sub(r'[^\d]', '', clean_text)
         if num_only:
             won_amount = int(num_only)
             # 원을 만원으로 변환
             return won_amount // 10000
     
-    # 3. 일반 숫자 처리
+    # 4. 일반 숫자 처리
     num_only = re.sub(r'[^\d]', '', clean_text)
     return int(num_only) if num_only else 0
 
@@ -148,58 +149,61 @@ def auto_convert_loan_amounts(loan_data):
         logger.error(f"대출 금액 자동 변환 중 오류: {e}")
         return loan_data
 
+
 # 기존의 핵심 LTV 계산 로직
 def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
+    import math
+
     if is_senior:
+        # 선순위 로직 (기존과 동일)
         limit = int(total_value * (ltv / 100) - deduction)
         available = int(limit - principal_sum)
     else:
+        # 후순위 로직 (수정됨)
         limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = int(limit - principal_sum)
+        # 가용자금 = 한도 - 대환/선말소 원금 합계
+        available = int(limit - principal_sum) # <--- 이 줄을 추가하여 가용 금액을 별도로 계산
 
-    # ✨ [수정] 100단위로 버림하여 끝자리를 맞춥니다. (예: 38,120 -> 38,100)
-    limit = (limit // 100) * 100
-    available = (available // 100) * 100
+    # 절사 로직은 음수도 올바르게 처리해야 함
+    limit = math.floor(limit / 100) * 100
+    if available is not None:
+        available = math.floor(available / 100) * 100
+        
     return limit, available
 
-def calculate_individual_ltv_limits(total_value, owners, ltv, senior_lien=0):
-    ...
-        # (3) 최종 대출 가능액 (선순위 차감)
--        final_limit = max(0, ltv_limit - senior_lien)
-+        final_limit = int(ltv_limit - senior_lien)  # 음수도 그대로 반환
-    
-    
-    """소유자별 지분율을 반영하여 개인별 대출 가능 한도를 계산합니다.
-    
-    Parameters:
-        total_value (int): 부동산 전체 시세 (만원 단위)
-        owners (list[dict]): [{ "이름": ..., "지분": "1/2", "지분율": "50.0%" }, ...]
-        ltv (float): 적용 LTV 비율 (예: 70)
-        senior_lien (int): 선순위 채권최고액 (만원 단위, default=0)
 
-    Returns:
-        list[dict]: 소유자별 계산 결과
-    """
+def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False):
     results = []
     for owner in owners:
-        # 지분율 숫자만 추출
+        # ... (지분 가치 계산은 동일) ...
         share_percent = float(owner["지분율"].replace("%", ""))
-        
-        # (1) 지분 가치
-        equity_value = int(total_value * (share_percent / 100))
-        
-        # (2) LTV 적용 한도
-        ltv_limit = int(equity_value * (ltv / 100))
-        
-        # (3) 최종 대출 가능액 (선순위 차감)
-        final_limit = max(0, ltv_limit - senior_lien)
-        
-        results.append({
+        share_ratio = share_percent / 100
+        equity_value = int(total_value * share_ratio)
+
+        if is_senior:
+            ltv_limit = int(equity_value * (ltv / 100))
+            available = ltv_limit - existing_principal
+        else:
+            # 후순위 한도 계산
+            ltv_limit = int((equity_value * (ltv / 100)) - maintain_maxamt_sum)
+            
+            # <--- [핵심 수정] --- >
+            # 가용 금액 계산 시, 한도에서 갚아야 할 원금(existing_principal)을 차감합니다.
+            available = ltv_limit - existing_principal
+
+        # 절사 로직 (음수 값도 올바르게 처리하기 위해 math.floor 사용을 권장하지만, 기존 로직 유지)
+        ltv_limit = (ltv_limit // 100) * 100
+        available = (available // 100) * 100
+
+        result = {
             "이름": owner["이름"],
             "지분율": owner["지분율"],
             "지분가치(만원)": equity_value,
-            "LTV한도(만원)": ltv_limit,
-            "최종한도(만원)": final_limit
-        })
-    
+            "지분LTV한도(만원)": ltv_limit,
+            "가용자금(만원)": available,
+            "대출구분": "선순위" if is_senior else "후순위"
+        }
+
+        results.append(result)
+
     return results

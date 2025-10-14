@@ -66,6 +66,37 @@ def get_number(props: Dict, name: str) -> Optional[float]:
     """Number 속성에서 숫자 추출"""
     return props.get(name, {}).get("number")
 
+def get_share_rate(props: Dict, name: str) -> Optional[float]:
+    """지분율 속성에서 숫자 추출 (텍스트 형식도 지원)"""
+    # 먼저 Number 타입 시도
+    number_val = props.get(name, {}).get("number")
+    if number_val is not None:
+        return number_val
+    
+    # Number 타입이 없으면 Rich Text 타입에서 파싱 시도
+    text_val = get_rich_text(props, name)
+    if text_val:
+        # '지분율 8/10 (80.0%)' 형식 파싱
+        import re
+        # 괄호 안의 퍼센트 값 추출
+        percent_match = re.search(r'\((\d+\.?\d*)\s*%\)', text_val)
+        if percent_match:
+            return float(percent_match.group(1))
+        
+        # 분수 형식 추출 (예: 8/10)
+        fraction_match = re.search(r'(\d+)/(\d+)', text_val)
+        if fraction_match:
+            numerator = float(fraction_match.group(1))
+            denominator = float(fraction_match.group(2))
+            return (numerator / denominator) * 100
+        
+        # 단순 퍼센트 값 추출 (예: 80.0%)
+        simple_percent = re.search(r'(\d+\.?\d*)\s*%', text_val)
+        if simple_percent:
+            return float(simple_percent.group(1))
+    
+    return None
+
 def safe_number_conversion(value: Any) -> int:
     """안전한 숫자 변환"""
     try:
@@ -74,6 +105,48 @@ def safe_number_conversion(value: Any) -> int:
         return int(value) if value is not None else 0
     except (ValueError, TypeError):
         return 0
+
+def parse_share_rate_for_save(value: Any) -> float:
+    """저장용 지분율 파싱 - 다양한 형식의 지분율을 숫자로 변환"""
+    if value is None:
+        return 0.0
+    
+    # 이미 숫자인 경우
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # 문자열인 경우 파싱 시도
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return 0.0
+        
+        # 단순 숫자인 경우
+        try:
+            return float(value)
+        except ValueError:
+            pass
+        
+        # '지분율 8/10 (80.0%)' 형식 파싱
+        import re
+        # 괄호 안의 퍼센트 값 추출
+        percent_match = re.search(r'\((\d+\.?\d*)\s*%\)', value)
+        if percent_match:
+            return float(percent_match.group(1))
+        
+        # 분수 형식 추출 (예: 8/10)
+        fraction_match = re.search(r'(\d+)/(\d+)', value)
+        if fraction_match:
+            numerator = float(fraction_match.group(1))
+            denominator = float(fraction_match.group(2))
+            return (numerator / denominator) * 100
+        
+        # 단순 퍼센트 값 추출 (예: 80.0%)
+        simple_percent = re.search(r'(\d+\.?\d*)\s*%', value)
+        if simple_percent:
+            return float(simple_percent.group(1))
+    
+    return 0.0
 
 # --- Notion DB 조회 함수 ---
 @handle_notion_errors
@@ -140,6 +213,8 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "deduction_region": get_rich_text(props, "방공제지역"),
         "ltv1": get_rich_text(props, "LTV비율1"),
         "ltv2": get_rich_text(props, "LTV비율2"),
+        "share_rate1": get_share_rate(props, "공유자 1 지분율"),
+        "share_rate2": get_share_rate(props, "공유자 2 지분율"),
         "consult_amt": get_number(props, "컨설팅금액"),
         "consult_rate": get_number(props, "컨설팅수수료율"),
         "bridge_amt": get_number(props, "브릿지금액"),
@@ -217,6 +292,12 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "LTV비율2": {
             "rich_text": [{"text": {"content": str(ltv2).strip()}}]
+        },
+        "공유자 1 지분율": {
+            "rich_text": [{"text": {"content": str(inputs.get("share_rate1", "")).strip()}}]
+        },
+        "공유자 2 지분율": {
+            "rich_text": [{"text": {"content": str(inputs.get("share_rate2", "")).strip()}}]
         },
         "컨설팅금액": {
             "number": parse_korean_number(fees.get("consult_amt", "0"))

@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#000000">
-    <title>LTV 계산기 만든이 장서영</title>
+    <meta name="theme-color" content="#007bff">
+    <meta name="description" content="부동산 LTV 계산 및 메모 생성 도구">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LTV계산기">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title> 부동산 LTV 계산 및 메모 생성 도구 : 만든사람 장서영</title>
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/69/69524.png" type="image/png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="manifest" href="/static/manifest.json">
@@ -13,771 +21,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <style>
-        :root {
-            /* Durekt 스타일 색상 팔레트 */
-            --primary-dark: #2D3748;
-            --primary-accent: #D946EF;
-            --primary-cyan: #06FFA5;
-            --primary-blue: #3B82F6;
-            --background-light: #EDF2F7;
-            --background-white: #FFFFFF;
-            --text-dark: #1A202C;
-            --text-muted: #718096;
-            --border-light: #E2E8F0;
-            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        
-        html, body { 
-            height: 100%; 
-            overflow-x: hidden; /* 가로 스크롤 방지 */
-            font-family: 'Inter', 'Malgun Gothic', sans-serif; 
-            background: var(--background-light) !important;
-            background-color: #F7FAFC !important;
-        }
-        
-        /* 기존 스타일 유지 - 리사이즈 바 추가 */
-        .main-container { 
-            display: flex; 
-            height: 100vh; 
-            padding: 0.5rem; 
-            position: relative;
-            background: var(--background-light);
-            gap: 0.5rem;
-        }
-        .pdf-viewer-column { 
-            flex: none; 
-            width: 62.5%; /* 기본 2.5/4 비율 */
-            display: flex; 
-            flex-direction: column; 
-            transition: width 0.1s ease;
-            background: #F2EDD7;
-            border-radius: 12px;
-            padding: 0.5rem;
-            box-shadow: var(--shadow-soft);
-        }
-        .form-column { 
-            flex: none; 
-            width: 37.5%; /* 기본 1.5/4 비율 */
-            height: calc(100vh - 2rem); 
-            overflow-y: auto; 
-            transition: width 0.1s ease;
-            background: var(--background-white);
-            border-radius: 12px;
-            padding: 0.5rem;
-            box-shadow: var(--shadow-soft);
-        }
-        
-        /* 리사이즈 바 스타일 */
-        .resize-bar {
-            width: 8px; /* 세로모드에서도 터치 영역 약간 확대 */
-            background: linear-gradient(to bottom, #e9ecef, #dee2e6, #e9ecef);
-            cursor: col-resize;
-            position: relative;
-            flex-shrink: 0;
-            user-select: none;
-            z-index: 10;
-            transition: all 0.2s ease;
-            touch-action: none; /* 터치 스크롤 방지 */
-        }
-        
-        .resize-bar:hover {
-            background: linear-gradient(to bottom, #6c757d, #495057, #6c757d);
-            box-shadow: 0 0 8px rgba(0,0,0,0.1);
-        }
-        
-        .resize-bar:active {
-            background: linear-gradient(to bottom, #495057, #343a40, #495057);
-        }
-        
-        .resize-bar::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 2px;
-            height: 30px;
-            background: rgba(255,255,255,0.7);
-            border-radius: 1px;
-        }
-        
-        .resize-bar::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 4px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 2px;
-        }
-        .pdf-iframe-container { flex-grow: 1; position: relative; }
-        #pdf-viewer { 
-            width: 100%; 
-            height: 100%; 
-            border: 1px solid var(--border-light); 
-            border-radius: 8px; 
-            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-        }
-        #upload-section { 
-            border: 2px dashed var(--border-light); 
-            border-radius: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            text-align: center; 
-            height: 100%; 
-            cursor: pointer; 
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            color: var(--text-muted);
-        }
-        #upload-section.dragover { 
-            border-color: var(--primary-accent); 
-            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-            color: var(--primary-accent);
-        }
-        #file-input { display: none; }
-        body { 
-            font-size: 0.9rem; 
-            color: var(--text-dark);
-            background-color: #EDF2F7;
-        }
-        label { 
-            font-weight: 600; 
-            margin-bottom: 0.25rem; 
-            color: var(--text-dark);
-            font-size: 0.875rem;
-        }
-
-        /* Durekt 스타일 버튼 오버라이드 */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-accent) 0%, #c026d3 100%);
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            padding: 0.75rem 1.5rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(212, 70, 239, 0.2);
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #c026d3 0%, #a21caf 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(212, 70, 239, 0.3);
-        }
-        
-        .btn-success {
-            background: linear-gradient(135deg, var(--primary-cyan) 0%, #00d4aa 100%);
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-        
-        .btn-success:hover {
-            background: linear-gradient(135deg, #00d4aa 0%, #059669 100%);
-            color: white;
-            transform: translateY(-1px);
-        }
-        
-        .btn-outline-primary {
-            border: 2px solid var(--primary-accent);
-            color: var(--primary-accent);
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        
-        .btn-outline-primary:hover {
-            background: var(--primary-accent);
-            border-color: var(--primary-accent);
-        }
-        
-        .btn-outline-secondary {
-            border: 2px solid var(--text-muted);
-            color: var(--text-muted);
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        
-        .btn-outline-secondary:hover {
-            background: var(--text-muted);
-            border-color: var(--text-muted);
-        }
-        
-        /* 폼 컨트롤 스타일링 */
-        .form-control, .form-select {
-            border: 2px solid var(--border-light);
-            border-radius: 8px;
-            padding: 0.75rem;
-            transition: all 0.3s ease;
-            color: var(--text-dark);
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: var(--primary-accent);
-            box-shadow: 0 0 0 3px rgba(212, 70, 239, 0.1);
-            outline: none;
-        }
-        
-        .form-control::placeholder {
-            color: var(--text-muted);
-        }
-
-        /* ✨ 드래그 핸들 스타일 */
-        .drag-handle {
-            width: 24px;
-            height: 40px;
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: move;
-            color: #6c757d;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        
-        .drag-handle:hover {
-            background: #e9ecef;
-            border-color: #adb5bd;
-            color: #495057;
-        }
-        
-        .loan-item.dragging {
-            opacity: 0.8;
-            background-color: rgba(212, 70, 239, 0.2);
-            border: 2px solid var(--primary-accent);
-            box-shadow: 0 4px 8px rgba(212, 70, 239, 0.3);
-        }
-        
-        .loan-item.drag-over {
-            border-top: 4px solid var(--primary-accent);
-            background-color: rgba(212, 70, 239, 0.15);
-        }
-
-        /* 가로 모드 레이아웃 스타일 - 반응형 flex 기반 */
-        .main-container.horizontal-mode { 
-            flex-direction: column; 
-            gap: 0;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .main-container.horizontal-mode .pdf-viewer-column { 
-            width: 100% !important; 
-            flex: 3; /* PDF 영역이 3/5 비율로 자동 조정 */
-            min-height: 150px; /* 최소 높이 축소 */
-            max-height: none;
-            overflow: hidden;
-        }
-        .main-container.horizontal-mode .form-column { 
-            width: 100% !important; 
-            flex: 2; /* 폼 영역이 2/5 비율로 자동 조정 */
-            min-height: 150px;
-            max-height: none;
-            overflow-y: auto;
-        }
-        .main-container.horizontal-mode .resize-bar {
-            width: 100% !important;
-            height: 8px; /* PC에서 여백 절약 */
-            cursor: row-resize;
-            position: relative;
-            z-index: 999; /* z-index 증가 */
-            touch-action: none; /* 터치 동작 제한 */
-        }
-        
-        /* 모바일에서만 터치 영역 확대 */
-        @media (max-width: 768px) {
-            .main-container.horizontal-mode .resize-bar {
-                height: 12px !important;
-            }
-            
-            /* 가로모드 모바일에서 업로드 영역 컴팩트화 */
-            .main-container.horizontal-mode #upload-section {
-                min-height: 120px;
-            }
-            
-            .main-container.horizontal-mode #upload-section h4 {
-                font-size: 1rem;
-                margin-top: 0.5rem;
-            }
-            
-            .main-container.horizontal-mode #upload-section .bi-cloud-arrow-up-fill {
-                font-size: 3rem !important;
-            }
-        }
-        .main-container.horizontal-mode .resize-bar::before {
-            width: 30px;
-            height: 2px;
-        }
-        .main-container.horizontal-mode .resize-bar::after {
-            width: 4px;
-            height: 20px;
-        }
-
-        /* ============= 📱 모바일 반응형 개선 ============= */
-        
-        /* 태블릿 (768px 이하) */
-        @media (max-width: 768px) {
-            body {
-                font-size: 0.85rem;
-            }
-            
-            .main-container {
-                flex-direction: column;
-                padding: 0.25rem;
-                gap: 0.25rem;
-                height: 100vh;
-            }
-            
-            .pdf-viewer-column {
-                flex: 0 0 40vh;
-                min-height: 180px;
-            }
-            
-            .form-column {
-                flex: 1;
-                height: auto;
-                max-height: none;
-                overflow-y: auto;
-            }
-            
-            /* 버튼들을 터치하기 편하게 크게 */
-            .btn {
-                min-height: 44px; /* 애플 가이드라인 44px */
-                font-size: 0.9rem;
-            }
-            
-            .btn-sm {
-                min-height: 38px;
-                font-size: 0.8rem;
-            }
-            
-            /* 입력 필드들을 터치하기 편하게 */
-            .form-control, .form-select {
-                min-height: 44px;
-                font-size: 16px; /* iOS 줌 방지 */
-            }
-            
-            .form-control-sm, .form-select-sm {
-                min-height: 38px;
-                font-size: 14px;
-            }
-            
-            /* 순서 조정 버튼 모바일 최적화 */
-            .order-btn {
-                width: 28px;
-                height: 24px;
-                font-size: 12px;
-            }
-            
-            /* 대출 항목 모바일 최적화 */
-            .loan-item {
-                flex-direction: column !important;
-                gap: 0.5rem !important;
-                padding: 1rem;
-                border: 1px solid #dee2e6;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
-                background: #f8f9fa;
-            }
-            
-            .loan-item > div {
-                flex: none !important;
-                width: 100% !important;
-            }
-            
-            /* 업로드 영역 모바일 최적화 */
-            #upload-section {
-                min-height: 150px;
-            }
-            
-            #upload-section h4 {
-                font-size: 1.1rem;
-            }
-            
-            /* 텍스트 영역 모바일 최적화 */
-            #generated-memo {
-                min-height: 300px;
-                font-size: 0.85rem;
-            }
-            
-            /* 탭 버튼들 모바일에서 스크롤 가능하게 */
-            .nav-tabs {
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                white-space: nowrap;
-            }
-            
-            .nav-tabs .nav-link {
-                white-space: nowrap;
-                min-width: 80px;
-            }
-        }
-        
-        /* 모바일 (576px 이하) */
-        @media (max-width: 576px) {
-            body {
-                font-size: 0.8rem;
-            }
-            
-            .main-container {
-                padding: 0.125rem;
-            }
-            
-            .pdf-viewer-column {
-                flex: 0 0 35vh;
-                min-height: 150px;
-            }
-            
-            /* 더 작은 화면에서는 버튼들을 세로로 */
-            .d-grid.gap-2.d-md-flex {
-                display: flex !important;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .d-grid.gap-2.d-md-flex .btn {
-                width: 100%;
-            }
-            
-            /* 고객 선택 영역 모바일 최적화 */
-            .input-group {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .input-group .form-select,
-            .input-group .btn {
-                width: 100%;
-                border-radius: 0.375rem !important;
-            }
-            
-            /* 링크 버튼들 모바일에서 세로 배치 */
-            .btn-group.w-100 {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .btn-group.w-100 .btn {
-                border-radius: 0.375rem !important;
-            }
-            
-            /* 대출 항목 헤더 숨기기 (모바일에서는 라벨로 대체) */
-            .loan-tab-pane .d-flex.border-bottom {
-                display: none !important;
-            }
-            
-            /* 폼 행들 모바일에서 세로 배치 */
-            .row.g-2 {
-                --bs-gutter-x: 0;
-            }
-            
-            .row.g-2 > [class*="col-"] {
-                margin-bottom: 0.5rem;
-            }
-        }
-        
-        
-        /* 가로모드 모바일 최적화 */
-        @media (max-width: 768px) and (orientation: landscape) {
-            .main-container {
-                flex-direction: row;
-            }
-            
-            .pdf-viewer-column {
-                flex: 0 0 45%;
-            }
-            
-            .form-column {
-                flex: 1;
-                height: calc(100vh - 1rem);
-            }
-        }
-        
-        /* 터치 디바이스 최적화 */
-        @media (hover: none) and (pointer: coarse) {
-            /* 터치 디바이스에서 호버 효과 제거 */
-            .btn:hover {
-                transform: none;
-            }
-            
-            /* 터치 피드백 추가 */
-            .btn:active {
-                transform: scale(0.98);
-                transition: transform 0.1s;
-            }
-            
-            /* 스크롤바 숨기기 (모바일) */
-            .form-column::-webkit-scrollbar {
-                width: 3px;
-            }
-            
-            .form-column::-webkit-scrollbar-track {
-                background: transparent;
-            }
-            
-            .form-column::-webkit-scrollbar-thumb {
-                background: rgba(0,0,0,0.3);
-                border-radius: 3px;
-            }
-        }
-        
-        /* PWA 상태바 고려 (iOS Safari) */
-        @supports (padding-top: env(safe-area-inset-top)) {
-            .main-container {
-                padding-top: max(0.5rem, env(safe-area-inset-top));
-                padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-            }
-        }
-        
-        /* 모바일용 대출 항목 라벨 스타일 */
-        .mobile-label {
-            display: none;
-        }
-        
-        @media (max-width: 576px) {
-            .mobile-label {
-                display: block !important;
-                font-weight: 600;
-                margin-bottom: 0.25rem;
-                color: #495057;
-                font-size: 0.8rem;
-            }
-        }
-        
-        /* Material Design 통일 스타일 */
-        .md-btn {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px 16px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            font-size: 14px !important;
-            cursor: pointer !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            text-transform: none !important;
-            letter-spacing: normal !important;
-        }
-        
-        .md-btn:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
-        }
-        
-        .md-btn:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
-        }
-        
-        .md-btn-primary {
-            background: #2196F3 !important;
-            border-color: #2196F3 !important;
-            color: white !important;
-        }
-        
-        .md-btn-primary:hover {
-            background: #1976D2 !important;
-            color: white !important;
-        }
-        
-        .md-btn-danger {
-            background: #f44336 !important;
-            border-color: #f44336 !important;
-            color: white !important;
-        }
-        
-        .md-btn-danger:hover {
-            background: #d32f2f !important;
-            color: white !important;
-        }
-        
-        .md-btn-secondary {
-            background: #757575 !important;
-            border-color: #757575 !important;
-            color: white !important;
-        }
-        
-        .md-btn-secondary:hover {
-            background: #616161 !important;
-            color: white !important;
-        }
-        
-        .md-btn-info {
-            background: #00BCD4 !important;
-            border-color: #00BCD4 !important;
-            color: white !important;
-        }
-        
-        .md-btn-info:hover {
-            background: #0097A7 !important;
-            color: white !important;
-        }
-        
-        .md-btn-warning {
-            background: #FF9800 !important;
-            border-color: #FF9800 !important;
-            color: white !important;
-        }
-        
-        .md-btn-warning:hover {
-            background: #F57C00 !important;
-            color: white !important;
-        }
-        
-        .md-btn-success {
-            background: #4CAF50 !important;
-            border-color: #4CAF50 !important;
-            color: white !important;
-        }
-        
-        .md-btn-success:hover {
-            background: #388E3C !important;
-            color: white !important;
-        }
-        
-        /* LTV 컨트롤 스타일 */
-        .md-input {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            font-size: 14px !important;
-            background: #fff !important;
-            transition: all 0.2s ease !important;
-        }
-        
-        .md-input:focus {
-            outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
-        }
-        
-        .md-ltv-btn {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            background: #f5f5f5 !important;
-            color: #333 !important;
-            font-size: 14px !important;
-            cursor: pointer !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            min-width: 36px !important;
-        }
-        
-        .md-ltv-btn:hover {
-            background: #e0e0e0 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
-            color: #333 !important;
-        }
-        
-        .md-ltv-btn.danger {
-            background: #f44336 !important;
-            color: white !important;
-            border-color: #f44336 !important;
-        }
-        
-        .md-ltv-btn.danger:hover {
-            background: #d32f2f !important;
-            color: white !important;
-        }
-        
-        /* 드래그 핸들과 대출 항목 스타일 */
-        .md-drag-handle {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px !important;
-            background: #f5f5f5 !important;
-            color: #757575 !important;
-            font-size: 12px !important;
-            cursor: move !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            min-width: 32px !important;
-            text-align: center !important;
-            user-select: none !important;
-        }
-        
-        .md-drag-handle:hover {
-            background: #e0e0e0 !important;
-            color: #333 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
-        }
-        
-        .md-drag-handle:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
-            background: #d5d5d5 !important;
-        }
-        
-        .md-loan-input {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 6px 8px !important;
-            font-size: 13px !important;
-            background: #fff !important;
-            transition: all 0.2s ease !important;
-        }
-        
-        .md-loan-input:focus {
-            outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
-        }
-        
-        .md-loan-select {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 6px 8px !important;
-            font-size: 13px !important;
-            background: #fff !important;
-            transition: all 0.2s ease !important;
-        }
-        
-        .md-loan-select:focus {
-            outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
-        }
-        
-        .md-close-btn {
-            border: 1px solid #f44336 !important;
-            border-radius: 4px !important;
-            padding: 4px 8px !important;
-            background: #f44336 !important;
-            color: white !important;
-            font-size: 12px !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            min-width: 24px !important;
-            text-align: center !important;
-        }
-        
-        .md-close-btn:hover {
-            background: #d32f2f !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
-            color: white !important;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
 <div class="main-container" id="main-layout-wrapper">
     <div class="pdf-viewer-column" id="pdf-column">
         <div id="upload-section">
-            <div>
-                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 4rem; color: #6c757d;"></i>
-                <h4 class="mt-3">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
+            <div class="upload-content">
+                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 6rem; color: #6c757d;"></i>
+                <h3 class="mt-4">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
                 <p class="text-muted" id="upload-text">등기부등본 파일을 올려주시면 주요 정보가 자동 입력됩니다.</p>
                 <div id="upload-spinner" class="spinner-border mt-3" role="status" style="display: none;"></div>
             </div>
@@ -786,7 +39,7 @@
         <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
             <div class="d-flex justify-content-between align-items-center mb-0 flex-shrink-0" style="padding: 0.25rem 0;">
                 <h6 id="file-name-display" class="mb-0 small text-muted"></h6>
-                <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
+                <button class="btn btn-sm md-btn md-btn-secondary" id="reupload-btn" type="button" style="font-size: 12px; padding: 4px 8px;">📄 등기 재업로드</button>
             </div>
             <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
         </div>
@@ -796,7 +49,7 @@
 
     <div class="form-column" id="form-column-wrapper">
         <div class="p-0">
-            <div style="background: #6E6E6D; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
+            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <div class="d-flex gap-2 mb-0 align-items-center">
                     <select class="form-select md-input" id="customer-history" style="flex: 2;"><option value="" selected>기존 고객 불러오기...</option></select>
                     <button class="btn md-btn md-btn-primary" id="load-customer-btn" type="button" style="flex: 0 0 auto;">불러오기</button>
@@ -805,11 +58,24 @@
                 </div>
             </div>
 
-            <div id="basic-info-form" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="mb-2"><label for="address">주소</label><input type="text" class="form-control form-field md-input" id="address"></div>
+            <!-- 등기 경고 영역 -->
+            <div id="registration-warning" class="alert alert-warning" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                    <div>
+                        <div class="fw-bold text-danger" id="warning-title">⚠️ 주의: 오래된 등기 데이터</div>
+                        <div class="small" id="warning-message">이 등기는 오래된 데이터입니다</div>
+                        <div class="small text-muted" id="warning-datetime">열람일시: -</div>
+                        <div class="small text-muted" id="warning-transfer-date">소유권 이전일: -</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
+                <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
                 <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="customer_name">고객명 & 생년월일</label><input type="text" class="form-control form-field md-input" id="customer_name"></div>
-                    <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name" placeholder="공유자 1 고객명 & 생년월일"></div>
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name_2" placeholder="공유자 2 고객명 & 생년월일"></div>
                 </div>
 
                 <div class="row g-2 mb-2">
@@ -817,20 +83,21 @@
                         <option value="0" selected>지역 선택...</option>
                         {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
                     </select></div>
-                    <div class="col-md-6"><label for="deduction_amount">방공제 금액(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount"></div>
+                    <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
                 </div>
 
                 <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="kb_price">KB 시세(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="kb_price"></div>
-                    <div class="col-md-6"><label for="area">전용면적(㎡)</label><input type="text" class="form-control form-field md-input" id="area"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB 시세(만)"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공제 금액(만)"></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-field md-input" id="area" placeholder="전용면적(㎡)"></div>
                 </div>
                 
-                <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB시세</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn md-btn-secondary flex-fill">인터넷등기소</a></div>
+                <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB시세</a><a href="https://rtech.or.kr/main/main.do" target="_blank" class="btn md-btn flex-fill" style="background-color: #422057; color: white; border-color: #422057;">부동산테크</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn flex-fill" style="background-color: #4a5dc6; color: white; border-color: #4a5dc6;">인터넷등기소</a></div>
 
             </div>
             
             <!-- LTV 비율을 탭 밖으로 노출 -->
-            <div style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); border: 2px solid transparent; transition: border-color 0.3s ease;" onmouseover="this.style.borderColor='#A4193D'" onmouseout="this.style.borderColor='transparent'">
+            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem;">
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="d-flex align-items-center gap-2">
@@ -857,10 +124,9 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center mt-3">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan-tab-pane" type="button" role="tab">대출 항목</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation">
                       <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
@@ -868,56 +134,35 @@
                       </button>
                     </li>
                 </ul>
-                <div>
-                    <button type="button" class="btn md-btn md-btn-secondary" id="add-loan-btn">+ 대출 항목 추가</button>
-                </div>
             </div>
 
-            <div class="tab-content" style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem;">
-                <div class="tab-pane fade show active" id="loan-tab-pane" role="tabpanel">
-                    <!-- ✨ 헤더 레이아웃 수정: 드래그 핸들용 공간 추가 -->
-                    <div class="d-flex border-bottom pb-2 mb-1 fw-bold align-items-center" style="font-size: 0.85rem; height: 38px;">
-                        <div style="flex: 0 0 24px; display: flex; align-items: center; justify-content: center;"></div>
-                        <div style="flex: 0 0 30%; display: flex; align-items: center;">설정자</div>
-                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">채권최고액(만)</div>
-                        <div style="flex: 0 0 7%; margin-left: 0.5rem; display: flex; align-items: center;">비율(%)</div>
-                        <div style="flex: 0 0 15%; margin-left: 0.5rem; display: flex; align-items: center;">원금(만)</div>
-                        <div style="flex: 0 0 12%; margin-left: 0.5rem; display: flex; align-items: center;">구분</div>
-                        <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; align-items: center; justify-content: center;"></div>
-                    </div>
-                    <div id="loan-items-container"></div>
-                </div>
-                <div class="tab-pane fade" id="fee-tab-pane" role="tabpanel">
+            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0;">
+                <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
                     <div class="row g-2">
-                        <div class="col"><label>컨설팅(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" value="0"></div>
-                        <div class="col"><label>(%)</label><input type="text" class="form-control form-field md-input" id="consult_rate" value="1.5"></div>
-                        <div class="col"><label>브릿지(만)</label><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" value="0"></div>
-                        <div class="col"><label>(%)</label><input type="text" class="form-control form-field md-input" id="bridge_rate" value="0.7"></div>
+                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설팅(만)"></div>
+                        <div class="col"><input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="(%)"></div>
+                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="브릿지(만)"></div>
+                        <div class="col"><input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="(%)"></div>
                     </div>
                 </div>
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="interest-loan-amount" class="form-label">대출금액 (만원)</label>
-                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="">
+                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="대출금액 (만원)">
                         </div>
                         <div class="col-md-6">
-                            <label for="interest-annual-rate" class="form-label">연이율 (%)</label>
-                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="">
+                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="연이율 (%)">
                         </div>
                     </div>
                     <div class="row g-3 mt-3">
                         <div class="col-md-4">
-                            <label class="form-label">하루 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-daily-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-daily-result" placeholder="하루 이자 (원)" readonly>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">한달 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-monthly-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-monthly-result" placeholder="한달 이자 (원)" readonly>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">1년 이자 (원)</label>
-                            <input type="text" class="form-control md-input" id="interest-yearly-result" readonly>
+                            <input type="text" class="form-control md-input" id="interest-yearly-result" placeholder="1년 이자 (원)" readonly>
                         </div>
                     </div>
                     <hr class="my-4">
@@ -925,1344 +170,149 @@
                     <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
-                            <label for="balloon-principal-pct" class="form-label">원금 분할 비율 (X%)</label>
-                            <input type="number" class="form-control md-input" id="balloon-principal-pct" value="7" min="0" max="100" step="0.1">
+                            <input type="number" class="form-control md-input" id="balloon-principal-pct" placeholder="분할율 (%)" min="0" max="100" step="0.1">
                         </div>
                         <div class="col-md-6">
-                            <label for="balloon-months" class="form-label">기간 (개월)</label>
-                            <input type="number" class="form-control md-input" id="balloon-months" value="60" min="1" step="1">
+                            <input type="number" class="form-control md-input" id="balloon-months" placeholder="개월수" min="1" step="1">
                         </div>
                     </div>
 
                     <div class="row g-2">
                         <div class="col-md-6">
-                            <label class="form-label text-success">매월 원금</label>
-                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" readonly>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" placeholder="매월 원금" readonly>
                             <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-info">첫 달 납입액</label>
-                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" readonly>
-                            <small class="text-muted" id="balloon-first-breakdown">(원금 + 이자)</small>
+                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" placeholder="첫 달 납입액 (원금 0 + 이자 0)" readonly>
+                            <small class="text-muted" id="balloon-first-breakdown"></small>
                         </div>
                     </div>
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
                 <!-- ====================================================== -->
-                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel">
-                    <h6 class="mb-3">차주 선택</h6>
+                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
                     
                     <!-- 공유자 1 정보 입력 -->
-                    <div class="row mb-2">
-                        <div class="col-auto pe-2">
-                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3); margin-top: 32px;">
-                        </div>
-                        <div class="col-5">
-                          <label for="share-customer-name-1">공유자 1 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder=>
+                    <div class="row mb-2 align-items-center g-2">
+                        <div class="col-auto">
+                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3);">
                         </div>
                         <div class="col">
-                          <label for="share-customer-birth-1">지분율</label>
-                          <input type="text" class="form-control md-input" id="share-customer-birth-1">
+                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="공유자 1 고객명 & 생년월일">
+                        </div>
+                        <div class="col">
+                          <input type="text" class="form-control md-input" id="share-customer-birth-1" placeholder="지분율">
                         </div>
                     </div>
 
                     <!-- 공유자 2 정보 입력 -->
-                    <div class="row mb-2">
-                        <div class="col-auto pe-2">
-                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3); margin-top: 32px;">
-                        </div>
-                        <div class="col-5">
-                          <label for="share-customer-name-2">공유자 2 고객명 & 생년월일</label>
-                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder=>
+                    <div class="row mb-2 align-items-center g-2">
+                        <div class="col-auto">
+                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3);">
                         </div>
                         <div class="col">
-                          <label for="share-customer-birth-2">지분율</label>
-                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder=>
+                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="공유자 1 고객명 & 생년월일">
+                        </div>
+                        <div class="col">
+                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder="지분율">
                         </div>
                     </div>
-                    
-                    
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
                 <!-- ====================================================== -->
             </div>                
+            
+            <!-- ✅ 공통 대출항목 영역 -->
+            <div id="loan-section" class="mt-3" style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
+                <div id="loan-items-container"></div>
+            </div>
+
             <hr class="my-2">
-            <div style="background: #6E6E6D; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
+            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <textarea class="form-control md-input" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
             </div>
             
-            <div style="background: #F2EDD7; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft);">
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
+                <div class="d-grid gap-2 d-md-flex">
+                    <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary me-auto"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
                     <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
                     <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
                 </div>
             </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
 <script>
-    let loanItemCounter = 0;
-    let memoDebounceTimeout;
-
-    // 레이아웃 설정 저장/복원 기능
-    function saveLayoutSettings() {
-        const mainContainer = document.getElementById('main-layout-wrapper');
-        const pdfColumn = document.getElementById('pdf-column');
-        const formColumn = document.getElementById('form-column-wrapper');
-        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
-        
-        const layoutSettings = {
-            isHorizontalMode: isHorizontal,
-            pdfColumnWidth: pdfColumn.style.width || (isHorizontal ? '100%' : '62.5%'),
-            pdfColumnHeight: pdfColumn.style.height || (isHorizontal ? '60%' : 'calc(100vh - 2rem)'),
-            formColumnWidth: formColumn.style.width || (isHorizontal ? '100%' : '37.5%'),
-            formColumnHeight: formColumn.style.height || (isHorizontal ? '38%' : 'calc(100vh - 2rem)'),
-            timestamp: Date.now()
-        };
-        
-        localStorage.setItem('ltvLayoutSettings', JSON.stringify(layoutSettings));
-    }
-
-    function loadLayoutSettings() {
-        try {
-            const saved = localStorage.getItem('ltvLayoutSettings');
-            if (!saved) return;
-            
-            const settings = JSON.parse(saved);
-            const mainContainer = document.getElementById('main-layout-wrapper');
-            const btn = document.getElementById('layout-toggle-btn');
-            const pdfColumn = document.getElementById('pdf-column');
-            const formColumn = document.getElementById('form-column-wrapper');
-            
-            // 저장된 설정이 24시간 이내인지 확인
-            const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
-            if (!isRecent) return;
-            
-            // 레이아웃 모드 복원
-            if (settings.isHorizontalMode) {
-                mainContainer.classList.add('horizontal-mode');
-                btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
-            } else {
-                mainContainer.classList.remove('horizontal-mode');
-                btn.innerHTML = '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
-            }
-            
-            // 컬럼 크기 복원
-            pdfColumn.style.width = settings.pdfColumnWidth;
-            pdfColumn.style.height = settings.pdfColumnHeight;
-            formColumn.style.width = settings.formColumnWidth;
-            formColumn.style.height = settings.formColumnHeight;
-            
-        } catch (error) {
-            console.error('레이아웃 설정 로드 실패:', error);
-        }
-    }
-
-    // 고급 금액 파싱 함수
-    function parseAdvancedAmount(text) {
-        if (!text) return 0;
-        
-        let cleanText = text.replace(/,/g, '').trim();
-        
-        // 1. 한글 금액 처리 (억, 만, 천, 원 포함)
-        if (/억|만|천|원/.test(cleanText)) {
-            return parseKoreanAmountAdvanced(cleanText);
-        }
-        
-        // 2. 원 단위 금액 처리 (8자리 이상이거나 '원'으로 끝나는 경우)
-        if (cleanText.endsWith('원') || cleanText.replace(/[^\d]/g, '').length >= 8) {
-            const numOnly = cleanText.replace(/[^\d]/g, '');
-            if (numOnly) {
-                const wonAmount = parseInt(numOnly);
-                // 원을 만원으로 변환
-                return Math.floor(wonAmount / 10000);
-            }
-        }
-        
-        // 3. 일반 숫자 처리
-        const numOnly = cleanText.replace(/[^\d]/g, '');
-        return numOnly ? parseInt(numOnly) : 0;
-    }
-
-    // 한글 금액 고급 파싱
-    function parseKoreanAmountAdvanced(text) {
-        let total = 0;
-        let remainingText = text;
-        
-        // 억 단위 처리
-        const eokMatch = remainingText.match(/(\d+)억/);
-        if (eokMatch) {
-            total += parseInt(eokMatch[1]) * 10000;
-            remainingText = remainingText.replace(eokMatch[0], '');
-        }
-        
-        // 천만 단위 처리 (예: 2천만 = 2000만)
-        const cheonmanMatch = remainingText.match(/(\d+)천만/);
-        if (cheonmanMatch) {
-            total += parseInt(cheonmanMatch[1]) * 1000;
-            remainingText = remainingText.replace(cheonmanMatch[0], '');
-        }
-        
-        // 만 단위 처리
-        const manMatch = remainingText.match(/(\d+)만/);
-        if (manMatch) {
-            total += parseInt(manMatch[1]);
-            remainingText = remainingText.replace(manMatch[0], '');
-        }
-        
-        // 천 단위 처리 (만원 단위로 변환)
-        const cheonMatch = remainingText.match(/(\d+)천/);
-        if (cheonMatch) {
-            total += parseInt(cheonMatch[1]) / 10; // 천원을 만원으로 변환
-            remainingText = remainingText.replace(cheonMatch[0], '');
-        }
-        
-        return Math.floor(total);
-    }
-
-    // 한글 금액 파싱 헬퍼 함수 (기존 호환성 유지)
-    function parseKoreanNumberString(text) {
-        return parseAdvancedAmount(text);
-    }
-
-    // 원 단위를 만원 단위로 변환하는 함수
-    function convertWonToManwon(wonAmount) {
-        return parseAdvancedAmount(wonAmount);
-    }
-
-    // 채권최고액과 비율로 원금 계산하는 함수
-    function calculatePrincipalFromRatio(maxAmount, ratio) {
-        const maxAmt = parseFloat(String(maxAmount).replace(/,/g, '')) || 0;
-        const ratioVal = parseFloat(ratio) || 120;
-        
-        if (ratioVal <= 0) return 0;
-        
-        // 원금 = 채권최고액 ÷ (비율/100)
-        return Math.round(maxAmt / (ratioVal / 100));
-    }
-
-    // ✨ 드래그앤드롭 기능 추가 - Material Design 스타일
-    function initializeDragAndDrop() {
-        const container = document.getElementById('loan-items-container');
-        
-        // 드래그 핸들에만 드래그 이벤트 추가
-        container.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('md-drag-handle') || e.target.classList.contains('drag-handle')) {
-                const loanItem = e.target.closest('.loan-item');
-                loanItem.draggable = true;
-            }
-        });
-        
-        container.addEventListener('mouseup', (e) => {
-            // 마우스를 떼면 모든 항목의 draggable을 false로
-            container.querySelectorAll('.loan-item').forEach(item => {
-                item.draggable = false;
+// PWA Service Worker 등록
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/static/sw.js')
+            .then(function(registration) {
+                console.log('Service Worker registered successfully:', registration);
+            })
+            .catch(function(error) {
+                console.log('Service Worker registration failed:', error);
             });
-        });
-        
-        container.addEventListener('dragstart', (e) => {
-            if (e.target.classList.contains('loan-item')) {
-                e.target.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', e.target.outerHTML);
-            }
-        });
-        
-        container.addEventListener('dragend', (e) => {
-            if (e.target.classList.contains('loan-item')) {
-                e.target.classList.remove('dragging');
-            }
-        });
-        
-        container.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            const draggingItem = container.querySelector('.dragging');
-            const siblings = [...container.querySelectorAll('.loan-item:not(.dragging)')];
-            
-            const nextSibling = siblings.find(sibling => {
-                return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
-            });
-            
-            container.insertBefore(draggingItem, nextSibling);
-        });
-        
-        container.addEventListener('drop', (e) => {
-            e.preventDefault();
-            // 드롭 후 메모 업데이트
-            setTimeout(() => {
-                triggerMemoGeneration();
-            }, 100);
-        });
-    }
-
-    // createLoanItemHTML 함수 - 드래그 핸들 추가
-    function createLoanItemHTML(index, loan = {}) {
-        const formatValue = (val) => {
-            if (!val) return '0';
-            const numValue = Number(String(val).replace(/,/g, ''));
-            return numValue ? numValue.toLocaleString() : '0';
-        };
-        
-        return `
-        <div id="loan-item-${index}" class="loan-item d-flex align-items-center py-2 border-bottom" draggable="false">
-            <div style="flex: 0 0 24px;">
-                <div class="drag-handle md-drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
-            </div>
-            <div style="flex: 0 0 30%;">
-                <div class="mobile-label">설정자</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" value="${loan.lender || ''}">
-            </div>
-            <div style="flex: 0 0 15%; margin-left: 0.5rem;">
-                <div class="mobile-label">채권최고액(만)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="max_amount" value="${formatValue(loan.max_amount)}">
-            </div>
-            <div style="flex: 0 0 7%; margin-left: 0.5rem;">
-                <div class="mobile-label">비율(%)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" value="${loan.ratio || '120'}">
-            </div>
-            <div style="flex: 0 0 15%; margin-left: 0.5rem;">
-                <div class="mobile-label">원금(만)</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="principal" value="${formatValue(loan.principal)}">
-            </div>
-            <div style="flex: 0 0 12%; margin-left: 0.5rem;">
-                <div class="mobile-label">구분</div>
-                <select class="form-select form-select-sm loan-input form-field md-loan-select" name="status">
-                    <option value="유지" ${loan.status === '유지' ? 'selected' : ''}>유지</option>
-                    <option value="대환" ${loan.status === '대환' ? 'selected' : ''}>대환</option>
-                    <option value="선말소" ${loan.status === '선말소' ? 'selected' : ''}>선말소</option>
-                    <option value="퇴거자금" ${loan.status === '퇴거자금' ? 'selected' : ''}>퇴거자금</option>
-                    <option value="동의" ${loan.status === '동의' ? 'selected' : ''}>동의</option>
-                    <option value="비동의" ${loan.status === '비동의' ? 'selected' : ''}>비동의</option>
-                </select>
-            </div>
-            <div style="flex: 0 0 8%; margin-left: 0.5rem; display: flex; justify-content: flex-end;" class="text-center">
-                <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
-            </div>
-        </div>`;
-    }
-
-    // ✨ [신규] 단순 이자 계산 함수
-    function calculateSimpleInterest() {
-        // 입력 요소에서 값 가져오기
-        const loanAmountInput = document.getElementById('interest-loan-amount');
-        const annualRateInput = document.getElementById('interest-annual-rate');
-
-        // 콤마(,) 제거하고 숫자로 변환
-        const principalManwon = parseInt(loanAmountInput.value.replace(/,/g, '')) || 0;
-        const principal = principalManwon * 10000; // 원 단위로 변환
-        const annualRate = parseFloat(annualRateInput.value) || 0;
-
-        // 결과 표시 요소 가져오기
-        const dailyResultEl = document.getElementById('interest-daily-result');
-        const monthlyResultEl = document.getElementById('interest-monthly-result');
-        const yearlyResultEl = document.getElementById('interest-yearly-result');
-
-        // 입력값이 유효할 때만 계산
-        if (principal > 0 && annualRate > 0) {
-            const yearlyInterest = Math.floor(principal * (annualRate / 100));
-            const monthlyInterest = Math.floor(yearlyInterest / 12);
-            const dailyInterest = Math.floor(yearlyInterest / 365);
-
-            // 계산된 값을 콤마와 함께 '원' 단위로 표시
-            yearlyResultEl.value = yearlyInterest.toLocaleString() + '원';
-            monthlyResultEl.value = monthlyInterest.toLocaleString() + '원';
-            dailyResultEl.value = dailyInterest.toLocaleString() + '원';
-        } else {
-            // 입력값이 없거나 0이면 결과를 ''으로 초기화
-            yearlyResultEl.value = '';
-            monthlyResultEl.value = '';
-            dailyResultEl.value = '';
-        }
-    }
-
-    // ✨ 누락되었던 함수
-    function addLoanItem(loan = {}) {
-        const container = document.getElementById('loan-items-container');
-        container.insertAdjacentHTML('beforeend', createLoanItemHTML(loanItemCounter++, loan));
-        attachEventListenersForLoanItems();
-    }
-
-    // 대출 항목 제거
-    function removeLoanItem(index) {
-        document.getElementById(`loan-item-${index}`)?.remove();
-        triggerMemoGeneration();
-    }
-    
-    // 숫자 자동 포맷 (개선된 고급 금액 처리)
-    function formatManwonValue(e) {
-        const field = e.target;
-        let value = field.value.trim();
-        let parsedValue = 0;
-
-        // 빈 값 처리
-        if (!value) {
-            field.value = '';
-            triggerMemoGeneration();
-            return;
-        }
-
-        // '+' 기호가 있는지 확인하여 계산
-        if (value.includes('+')) {
-            const terms = value.split('+');
-            parsedValue = terms.reduce((acc, term) => {
-                return acc + parseAdvancedAmount(term.trim());
-            }, 0);
-        } else {
-            parsedValue = parseAdvancedAmount(value);
-        }
-        
-        // 계산된 값을 입력창에 다시 설정
-        field.value = parsedValue > 0 ? parsedValue.toLocaleString() : '';
-
-        // 메모 업데이트 함수 호출
-        triggerMemoGeneration();
-    }
-
-    // [수정됨] 대출 항목 자동 계산 (원금-최고액) - 클라이언트 사이드
-    function handleAutoLoanCalc(event) {
-        const target = event.target;
-        const loanItem = target.closest('.loan-item');
-        if (!loanItem) return;
-
-        const maxAmountInput = loanItem.querySelector('[name="max_amount"]');
-        const ratioInput = loanItem.querySelector('[name="ratio"]');
-        const principalInput = loanItem.querySelector('[name="principal"]');
-
-        let maxAmount = parseFloat(maxAmountInput.value.replace(/,/g, '')) || 0;
-        let ratio = parseFloat(ratioInput.value) || 0;
-        let principal = parseFloat(principalInput.value.replace(/,/g, '')) || 0;
-
-        if (target.name === 'principal') {
-            // 원금이 바뀌면 비율에 따라 최고액 역산
-            if (principal > 0 && ratio > 0) {
-                maxAmount = Math.round(principal * (ratio / 100));
-                maxAmountInput.value = maxAmount.toLocaleString();
-            }
-        } else {
-            // 최고액 또는 비율이 바뀌면 원금 계산
-            if (maxAmount > 0 && ratio > 0) {
-                principal = Math.round(maxAmount / (ratio / 100));
-                principalInput.value = principal.toLocaleString();
-            }
-        }
-        triggerMemoGeneration();
-    }
-    
-    // [신규] 채권최고액 입력 시 서버 API를 통해 금액 변환 및 원금 자동계산
-    async function handleApiLoanConversion(event) {
-        const maxAmountInput = event.target;
-        const loanItem = maxAmountInput.closest('.loan-item');
-        if (!loanItem) return;
-
-        const ratioInput = loanItem.querySelector('[name="ratio"]');
-        const principalInput = loanItem.querySelector('[name="principal"]');
-
-        const loanData = {
-            max_amount: maxAmountInput.value,
-            ratio: ratioInput.value
-        };
-
-        try {
-            const response = await fetch('/api/convert_loan_amount', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loanData)
-            });
-
-            if (!response.ok) throw new Error('API call failed');
-            const result = await response.json();
-
-            if (result.success && result.converted_data) {
-                const data = result.converted_data;
-                maxAmountInput.value = data.max_amount ? parseInt(data.max_amount).toLocaleString() : '0';
-                principalInput.value = data.principal ? parseInt(data.principal).toLocaleString() : '0';
-            }
-        } catch (error) {
-            console.error('Error during loan conversion:', error);
-            // API 호출 실패 시, 클라이언트 사이드 계산으로 대체
-            handleAutoLoanCalc(event); 
-        } finally {
-            triggerMemoGeneration();
-        }
-    }
-    
-    // ✨ [신규] 방공제 및 임차인(동의/비동의) 상태에 따른 경고 메시지 표시 함수
-    function checkTenantDeductionWarning() {
-        const deductionRegionSelect = document.getElementById('deduction_region');
-        // "지역 선택..." 또는 "방공제 없음" 등의 기본값(value="0")이 아닌 경우를 확인합니다.
-        const isDeductionSelected = deductionRegionSelect.value && deductionRegionSelect.value !== '0';
-
-        if (!isDeductionSelected) {
-            return; // 방공제 지역이 선택되지 않았으면 검사를 중단합니다.
-        }
-
-        const tenantStatuses = ['동의', '비동의'];
-        let hasTenantLoan = false;
-        // 현재 화면에 있는 모든 대출 항목의 '진행' 상태를 확인합니다.
-        document.querySelectorAll('.loan-item [name="status"]').forEach(statusSelect => {
-            if (tenantStatuses.includes(statusSelect.value)) {
-                hasTenantLoan = true;
-            }
-        });
-
-        // 방공제 지역이 선택되었고, '동의' 또는 '비동의' 상태의 대출이 하나라도 있다면 경고 메시지를 표시합니다.
-        if (hasTenantLoan) {
-            alert("임차인이 거주하고 있는 물건지는 방공제금액을 입력할 수 없습니다. 전세퇴거여부를 확인해주세요");
-        }
-    }
-
-    // [수정됨] 동적 생성된 대출 항목에 이벤트 리스너 연결
-    function attachEventListenersForLoanItems() {
-        document.querySelectorAll('.loan-item').forEach(item => {
-            const maxAmountInput = item.querySelector('[name="max_amount"]');
-            const ratioInput = item.querySelector('[name="ratio"]');
-            const principalInput = item.querySelector('[name="principal"]');
-            
-            // 기존 이벤트 리스너를 모두 제거하여 중복 방지
-            const newMaxAmountInput = maxAmountInput.cloneNode(true);
-            const newRatioInput = ratioInput.cloneNode(true);
-            const newPrincipalInput = principalInput.cloneNode(true);
-
-            maxAmountInput.parentNode.replaceChild(newMaxAmountInput, maxAmountInput);
-            ratioInput.parentNode.replaceChild(newRatioInput, ratioInput);
-            principalInput.parentNode.replaceChild(newPrincipalInput, principalInput);
-
-            // [핵심] 채권최고액: 포커스가 벗어날 때 서버 API로 변환 요청
-            newMaxAmountInput.addEventListener('blur', handleApiLoanConversion);
-            
-            // 비율: 값이 변경될 때 클라이언트에서 원금 즉시 재계산
-            newRatioInput.addEventListener('change', handleAutoLoanCalc);
-            
-            // 원금: 포커스가 벗어날 때 숫자 포맷팅 / 값이 변경될 때 최고액 역산
-            newPrincipalInput.addEventListener('blur', formatManwonValue);
-            newPrincipalInput.addEventListener('change', handleAutoLoanCalc);
-
-            // 모든 항목의 값이 변경되면 메모 업데이트
-            item.querySelectorAll('.loan-input').forEach(input => {
-                // ✨ [수정] 'change' 이벤트에 경고 확인 로직 추가
-                input.addEventListener('change', (e) => {
-                    // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
-                    if (e.target.name === 'status') {
-                        checkTenantDeductionWarning();
-                    }
-                    // 기존의 메모 생성 함수를 호출합니다.
-                    triggerMemoGeneration();
-                });
-            });
-        });
-    }
-
-    // 모든 폼 데이터 수집
-    function collectAllData() {
-        const regionSelect = document.getElementById('deduction_region');
-        const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
-        const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
-            lender: item.querySelector('[name="lender"]').value, 
-            status: item.querySelector('[name="status"]').value,
-            max_amount: item.querySelector('[name="max_amount"]').value, 
-            principal: item.querySelector('[name="principal"]').value,
-            ratio: item.querySelector('[name="ratio"]').value,
-        }));
-        return {
-            inputs: {
-                customer_name: document.getElementById('customer_name').value, 
-                address: document.getElementById('address').value,
-                kb_price: document.getElementById('kb_price').value, 
-                area: document.getElementById('area').value,
-                deduction_region_text: selectedRegionText, 
-                deduction_amount: document.getElementById('deduction_amount').value,
-                ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
-            }, 
-            fees: {
-                consult_amt: document.getElementById('consult_amt').value, 
-                consult_rate: document.getElementById('consult_rate').value,
-                bridge_amt: document.getElementById('bridge_amt').value, 
-                bridge_rate: document.getElementById('bridge_rate').value,
-            }, 
-            loans: loanItems
-        };
-    }
-    
-    // 메모 생성 요청 (디바운스 적용)
-    function triggerMemoGeneration() {
-        clearTimeout(memoDebounceTimeout);
-        memoDebounceTimeout = setTimeout(generateMemo, 800); 
-    }
-
-    // 메모 생성 및 하안가/일반가 표시
-    async function generateMemo() {
-        const memoArea = document.getElementById('generated-memo');
-        memoArea.placeholder
-        const data = collectAllData();
-        const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
-        try {
-            const response = await fetch('/api/generate_text_memo', { 
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData)
-            });
-            const result = await response.json();
-            memoArea.value = result.memo
-            
-            const priceTypeField = document.getElementById('price_type_field');
-            if (result.price_type) {
-                priceTypeField.value = result.price_type;
-                
-                // ✨ 1. 기존 색상 클래스를 먼저 모두 제거합니다.
-                priceTypeField.classList.remove('text-danger', 'text-primary');
-
-                // ✨ 2. 시세 타입에 따라 적절한 색상 클래스를 추가합니다.
-                if (result.price_type.includes('일반가')) {
-                    priceTypeField.classList.add('text-primary'); // '일반가'는 파란색
-                } else if (result.price_type.includes('하안가')) {
-                    priceTypeField.classList.add('text-danger');  // '하안가'는 빨간색
-                }
-            } else {
-                // 내용이 없을 경우, 텍스트와 색상 클래스를 모두 제거합니다.
-                priceTypeField.value = '';
-                priceTypeField.classList.remove('text-danger', 'text-primary');
-            }
-        } catch (error) {
-            memoArea.value = `오류: 메모 생성 중 문제가 발생했습니다. (${error})`;
-        }
-    }
-    
-    // 고객 목록 불러오기
-    async function loadCustomerList() {
-        try {
-            const response = await fetch('/api/customers');
-            const customers = await response.json();
-            const select = document.getElementById('customer-history');
-            select.innerHTML = '<option value="" selected>기존 고객 불러오기...</option>';
-            customers.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = customer.name;
-                select.appendChild(option);
-            });
-        } catch (error) { 
-            console.error("고객 목록 로딩 실패:", error); 
-        }
-    }
-
-    // 특정 고객 데이터 불러오기
-    async function loadCustomerData() {
-        const select = document.getElementById('customer-history');
-        const pageId = select.value;
-        if (!pageId) return;
-        try {
-            const response = await fetch(`/api/customer/${pageId}`);
-            if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
-            const data = await response.json();
-            if (data.error) { alert(`데이터 로드 실패: ${data.error}`); return; }
-            
-            document.getElementById('customer_name').value = data.customer_name || '';
-            document.getElementById('address').value = data.address || '';
-            document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
-            document.getElementById('area').value = data.area || '';
-            document.getElementById('ltv1').value = data.ltv1 || '80';
-            document.getElementById('ltv2').value = data.ltv2 || '';
-            document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
-            document.getElementById('consult_rate').value = data.consult_rate || '1.5';
-            document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
-            document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
-            
-            const regionSelect = document.getElementById('deduction_region');
-            const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
-            if(regionOption) {
-                regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
-            } else if(regionSelect.options.length > 0) {
-                regionSelect.selectedIndex = 0;
-            }
-            document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
-            document.getElementById('loan-items-container').innerHTML = '';
-            loanItemCounter = 0;
-
-            if (data.loans && data.loans.length > 0) {
-                data.loans.forEach(loan => addLoanItem(loan));
-            } else { 
-                addLoanItem(); 
-            }
-
-            triggerMemoGeneration();
-        } catch (error) {
-            alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
-        }
-    }
-    
-    // ✨ 누락되었던 함수들
-    async function saveNewCustomer() {
-        const data = collectAllData();
-        if (!data.inputs.customer_name) { 
-            alert('고객명을 입력해주세요.'); 
-            return; 
-        }
-        if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
-        const response = await fetch('/api/customer/new', { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        alert(result.message);
-        if (result.success) { 
-            loadCustomerList(); 
-        }
-    }
-
-    async function updateCustomer() {
-        const selectedCustomerId = document.getElementById('customer-history').value;
-        if (!selectedCustomerId) { 
-            alert('수정할 고객을 목록에서 먼저 선택해주세요.'); 
-            return; 
-        }
-        const data = collectAllData();
-        if (!confirm(`'${data.inputs.customer_name}' 고객 정보를 수정하시겠습니까?`)) return;
-        const url = `/api/customer/update/${selectedCustomerId}`;
-        const response = await fetch(url, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        alert(result.message);
-        if (result.success) { 
-            loadCustomerList(); 
-        }
-    }
-
-    async function deleteCustomer() {
-        const select = document.getElementById('customer-history');
-        const selectedCustomerId = select.value;
-
-        if (!selectedCustomerId) {
-            alert('삭제할 고객을 목록에서 먼저 선택해주세요.');
-            return;
-        }
-
-        // --- ✨ 요청사항에 맞춰 암호 확인 로직을 수정했습니다 ---
-
-        // 1. "암호를 입력하세요" 라는 메시지로 프롬프트 창을 띄웁니다.
-        const enteredPassword = prompt("암호를 입력하세요");
-
-        // 2. 사용자가 '취소' 버튼을 눌렀을 경우
-        if (enteredPassword === null) {
-            alert("취소되었습니다");
-            return;
-        }
-
-        // 3. 암호가 일치하는지 확인
-        const deletePassword = "1245"; // 요청하신 암호 "1245"
-        if (enteredPassword === deletePassword) {
-            // 암호가 일치하면 서버에 삭제 요청
-            try {
-                const url = `/api/customer/delete/${selectedCustomerId}`;
-                const response = await fetch(url, { method: 'POST' });
-                const result = await response.json();
-                alert(result.message); // 서버의 응답 메시지 (예: '고객 정보가 삭제(보관)되었습니다.')
-                if (result.success) {
-                    location.reload();
-                }
-            } catch (error) {
-                alert('삭제 처리 중 오류가 발생했습니다.');
-                console.error('Delete error:', error);
-            }
-        } else {
-            // 4. 암호가 일치하지 않을 경우
-            alert("암호가 일치하지 않아 삭제 처리되지 않았습니다");
-        }
-    }
-
-    // PDF 파일 업로드 핸들러
-    async function handleFileUpload(file) {
-        console.log("--- handleFileUpload 함수 실행 ---");
-        const spinner = document.getElementById('upload-spinner');
-        spinner.style.display = 'block';
-        const formData = new FormData();
-        formData.append('pdf_file', file);
-        try {
-            console.log("서버로 파일 업로드 요청 전송...");
-            const response = await fetch('/api/upload', { method: 'POST', body: formData });
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.error || `서버 에러: ${response.status}`);
-            }
-            const result = await response.json();
-            console.log("업로드 성공. 서버 결과:", result);
-            if (result.success) {
-                const scraped = result.scraped_data;
-                document.getElementById('customer_name').value = scraped.customer_name || '';
-                document.getElementById('address').value = scraped.address || '';
-                document.getElementById('area').value = scraped.area || '';
-                if (scraped.owner_shares && scraped.owner_shares.length > 0) {
-                    scraped.owner_shares.forEach((line, idx) => {
-                        const [nameBirth, shareInfo] = line.split("  지분율 ");
-                        const nameField = document.getElementById(`share-customer-name-${idx+1}`);
-                        const shareField = document.getElementById(`share-customer-birth-${idx+1}`);
-                        if (nameField) nameField.value = nameBirth;
-                        if (shareField) shareField.value = "지분율 " + shareInfo;
-                    });
-                }
-                // FileReader API를 사용해서 클라이언트에서 바로 PDF 표시
-                const fileURL = URL.createObjectURL(file);
-                document.getElementById('pdf-viewer').src = fileURL;
-                document.getElementById('upload-section').style.display = 'none';
-                document.getElementById('viewer-section').style.display = 'block';
-                document.getElementById('file-name-display').textContent = file.name;
-                triggerMemoGeneration();
-            } else { 
-                alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
-            }
-        } catch (error) {
-            console.error("!!!!! 파일 업로드 중 예외 발생:", error);
-            alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
-        } finally {
-            spinner.style.display = 'none';
-        }
-    }
-
-    // 레이아웃 토글
-    function toggleLayout() {
-        const mainContainer = document.getElementById('main-layout-wrapper');
-        const btn = document.getElementById('layout-toggle-btn');
-        const pdfColumn = document.getElementById('pdf-column');
-        const formColumn = document.getElementById('form-column-wrapper');
-        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
-        
-        mainContainer.classList.toggle('horizontal-mode');
-        btn.innerHTML = !isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
-        
-        // 컬럼 크기 초기화
-        if (!isHorizontal) {
-            // 가로모드로 전환 - flex 기반 반응형
-            pdfColumn.style.width = '100%';
-            pdfColumn.style.height = '';
-            pdfColumn.style.flex = '3';
-            formColumn.style.width = '100%';
-            formColumn.style.height = '';
-            formColumn.style.flex = '2';
-        } else {
-            // 세로모드로 전환
-            pdfColumn.style.width = '62.5%';
-            pdfColumn.style.height = 'calc(100vh - 2rem)';
-            pdfColumn.style.flex = '';
-            formColumn.style.width = '37.5%';
-            formColumn.style.height = 'calc(100vh - 2rem)';
-            formColumn.style.flex = '';
-        }
-        
-        // 레이아웃 상태 저장
-        saveLayoutSettings();
-        
-        // 리사이즈 바 이벤트 리스너 재설정
-        setTimeout(() => {
-            initializeResizeBar();
-        }, 100);
-    }
-    
-    // 전체 초기화
-    function clearAllFields() {
-        document.querySelectorAll('.form-field').forEach(field => {
-            if(field.tagName === 'SELECT') { 
-                field.selectedIndex = 0; 
-            } else { 
-                field.value = ''; 
-            }
-        });
-        document.getElementById('ltv1').value = '80';
-        document.getElementById('consult_rate').value = '1.5';
-        document.getElementById('bridge_rate').value = '0.7';
-        document.getElementById('deduction_amount').value = document.getElementById('deduction_region').value.toLocaleString();
-        document.getElementById('loan-items-container').innerHTML = '';
-        loanItemCounter = 0;
-        addLoanItem();
-        const fileInput = document.getElementById('file-input');
-        if (fileInput) fileInput.value = null;
-        document.getElementById('pdf-viewer').src = 'about:blank';
-        document.getElementById('upload-section').style.display = 'flex';
-        document.getElementById('viewer-section').style.display = 'none';
-        alert("모든 입력 내용이 초기화되었습니다.");
-        triggerMemoGeneration();
-    }
-    
-    // 개별 차주 지분 한도 계산
-    async function calculateIndividualShare() {
-        try {
-            // 선택된 차주 찾기
-            const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
-            if (!selectedRadio) return; // 선택된 차주가 없으면 종료
-            
-            const ownerIdx = selectedRadio.value;
-            
-            const kbPriceText = document.getElementById("kb_price").value.replace(/,/g,'') || "0";
-            const kbPrice = parseInt(kbPriceText);
-            const ltvText = document.getElementById("ltv1").value || "70";
-            const ltv = parseFloat(ltvText);
-
-            // 대출 데이터 수집
-            let loans = [];
-            document.querySelectorAll("#loan-items-container .loan-item").forEach(item => {
-                const maxAmount = item.querySelector("input[placeholder='채권최고액']")?.value.replace(/,/g,'') || "0";
-                const ratio = item.querySelector("input[placeholder='비율']")?.value || "100";
-                const principal = item.querySelector("input[placeholder='원금']")?.value.replace(/,/g,'') || "0";
-                const status = item.querySelector("select")?.value || "-";
-                
-                loans.push({
-                    max_amount: parseInt(maxAmount) || 0,
-                    ratio: parseFloat(ratio) || 100,
-                    principal: parseInt(principal) || 0,
-                    status: status
-                });
-            });
-
-            // 소유자 데이터 수집
-            const nameField = document.getElementById(`share-customer-name-${ownerIdx}`);
-            const shareField = document.getElementById(`share-customer-birth-${ownerIdx}`);
-            
-            if (!nameField || !shareField || !nameField.value.trim()) {
-                return; // 정보가 없으면 조용히 종료
-            }
-            
-            const shareText = shareField.value;
-            const shareMatch = shareText.match(/\(([\d.]+)%\)/);
-            const sharePercent = shareMatch ? parseFloat(shareMatch[1]) : 0;
-            
-            if (sharePercent === 0) return; // 지분율이 없으면 조용히 종료
-            
-            let owners = [{
-                "이름": nameField.value,
-                "지분율": `${sharePercent}%`
-            }];
-
-            const payload = {
-                total_value: kbPrice,
-                ltv: ltv,
-                loans: loans,
-                owners: owners
-            };
-
-            const res = await fetch("/api/calculate_individual_share", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            
-            if (!res.ok) return; // 오류 시 조용히 종료
-            
-            const data = await res.json();
-
-            if (data.success && data.results.length > 0) {
-                const result = data.results[0];
-                
-                // 기존 메모에 지분 계산 결과 추가
-                const currentMemo = document.getElementById('generated-memo').value;
-                const individualShareMemo = `\n\n--- 개별 지분 한도 계산 ---\n${result.이름} 선순위 LTV ${ltv}% 지분 ${result["최종한도(만원)"].toLocaleString()}만`;
-                
-                document.getElementById('generated-memo').value = currentMemo + individualShareMemo;
-            }
-        } catch (error) {
-            console.error("지분 계산 오류:", error);
-        }
-    }
-    
-    // 모든 이벤트 리스너 최초 연결
-    function attachAllEventListeners() {
-        const uploadSection = document.getElementById('upload-section');
-        const fileInput = document.getElementById('file-input');
-        uploadSection.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => { 
-            if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
-        });
-        
-        ['dragover','dragleave','drop'].forEach(eventName => {
-            uploadSection.addEventListener(eventName, e => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-            }, false);
-        });
-        
-        uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
-        uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
-        uploadSection.addEventListener('drop', (e) => {
-            uploadSection.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
-        });
-
-        document.querySelectorAll('.manwon-format').forEach(input => {
-            input.addEventListener('blur', formatManwonValue);
-        });
-        
-        // 지분 한도 계산기 라디오 버튼 이벤트
-        document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
-            radio.addEventListener('change', calculateIndividualShare);
-        });
-        
-        const loanAmountInput = document.getElementById('interest-loan-amount');
-        const annualRateInput = document.getElementById('interest-annual-rate');
-
-        // 키보드를 누를 때마다 이자 다시 계산
-        loanAmountInput.addEventListener('keyup', calculateSimpleInterest);
-        annualRateInput.addEventListener('keyup', calculateSimpleInterest);
-
-        // 대출금액 입력 필드에서 포커스가 벗어날 때 숫자 포맷팅 (콤마 추가)
-        loanAmountInput.addEventListener('blur', (e) => {
-            const value = e.target.value.replace(/,/g, '');
-            const num = parseInt(value, 10);
-            if (!isNaN(num) && num > 0) {
-                e.target.value = num.toLocaleString();
-            } else {
-                e.target.value = '';
-            }
-        });
-
-            // ✨ 원금 분할 계산기 함수들 추가
-    function formatNumberWithCommas(value) {
-        return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-
-    function parseFormattedNumber(value) {
-        return Number(value.replace(/,/g, '')) || 0;
-    }
-
-    function calculateBalloonLoan() {
-        // 기존 이자계산기 필드에서 값 가져오기
-        const loanAmountInput = document.getElementById('interest-loan-amount');
-        const annualRateInput = document.getElementById('interest-annual-rate');
-        const principalPctInput = document.getElementById('balloon-principal-pct');
-        const monthsInput = document.getElementById('balloon-months');
-
-        // 기존 필드값 사용 (만원 단위를 원 단위로 변환)
-        const loanManwon = parseFloat(loanAmountInput.value.replace(/,/g, '')) || 0;
-        const loan = loanManwon * 10000; // 만원을 원으로 변환
-        const annualRate = Number(annualRateInput.value) || 0;
-        const principalPct = Math.max(0, Math.min(100, Number(principalPctInput.value) || 0));
-        const months = Number(monthsInput.value) || 0;
-
-        const monthlyRate = annualRate > 0 ? annualRate / 100 / 12 : 0;
-        const principalPortion = loan * (principalPct / 100);
-        const monthlyPrincipal = months > 0 ? principalPortion / months : 0;
-        const firstMonthInterest = loan * monthlyRate;
-        const firstMonthPayment = monthlyPrincipal + firstMonthInterest;
-
-        document.getElementById('balloon-monthly-principal').value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
-        document.getElementById('balloon-first-payment').value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
-        document.getElementById('balloon-first-breakdown').textContent = 
-            `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
-    }
-
-    function handleBalloonLoanInput(event) {
-        const input = event.target;
-        const value = input.value.replace(/,/g, '');
-        const num = parseInt(value, 10);
-        
-        if (!isNaN(num) && num > 0) {
-            input.value = num.toLocaleString();
-        } else {
-            input.value = '';
-        }
-        
-        calculateBalloonLoan();
-    }
-        
-
-    // 기존 이자계산기 이벤트 리스너에 원금 분할 계산 추가
-    loanAmountInput.addEventListener('keyup', () => {
-        calculateSimpleInterest();
-        calculateBalloonLoan(); // 추가
-    });
-    annualRateInput.addEventListener('keyup', () => {
-        calculateSimpleInterest();
-        calculateBalloonLoan(); // 추가
-    });
-// 원금 분할 계산기 전용 필드들
-const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
-const balloonMonthsInput = document.getElementById('balloon-months');
-
-if (balloonPrincipalPctInput) {
-   balloonPrincipalPctInput.addEventListener('input', calculateBalloonLoan);
-   balloonMonthsInput.addEventListener('input', calculateBalloonLoan);
-   
-   // 초기 계산 실행
-   calculateBalloonLoan();
-}
-
-document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
-document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
-document.getElementById('reset-btn').addEventListener('click', clearAllFields);
-document.getElementById('add-loan-btn').addEventListener('click', () => addLoanItem());
-document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
-document.getElementById('update-btn').addEventListener('click', updateCustomer);
-document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
-
-// ✨ [수정] 방공제 지역 변경 시 경고 확인 로직만 유지
-document.getElementById('deduction_region').addEventListener('change', (e) => {
-    // ✅ 신규 고객용: 방공제 금액 자동 설정
-    document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
-        parseInt(e.target.value).toLocaleString() : '';
-    
-    checkTenantDeductionWarning(); 
-    triggerMemoGeneration();
-});
-
-document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
-   field.addEventListener('change', triggerMemoGeneration);
-   if (field.type === 'text' && !field.classList.contains('manwon-format')) {
-       field.addEventListener('keyup', triggerMemoGeneration);
-   }
-});
-
-document.querySelectorAll('.manwon-format').forEach(input => {
-   input.addEventListener('blur', formatManwonValue);
-});
-}
-
-
-    // 리사이즈 바 기능 구현
-    function initializeResizeBar() {
-        const resizeBar = document.getElementById('resize-bar');
-        const pdfColumn = document.getElementById('pdf-column');
-        const formColumn = document.getElementById('form-column-wrapper');
-        const mainContainer = document.getElementById('main-layout-wrapper');
-        const pdfViewer = document.getElementById('pdf-viewer'); // iframe 요소를 미리 찾아둡니다.
-        
-        // 기존 이벤트 리스너 제거 (중복 방지)
-        const newResizeBar = resizeBar.cloneNode(true);
-        resizeBar.parentNode.replaceChild(newResizeBar, resizeBar);
-        
-        let isResizing = false;
-        let startPos = 0;
-        let startPdfSize = 0;
-        
-        const isHorizontalMode = () => mainContainer.classList.contains('horizontal-mode');
-        
-        function startResize(clientX, clientY) {
-            isResizing = true;
-            
-            // [수정 1] 드래그를 시작할 때 iframe의 마우스 이벤트를 '끈다'.
-            pdfViewer.style.pointerEvents = 'none';
-            
-            // 트랜지션 효과를 잠시 꺼서 드래그가 끊기지 않게 합니다.
-            pdfColumn.style.transition = 'none';
-            formColumn.style.transition = 'none';
-            
-            // 드래그 중 텍스트가 선택되는 것을 방지합니다.
-            document.body.style.userSelect = 'none';
-            
-            if (isHorizontalMode()) {
-                startPos = clientY;
-                startPdfSize = pdfColumn.getBoundingClientRect().height;
-                document.body.style.cursor = 'row-resize';
-            } else {
-                startPos = clientX;
-                startPdfSize = pdfColumn.getBoundingClientRect().width;
-                document.body.style.cursor = 'col-resize';
-            }
-        }
-        
-        function doResize(clientX, clientY) {
-            if (!isResizing) return;
-            
-            if (isHorizontalMode()) {
-                // --- 가로 모드 (상하 분할) ---
-                const deltaY = clientY - startPos;
-                const containerHeight = mainContainer.clientHeight;
-                const minHeight = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 높이
-                
-                let newPdfHeight = startPdfSize + deltaY;
-                
-                // 최소/최대 높이 제한을 두어 레이아웃이 깨지지 않게 합니다.
-                newPdfHeight = Math.max(minHeight, newPdfHeight);
-                newPdfHeight = Math.min(containerHeight - minHeight, newPdfHeight);
-
-                const newFormHeight = containerHeight - newPdfHeight - newResizeBar.clientHeight;
-                
-                const totalFlexHeight = newPdfHeight + newFormHeight;
-                pdfColumn.style.flex = `${(newPdfHeight / totalFlexHeight) * 5}`;
-                formColumn.style.flex = `${(newFormHeight / totalFlexHeight) * 5}`;
-                
-            } else {
-                // --- 세로 모드 (좌우 분할) ---
-                const deltaX = clientX - startPos;
-                const containerWidth = mainContainer.clientWidth;
-                const resizeBarWidth = newResizeBar.clientWidth;
-                const availableWidth = containerWidth - resizeBarWidth;
-                const minWidth = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 너비
-
-                let newPdfWidth = startPdfSize + deltaX;
-
-                // 최소/최대 너비 제한을 두어 레이아웃이 깨지지 않게 합니다.
-                newPdfWidth = Math.max(minWidth, newPdfWidth);
-                newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
-                
-                const pdfPercent = (newPdfWidth / availableWidth) * 100;
-                const formPercent = 100 - pdfPercent;
-                
-                pdfColumn.style.width = `${pdfPercent}%`;
-                formColumn.style.width = `${formPercent}%`;
-            }
-        }
-        
-        function endResize() {
-            if (!isResizing) return;
-            isResizing = false;
-            
-            // [수정 2] 드래그가 끝나면 iframe의 마우스 이벤트를 다시 '켠다'.
-            pdfViewer.style.pointerEvents = 'auto';
-            
-            // 부드러운 효과를 위해 트랜지션을 다시 활성화합니다.
-            pdfColumn.style.transition = '';
-            formColumn.style.transition = '';
-            
-            // 텍스트 선택 방지 및 마우스 커서 스타일을 원래대로 복원합니다.
-            document.body.style.userSelect = '';
-            document.body.style.cursor = '';
-            
-            // 리사이즈가 끝난 후 현재 레이아웃 상태를 저장합니다.
-            saveLayoutSettings();
-        }
-        
-        // --- 이벤트 리스너 등록 ---
-        
-        // 마우스 이벤트
-        newResizeBar.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            startResize(e.clientX, e.clientY);
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (isResizing) {
-                e.preventDefault();
-                doResize(e.clientX, e.clientY);
-            }
-        });
-        
-        document.addEventListener('mouseup', endResize);
-        document.addEventListener('mouseleave', endResize); // 마우스가 창 밖으로 나가도 드래그가 멈추도록 추가
-        
-        // 터치 이벤트 (모바일)
-        newResizeBar.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            startResize(touch.clientX, touch.clientY);
-        }, { passive: false });
-        
-        document.addEventListener('touchmove', (e) => {
-            if (isResizing) {
-                e.preventDefault();
-                const touch = e.touches[0];
-                doResize(touch.clientX, touch.clientY);
-            }
-        }, { passive: false });
-        
-        document.addEventListener('touchend', endResize);
-        document.addEventListener('touchcancel', endResize);
-        
-        // 더블클릭으로 기본 비율 복원
-        newResizeBar.addEventListener('dblclick', () => {
-            if (isHorizontalMode()) {
-                pdfColumn.style.flex = '3';
-                formColumn.style.flex = '2';
-            } else {
-                pdfColumn.style.width = '62.5%';
-                formColumn.style.width = '37.5%';
-            }
-            saveLayoutSettings();
-        });
-    }
-
-    // ✨ LTV 비율 조정 함수들
-    function adjustLtvValue(inputId, change) {
-        const input = document.getElementById(inputId);
-        let currentValue = parseInt(input.value) || 0;
-        
-        // 빈 값일 때 버튼별 동작
-        if (input.value === '' || currentValue === 0) {
-            if (change < 0) {
-                // - 버튼 누르면 75로 설정
-                input.value = 75;
-            } else {
-                // + 버튼 누르면 85로 설정
-                input.value = 85;
-            }
-            triggerMemoGeneration();
-            return;
-        }
-        
-        let newValue = currentValue + change;
-        
-        // 0 미만이면 0으로, 200 초과하면 200으로 제한 (5 단위 조정)
-        newValue = Math.max(0, Math.min(200, newValue));
-        
-        input.value = newValue;
-        triggerMemoGeneration();
-    }
-
-    function clearLtvValue(inputId) {
-        const input = document.getElementById(inputId);
-        input.value = '';
-        triggerMemoGeneration();
-    }
-
-// 고객명 & 생년월일 자동 파싱 기능
-function parseCustomerNames() {
-    const customerNameField = document.getElementById('customer_name');
-    if (!customerNameField) return;
-    
-    const fullText = customerNameField.value.trim();
-    if (!fullText) return;
-
-    const customers = fullText.split(',').map(item => item.trim()).filter(item => item);
-    const totalShares = customers.length; // 단순히 동등분할 가정
-
-    customers.forEach((customer, index) => {
-        if (index < 2) {
-            const parts = customer.split(' ').filter(part => part.trim());
-            if (parts.length >= 2) {
-                const name = parts[0];
-                const birth = parts[1];
-                
-                const nameField = document.getElementById(`share-customer-name-${index + 1}`);
-                const shareField = document.getElementById(`share-customer-birth-${index + 1}`);
-                
-                if (nameField) nameField.value = `${name} ${birth}`;
-                if (shareField) shareField.value = `1/${totalShares} (${(100/totalShares).toFixed(1)}%)`;
-            }
-        }
     });
 }
 
-// 페이지 로드 완료 후 실행
-document.addEventListener('DOMContentLoaded', () => {
-   addLoanItem();
-   attachAllEventListeners();
-   loadCustomerList();
-   triggerMemoGeneration();
-   initializeResizeBar(); // 리사이즈 바 초기화 추가
-   initializeDragAndDrop(); // 드래그앤드롭 초기화 추가
-   
-   // 저장된 레이아웃 설정 복원
-   setTimeout(() => {
-       loadLayoutSettings();
-       initializeResizeBar(); // 레이아웃 복원 후 리사이즈 바 재초기화
-   }, 200);
-   
-   // 고객명 & 생년월일 필드에 이벤트 리스너 추가
-   const customerNameField = document.getElementById('customer_name');
-   if (customerNameField) {
-       customerNameField.addEventListener('input', parseCustomerNames);
-       customerNameField.addEventListener('change', parseCustomerNames);
-       // 페이지 로드시에도 한번 실행
-       parseCustomerNames();
-   }
+// PWA 설치 프롬프트 처리
+let deferredPrompt;
+const installButton = document.createElement('button');
+installButton.innerHTML = '📱 앱 설치';
+installButton.className = 'btn btn-primary btn-sm position-fixed';
+installButton.style.cssText = 'top: 10px; right: 10px; z-index: 1000; display: none; border-radius: 20px; padding: 5px 15px; font-size: 12px;';
+installButton.id = 'install-button';
+document.body.appendChild(installButton);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('PWA install prompt triggered');
+    e.preventDefault(); // 기본 설치 배너 숨기기
+    deferredPrompt = e;
+    installButton.style.display = 'block'; // 커스텀 버튼 표시
 });
 
-// 페이지를 떠날 때 자동 저장
-window.addEventListener('beforeunload', () => {
-    saveLayoutSettings();
-});
-
-// 페이지 숨김/표시 시 저장 (모바일 브라우저 대응)
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        saveLayoutSettings();
+// 설치 버튼 클릭 이벤트
+installButton.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('User choice:', outcome);
+        if (outcome === 'accepted') {
+            console.log('User accepted install');
+        }
+        deferredPrompt = null;
+        installButton.style.display = 'none';
     }
+});
+
+// 이미 설치된 경우 버튼 숨기기
+window.addEventListener('appinstalled', () => {
+    console.log('PWA was installed');
+    installButton.style.display = 'none';
+    deferredPrompt = null;
+});
+
+// 설치 완료 후 처리
+window.addEventListener('appinstalled', (evt) => {
+    console.log('PWA was installed');
+    // 설치 완료 후 추가 로직
+});
+
+// 온라인/오프라인 상태 감지
+window.addEventListener('online', function() {
+    console.log('앱이 온라인 상태입니다.');
+});
+
+window.addEventListener('offline', function() {
+    console.log('앱이 오프라인 상태입니다.');
 });
 </script>
+
 </body>
 </html>
+
+
