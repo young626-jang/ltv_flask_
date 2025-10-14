@@ -2,6 +2,7 @@ services:
   - type: web
     name: ltv-calculator
     env: python
+    rootDir: LTV계산기프로젝트최종버전
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
