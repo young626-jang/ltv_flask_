@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Read(//d/코딩자료/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
