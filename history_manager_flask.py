@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # --- Notion API 설정 (환경변수 불필요, 코드에 직접 설정) ---
 # 환경변수 우선, 없으면 기본값 사용
-NOTION_TOKEN = "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"
+NOTION_TOKEN = "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"
 CUSTOMER_DB_ID = "20eebdf111b580ad9004c7e82d290cbc"
 LOAN_DB_ID = "210ebdf111b580c4a36fd9edbb0ff8ec"
 
@@ -528,5 +528,6 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
 
 
