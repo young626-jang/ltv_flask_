@@ -8,10 +8,10 @@ from utils import parse_korean_number
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
-# --- Notion API 설정 (환경 변수 사용) ---
-NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
-CUSTOMER_DB_ID = os.environ.get("CUSTOMER_DB_ID", "20eebdf111b580ad9004c7e82d290cbc")
-LOAN_DB_ID = os.environ.get("LOAN_DB_ID", "210ebdf111b580c4a36fd9edbb0ff8ec")
+# --- Notion API 설정 ---
+NOTION_TOKEN = os.getenv('NOTION_TOKEN', "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")
+CUSTOMER_DB_ID = os.getenv('CUSTOMER_DB_ID', "20eebdf111b580ad9004c7e82d290cbc")
+LOAN_DB_ID = os.getenv('LOAN_DB_ID', "210ebdf111b580c4a36fd9edbb0ff8ec")
 
 # Notion DB 속성 이름
 CUSTOMER_DB_TITLE_PROPERTY = "고객명"
@@ -295,11 +295,9 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "공유자 1 지분율": {
             "rich_text": [{"text": {"content": str(inputs.get("share_rate1", "")).strip()}}]
-            "number": parse_share_rate_for_save(inputs.get("share_rate1"))
         },
         "공유자 2 지분율": {
             "rich_text": [{"text": {"content": str(inputs.get("share_rate2", "")).strip()}}]
-            "number": parse_share_rate_for_save(inputs.get("share_rate2"))
         },
         "컨설팅금액": {
             "number": parse_korean_number(fees.get("consult_amt", "0"))
