@@ -56,11 +56,12 @@
                     <button class="btn md-btn md-btn-danger" id="delete-customer-btn" type="button" style="flex: 0 0 auto;">삭제</button>
                     <button class="btn md-btn md-btn-warning" type="button" id="reset-btn" style="flex: 0 0 auto;">🔄 새로고침</button>
                 </div>
-                <div class="form-check mt-2 d-flex justify-content-end">
+                <div class="form-check mt-2 d-flex justify-content-end align-items-center gap-2">
                     <input class="form-check-input" type="checkbox" id="hope-collateral-loan">
                     <label class="form-check-label" for="hope-collateral-loan">
                         희망담보대부 적용
                     </label>
+                    <button type="button" class="btn btn-sm md-btn md-btn-info" style="font-size: 12px; padding: 4px 8px;" onclick="openGuidePopup()">📖 가이드</button>
                 </div>
             </div>
 
@@ -85,7 +86,7 @@
 
                 <div class="row g-2 mb-2">
                     <div class="col-md-6"><label for="deduction_region">방공제 지역</label><select class="form-select form-field md-loan-select" id="deduction_region">
-                        <option value="0" selected>지역 선택...</option>
+                        <option value="">지역 선택...</option>
                         {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
                     </select></div>
                     <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
