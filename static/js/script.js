@@ -1735,14 +1735,12 @@ document.addEventListener('DOMContentLoaded', () => {
                }
                // 지역 선택 버튼 표시
                if (regionButtonsDiv) {
-                   regionButtonsDiv.style.display = 'flex';
-                   regionButtonsDiv.classList.remove('hidden');
+                   regionButtonsDiv.classList.add('active');
                }
            } else {
                // 희망담보대부 언체크 시 지역 선택 버튼 숨기기
                if (regionButtonsDiv) {
-                   regionButtonsDiv.style.display = 'none';
-                   regionButtonsDiv.classList.add('hidden');
+                   regionButtonsDiv.classList.remove('active');
                    // 모든 버튼에서 active 제거
                    regionButtonsDiv.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
                        btn.classList.remove('active');
