@@ -451,10 +451,15 @@ def calculate_principal_route():
 
 @app.route('/api/customers')
 def get_customers():
-    try: return jsonify(fetch_all_customers())
+    try:
+        customers = fetch_all_customers()
+        if customers is None:
+            return jsonify([])
+        return jsonify(customers)
     except Exception as e:
-        logger.error(f"고객 목록 조회 오류: {e}")
-        return jsonify({"error": "고객 목록을 불러올 수 없습니다."}), 500
+        logger.error(f"고객 목록 조회 오류: {e}", exc_info=True)
+        # 오류가 발생해도 빈 배열을 반환해서 UI가 깨지지 않도록
+        return jsonify([]), 200
         
 @app.route('/api/customer/<page_id>')
 def get_customer_details(page_id):
