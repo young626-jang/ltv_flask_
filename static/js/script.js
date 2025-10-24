@@ -1543,8 +1543,24 @@ function attachAllEventListeners() {
                 });
                 console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김');
             }
+            // 희망담보대부 조건 검증
+            validateHopeLoanConditions();
             triggerMemoGeneration();
         });
+    }
+
+    // 세대수 입력 시 희망담보대부 조건 검증
+    const unitCountField = document.getElementById('unit_count');
+    if (unitCountField) {
+        unitCountField.addEventListener('input', validateHopeLoanConditions);
+        unitCountField.addEventListener('change', validateHopeLoanConditions);
+    }
+
+    // KB시세 입력 시 희망담보대부 조건 검증
+    const kbPriceField = document.getElementById('kb_price');
+    if (kbPriceField) {
+        kbPriceField.addEventListener('input', validateHopeLoanConditions);
+        kbPriceField.addEventListener('blur', validateHopeLoanConditions);
     }
 
     // 희망담보대부 지역 선택 버튼 이벤트
@@ -1804,6 +1820,7 @@ document.addEventListener('DOMContentLoaded', () => {
    attachAllEventListeners();
    loadCustomerList();
    triggerMemoGeneration();
+   validateHopeLoanConditions(); // 페이지 로드 시 희망담보대부 조건 검증
    initializeResizeBar(); // 리사이즈 바 초기화 추가
    initializeDragAndDrop(); // 드래그앤드롭 초기화 추가
    setPdfColumnCompact(); // 페이지 로드 시 PDF 컬럼 컴팩트
@@ -1874,7 +1891,74 @@ function calculateBalloonLoan() {
 
     if (monthlyPrincipalEl) monthlyPrincipalEl.value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
     if (firstPaymentEl) firstPaymentEl.value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
-    if (breakdownEl) breakdownEl.textContent = 
+    if (breakdownEl) breakdownEl.textContent =
         `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
+}
+
+// 가이드 팝업 윈도우 열기
+function openGuidePopup() {
+    const guideUrl = 'https://young626-jang.github.io/heuimang-loan-consulting-guide/';
+    const popupWidth = 1000;
+    const popupHeight = 800;
+
+    // 화면 중앙에 팝업 위치 계산
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const left = (screenWidth - popupWidth) / 2;
+    const top = (screenHeight - popupHeight) / 2;
+
+    // 팝업 윈도우 열기
+    window.open(
+        guideUrl,
+        'guidePopup',
+        `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+    console.log('📖 가이드 팝업 열기:', guideUrl);
+}
+
+// 희망담보대부 조건 검증 (독립적인 두 조건)
+// 조건 1: 희망담보대부 체크 AND 세대수 < 100 → 세대수 필드 빨간색
+// 조건 2: 희망담보대부 체크 AND KB시세 < 3억 → KB시세 필드 빨간색
+function validateHopeLoanConditions() {
+    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+    const unitCountField = document.getElementById('unit_count');
+    const kbPriceField = document.getElementById('kb_price');
+
+    if (!hopeCheckbox || !unitCountField || !kbPriceField) return;
+
+    // 희망담보대부가 체크되어 있는지 확인
+    const isHopeChecked = hopeCheckbox.checked;
+
+    // 세대수와 KB시세 값 가져오기 (값이 입력되지 않으면 0)
+    const unitCount = parseInt(unitCountField.value) || 0;
+    const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
+
+    // 3억 = 30,000만 (KB시세는 만 단위)
+    const THREE_HUNDRED_MILLION = 30000;
+
+    // 조건 1: 희망담보대부 체크 AND 세대수 < 100
+    const shouldHighlightUnitCount = isHopeChecked && unitCount > 0 && unitCount < 100;
+
+    // 조건 2: 희망담보대부 체크 AND KB시세 < 3억 (30,000만)
+    const shouldHighlightKbPrice = isHopeChecked && kbPrice > 0 && kbPrice < THREE_HUNDRED_MILLION;
+
+    console.log(`🔍 희망담보대부 검증 - 체크: ${isHopeChecked}, 세대수: ${unitCount}, KB시세: ${kbPrice}`);
+    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}`);
+
+    // 세대수 필드 스타일 처리
+    if (shouldHighlightUnitCount) {
+        unitCountField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        console.log('🔴 경고: 세대수 조건 만족');
+    } else {
+        unitCountField.removeAttribute('style');
+    }
+
+    // KB시세 필드 스타일 처리
+    if (shouldHighlightKbPrice) {
+        kbPriceField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        console.log('🔴 경고: KB시세 조건 만족');
+    } else {
+        kbPriceField.removeAttribute('style');
+    }
 }
 
