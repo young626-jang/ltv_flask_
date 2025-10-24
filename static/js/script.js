@@ -84,35 +84,18 @@
     }
 
     // 등기 경고 표시 함수
-    function displayRegistrationWarning(ageCheck, transferDate) {
+    function displayRegistrationWarning(ageCheck) {
         const warningElement = document.getElementById('registration-warning');
         const titleElement = document.getElementById('warning-title');
         const messageElement = document.getElementById('warning-message');
         const datetimeElement = document.getElementById('warning-datetime');
-        const transferDateElement = document.getElementById('warning-transfer-date');
 
         if (!warningElement) {
             return;
         }
 
-        // 소유권 이전일 표시 (항상 표시)
-        if (transferDateElement && transferDate) {
-            transferDateElement.textContent = `소유권 이전일: ${transferDate}`;
-            transferDateElement.style.display = 'block';
-        } else if (transferDateElement) {
-            transferDateElement.style.display = 'none';
-        }
-
         if (!ageCheck) {
-            // ageCheck 데이터가 없지만 소유권 이전일이 있으면 표시
-            if (transferDate) {
-                warningElement.style.display = 'block';
-                titleElement.style.display = 'none';
-                messageElement.style.display = 'none';
-                datetimeElement.style.display = 'none';
-            } else {
-                warningElement.style.display = 'none';
-            }
+            warningElement.style.display = 'none';
             return;
         }
 
@@ -133,17 +116,7 @@
                 warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 300);
         } else {
-            // 오래된 등기는 아니지만 소유권 이전일은 표시
-            if (transferDate) {
-                titleElement.style.display = 'none';
-                messageElement.style.display = 'none';
-                datetimeElement.style.display = 'none';
-                warningElement.style.display = 'block';
-                warningElement.style.borderLeft = '4px solid #28a745';
-                warningElement.style.backgroundColor = '#f0f9f4';
-            } else {
-                warningElement.style.display = 'none';
-            }
+            warningElement.style.display = 'none';
         }
     }
     
@@ -1030,8 +1003,15 @@ async function handleFileUpload(file) {
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
 
-            // 등기 경고 표시 (오래된 등기인지 등) + 소유권 이전일 전달
-            displayRegistrationWarning(scraped.age_check, scraped.transfer_date);
+            // 등기 경고 표시 (오래된 등기인지 확인)
+            displayRegistrationWarning(scraped.age_check);
+
+            // 소유권이전일 필드 채우기
+            if (scraped.transfer_date) {
+                document.getElementById('ownership_transfer_date').value = scraped.transfer_date;
+            } else {
+                document.getElementById('ownership_transfer_date').value = '';
+            }
 
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
@@ -1443,9 +1423,22 @@ function attachAllEventListeners() {
 
     // 방공제 지역 선택 시 자동 금액 설정
     document.getElementById('deduction_region').addEventListener('change', (e) => {
-        document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
+        // 희망담보대부 적용 시 방공제 지역 선택 방지
+        const isHopeLoan = document.getElementById('hope-collateral-loan')?.checked || false;
+
+        if (isHopeLoan && e.target.value !== '0') {
+            // 경고 표시 후 자동으로 "방공제없음"으로 리셋
+            showCustomAlert("담보계산식에는 방공제가 없습니다. 방공제 없음으로 선택해주세요", () => {
+                e.target.value = '0';
+                document.getElementById('deduction_amount').value = '';
+                triggerMemoGeneration();
+            });
+            return;
+        }
+
+        document.getElementById('deduction_amount').value = e.target.value !== '0' ?
             parseInt(e.target.value).toLocaleString() : '';
-        checkTenantDeductionWarning(); 
+        checkTenantDeductionWarning();
         triggerMemoGeneration();
     });
 
@@ -1717,6 +1710,65 @@ document.addEventListener('DOMContentLoaded', () => {
        // 페이지 로드시에도 한번 실행
        parseCustomerNames();
    }
+
+   // 희망담보대부 체크박스 리스너 추가
+   const hopeCollateralCheckbox = document.getElementById('hope-collateral-loan');
+   if (hopeCollateralCheckbox) {
+       hopeCollateralCheckbox.addEventListener('change', () => {
+           const regionButtonsDiv = document.getElementById('hope-loan-region-buttons');
+
+           if (hopeCollateralCheckbox.checked) {
+               // 희망담보대부 체크 시 방공제를 "방공제없음"(value: 0)으로 자동 변경
+               const deductionRegionSelect = document.getElementById('deduction_region');
+               if (deductionRegionSelect) {
+                   deductionRegionSelect.value = '0';
+               }
+               // 지역 선택 버튼 표시
+               if (regionButtonsDiv) {
+                   regionButtonsDiv.style.display = 'flex';
+               }
+           } else {
+               // 희망담보대부 언체크 시 지역 선택 버튼 숨기기
+               if (regionButtonsDiv) {
+                   regionButtonsDiv.style.display = 'none';
+                   // 모든 버튼에서 active 제거
+                   regionButtonsDiv.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
+                       btn.classList.remove('active');
+                   });
+               }
+           }
+           validateKbPrice();
+           triggerMemoGeneration();
+       });
+   }
+
+   // 희망담보대부 지역 선택 버튼 리스너
+   const regionButtons = document.querySelectorAll('.hope-loan-region-btn');
+   regionButtons.forEach(button => {
+       button.addEventListener('click', () => {
+           // 모든 버튼에서 active 제거
+           regionButtons.forEach(btn => btn.classList.remove('active'));
+
+           // 클릭한 버튼에 active 추가
+           button.classList.add('active');
+
+           // LTV ① 값 변경
+           const ltv1Input = document.getElementById('ltv1');
+           const ltvValue = button.getAttribute('data-ltv');
+           if (ltv1Input && ltvValue) {
+               ltv1Input.value = ltvValue;
+           }
+
+           // 메모 재생성
+           triggerMemoGeneration();
+       });
+   });
+
+   // KB시세 필드에 blur 이벤트 추가 (검증)
+   const kbPriceInput = document.getElementById('kb_price');
+   if (kbPriceInput) {
+       kbPriceInput.addEventListener('blur', validateKbPrice);
+   }
 });
 
 // 페이지를 떠날 때 자동 저장
@@ -1770,7 +1822,25 @@ function calculateBalloonLoan() {
 
     if (monthlyPrincipalEl) monthlyPrincipalEl.value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
     if (firstPaymentEl) firstPaymentEl.value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
-    if (breakdownEl) breakdownEl.textContent = 
+    if (breakdownEl) breakdownEl.textContent =
         `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
+}
+
+// ✨ 희망담보대부 KB시세 검증 함수
+function validateKbPrice() {
+    const isHopeLoan = document.getElementById('hope-collateral-loan')?.checked || false;
+    const kbPriceInput = document.getElementById('kb_price');
+
+    if (!kbPriceInput) return;
+
+    // 입력값을 만원 단위로 파싱
+    const kbPriceValue = parseAdvancedAmount(kbPriceInput.value);
+
+    // 희망담보대부 체크 + KB시세 < 3억(30000만원)인 경우 빨간색 표시
+    if (isHopeLoan && kbPriceValue > 0 && kbPriceValue < 30000) {
+        kbPriceInput.classList.add('kb-price-warning');
+    } else {
+        kbPriceInput.classList.remove('kb-price-warning');
+    }
 }
 
