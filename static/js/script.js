@@ -89,33 +89,24 @@
         const titleElement = document.getElementById('warning-title');
         const messageElement = document.getElementById('warning-message');
         const datetimeElement = document.getElementById('warning-datetime');
-
-        if (!warningElement) {
+        
+        if (!ageCheck || !warningElement) {
             return;
         }
-
-        if (!ageCheck) {
-            warningElement.style.display = 'none';
-            return;
-        }
-
+        
         if (ageCheck.is_old) {
             // 경고 표시
-            titleElement.style.display = 'block';
-            messageElement.style.display = 'block';
-            datetimeElement.style.display = 'block';
             titleElement.textContent = '⚠️ 주의: 오래된 등기 데이터';
             messageElement.textContent = `이 등기는 ${ageCheck.age_days}일 전 데이터입니다 (한 달 이상 경과)`;
             datetimeElement.textContent = `열람일시: ${ageCheck.viewing_date || '-'}`;
             warningElement.style.display = 'block';
-            warningElement.style.borderLeft = '4px solid #dc3545';
-            warningElement.style.backgroundColor = '#fff5f5';
-
+            
             // 자동 스크롤하여 경고가 보이도록
             setTimeout(() => {
                 warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 300);
         } else {
+            // 경고 숨김
             warningElement.style.display = 'none';
         }
     }
@@ -358,52 +349,11 @@
             <div class="loan-col loan-col-lender">
                 <div class="mobile-label">설정자</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" placeholder="설정자" value="${loan.lender || ''}">
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#007bff">
-    <meta name="description" content="부동산 LTV 계산 및 메모 생성 도구">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="LTV계산기">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title> 부동산 LTV 계산 및 메모 생성 도구 : 만든사람 장서영</title>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/69/69524.png" type="image/png">
-    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-
-<div class="main-container" id="main-layout-wrapper">
-    <div class="pdf-viewer-column" id="pdf-column">
-        <div id="upload-section">
-            <div class="upload-content">
-                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 6rem; color: #6c757d;"></i>
-                <h3 class="mt-4">PDF 파일을 드래그 앤 드롭 또는 클릭</h4>
-                <p class="text-muted" id="upload-text">등기부등본 파일을 올려주시면 주요 정보가 자동 입력됩니다.</p>
-                <div id="upload-spinner" class="spinner-border mt-3" role="status" style="display: none;"></div>
-</div>
+            </div>
             <div class="loan-col loan-col-max-amount">
                 <div class="mobile-label">채권최고액(만)</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field manwon-format md-loan-input" name="max_amount" placeholder="채권최고액(만)" value="${formatValue(loan.max_amount)}">
-        </div>
-        <input type="file" id="file-input" accept=".pdf">
-        <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
-            <div class="d-flex justify-content-between align-items-center mb-0 flex-shrink-0" style="padding: 0.25rem 0;">
-                <h6 id="file-name-display" class="mb-0 small text-muted"></h6>
-                <button class="btn btn-sm md-btn md-btn-secondary" id="reupload-btn" type="button" style="font-size: 12px; padding: 4px 8px;">📄 등기 재업로드</button>
-</div>
+            </div>
             <div class="loan-col loan-col-ratio">
                 <div class="mobile-label">비율(%)</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="ratio" placeholder="비율(%)" value="${loan.ratio || '120'}">
@@ -428,28 +378,8 @@
                 <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
                     <button type="button" class="md-btn md-btn-secondary" onclick="addLoanItem()" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">+</button>
                     <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
-            <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
-        </div>
-    </div>
-
-    <div class="resize-bar" id="resize-bar"></div>
-
-    <div class="form-column" id="form-column-wrapper">
-        <div class="p-0">
-            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="d-flex gap-2 mb-0 align-items-center">
-                    <select class="form-select md-input" id="customer-history" style="flex: 2;"><option value="" selected>기존 고객 불러오기...</option></select>
-                    <button class="btn md-btn md-btn-primary" id="load-customer-btn" type="button" style="flex: 0 0 auto;">불러오기</button>
-                    <button class="btn md-btn md-btn-danger" id="delete-customer-btn" type="button" style="flex: 0 0 auto;">삭제</button>
-                    <button class="btn md-btn md-btn-warning" type="button" id="reset-btn" style="flex: 0 0 auto;">✨ 전체 초기화</button>
                 </div>
-                <div class="form-check mt-2 d-flex justify-content-end">
-                    <input class="form-check-input" type="checkbox" id="hope-collateral-loan">
-                    <label class="form-check-label" for="hope-collateral-loan">
-                        희망담보대부 적용
-                    </label>
-</div>
-</div>
+            </div>
         </div>`;
     }
 
@@ -696,6 +626,7 @@ function collectAllData() {
     }));
 
     // return 구문 바깥에서 변수를 먼저 선언합니다.
+    // 고객명 & 생년월일을 함께 수집 (기존 입력 필드에는 이름과 생년월일이 함께 들어있음)
     const name1 = document.getElementById('customer_name').value.trim();
     const name2 = document.getElementById('customer_name_2').value.trim();
     
@@ -1064,17 +995,8 @@ async function handleFileUpload(file) {
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
 
-            // 등기 경고 표시 (오래된 등기인지 확인)
+            // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
-
-            // 소유권이전일 필드 채우기
-            if (scraped.transfer_date) {
-                document.getElementById('ownership_transfer_date').value = scraped.transfer_date;
-            } else {
-                document.getElementById('ownership_transfer_date').value = '';
-            }
-            // 소유권이전일 검증 (3개월 미만 시 빨간색 표시)
-            validateOwnershipTransferDate();
 
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
@@ -1141,17 +1063,6 @@ async function handleFileUpload(file) {
         } else { 
             alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
         }
-            <!-- 등기 경고 영역 -->
-            <div id="registration-warning" class="alert alert-warning" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
-                    <div>
-                        <div class="fw-bold text-danger" id="warning-title">⚠️ 주의: 오래된 등기 데이터</div>
-                        <div class="small" id="warning-message">이 등기는 오래된 데이터입니다</div>
-                        <div class="small text-muted" id="warning-datetime">열람일시: -</div>
-                    </div>
-                </div>
-            </div>
 
     } catch (error) {
         alert(`업로드 중 오류가 발생했습니다: ${error.message}`);
@@ -1159,12 +1070,6 @@ async function handleFileUpload(file) {
         spinner.style.display = 'none';
     }
 }
-            <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
-                <div class="row g-2 mb-2">
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name" placeholder="공유자 1 고객명 & 생년월일"></div>
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name_2" placeholder="공유자 2 고객명 & 생년월일"></div>
-                </div>
 
     // 레이아웃 토글
     function toggleLayout() {
@@ -1173,13 +1078,6 @@ async function handleFileUpload(file) {
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
         if (!mainContainer || !btn || !pdfColumn || !formColumn) return;
-                <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="deduction_region">방공제 지역</label><select class="form-select form-field md-loan-select" id="deduction_region">
-                        <option value="0" selected>지역 선택...</option>
-                        {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
-                    </select></div>
-                    <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
-                </div>
 
         mainContainer.classList.toggle('horizontal-mode');
         const isHorizontal = mainContainer.classList.contains('horizontal-mode');
@@ -1211,13 +1109,6 @@ async function handleFileUpload(file) {
             initializeResizeBar();
         }, 100);
     }
-                <div class="row g-2 mb-2">
-                    <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB 시세(만)"></div>
-                    <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공제(만)"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="ownership_transfer_date" placeholder="소유권이전일"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="unit_count" placeholder="세대수"></div>
-                </div>
 
     // 전체 초기화
     function clearAllFields() {
@@ -1278,12 +1169,6 @@ async function handleFileUpload(file) {
             if (ltv1 && ltv1.trim()) ltvRates.push(parseFloat(ltv1));
             if (ltv2 && ltv2.trim()) ltvRates.push(parseFloat(ltv2));
             if (ltvRates.length === 0) ltvRates.push(70); // 기본값
-                <!-- 희망담보대부 지역 선택 버튼 -->
-                <div id="hope-loan-region-buttons" class="d-flex gap-2 mb-2" style="display: none;">
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="서울" data-ltv="80">서울</button>
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="경기" data-ltv="75">경기</button>
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="인천" data-ltv="70">인천</button>
-                </div>
 
             // 대출 데이터 수집
             let loans = [];
@@ -1304,7 +1189,6 @@ async function handleFileUpload(file) {
                     type: loanType
                 });
             });
-                <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB시세</a><a href="https://rtech.or.kr/main/main.do" target="_blank" class="btn md-btn flex-fill" style="background-color: #422057; color: white; border-color: #422057;">부동산테크</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">하우스머치</a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn flex-fill" style="background-color: #4a5dc6; color: white; border-color: #4a5dc6;">인터넷등기소</a></div>
 
             // 소유자 데이터 수집
             const nameField = document.getElementById(`share-customer-name-${ownerIdx}`);
@@ -1334,39 +1218,11 @@ async function handleFileUpload(file) {
                 showCustomAlert("지분율을 선택해주세요");
                 return;
             }
-            </div>
-
+            
             let owners = [{
                 "이름": nameField.value,
                 "지분율": `${sharePercent}%`
             }];
-            <!-- LTV 비율을 탭 밖으로 노출 -->
-            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem;">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="ltv1" class="mb-0" style="white-space: nowrap;">📊 LTV 비율 ①</label>
-                            <div class="d-flex gap-1">
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', -5)">-</button>
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', 5)">+</button>
-                                <input type="text" class="form-control form-field text-center md-input" id="ltv1" value="80" style="flex: 1;">
-                                <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('ltv1')">×</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="ltv2" class="mb-0" style="white-space: nowrap;">📊 LTV 비율 ②</label>
-                            <div class="d-flex gap-1">
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv2', -5)">-</button>
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv2', 5)">+</button>
-                                <input type="text" class="form-control form-field text-center md-input" id="ltv2" value="" style="flex: 1;">
-                                <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('ltv2')">×</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             // 기존 지분 계산 메모 제거
             let currentMemo = document.getElementById('generated-memo').value;
@@ -1390,17 +1246,6 @@ async function handleFileUpload(file) {
                     owners: owners,
                     loan_type: loanTypeInfo
                 };
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
-                    <li class="nav-item" role="presentation">
-                      <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
-                        지분 한도 계산기
-                      </button>
-                    </li>
-                </ul>
-            </div>
 
                 const res = await fetch("/api/calculate_individual_share", {
                     method: "POST",
@@ -1448,63 +1293,7 @@ async function handleFileUpload(file) {
                     if (available !== null && available !== undefined) {
                         memoLine += ` 가용 ${available.toLocaleString()}만`;
                     }
-            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0;">
-                <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
-                    <div class="row g-2">
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설팅(만)"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="(%)"></div>
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="브릿지(만)"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="(%)"></div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="대출금액 (만원)">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="연이율 (%)">
-                        </div>
-                    </div>
-                    <div class="row g-3 mt-3">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-daily-result" placeholder="하루 이자 (원)" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-monthly-result" placeholder="한달 이자 (원)" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-yearly-result" placeholder="1년 이자 (원)" readonly>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h6 class="mb-3 text-success">원금 분할·만기일시 대출 계산기</h6>
-                    <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <input type="number" class="form-control md-input" id="balloon-principal-pct" placeholder="분할율 (%)" min="0" max="100" step="0.1">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="number" class="form-control md-input" id="balloon-months" placeholder="개월수" min="1" step="1">
-                        </div>
-                    </div>
-
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" placeholder="매월 원금" readonly>
-                            <small class="text-muted">예) 3억, 7%, 60개월 → 350,000원</small>
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" placeholder="첫 달 납입액 (원금 0 + 이자 0)" readonly>
-                            <small class="text-muted" id="balloon-first-breakdown"></small>
-                        </div>
-                    </div>
-                </div>
-                <!-- ====================================================== -->
-                <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
-                <!-- ====================================================== -->
-                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
-
+                    
                     individualShareMemo += memoLine;
                     // --- ### 여기까지 수정 ### ---
                 }
@@ -1582,15 +1371,7 @@ function attachAllEventListeners() {
         autoCalculateShareRatio(2, 1);
         calculateIndividualShare();
     });
-
-    // 소유권이전일 필드 검증
-    document.getElementById('ownership_transfer_date')?.addEventListener('change', validateOwnershipTransferDate);
-    document.getElementById('ownership_transfer_date')?.addEventListener('blur', validateOwnershipTransferDate);
-
-    // 세대수 필드 검증
-    document.getElementById('unit_count')?.addEventListener('change', validateUnitCount);
-    document.getElementById('unit_count')?.addEventListener('blur', validateUnitCount);
-
+    
     const loanAmountInput = document.getElementById('interest-loan-amount');
     const annualRateInput = document.getElementById('interest-annual-rate');
     const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
@@ -1627,71 +1408,11 @@ function attachAllEventListeners() {
 
     // 방공제 지역 선택 시 자동 금액 설정
     document.getElementById('deduction_region').addEventListener('change', (e) => {
-        // 희망담보대부 적용 시 방공제 지역 선택 방지
-        const isHopeLoan = document.getElementById('hope-collateral-loan')?.checked || false;
-
-        if (isHopeLoan && e.target.value !== '0') {
-            // 경고 표시 후 자동으로 "방공제없음"으로 리셋
-            showCustomAlert("담보계산식에는 방공제가 없습니다. 방공제 없음으로 선택해주세요", () => {
-                e.target.value = '0';
-                document.getElementById('deduction_amount').value = '';
-                triggerMemoGeneration();
-            });
-            return;
-        }
-                    <!-- 공유자 1 정보 입력 -->
-                    <div class="row mb-2 align-items-center g-2">
-                        <div class="col-auto">
-                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3);">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="공유자 1 고객명 & 생년월일">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-birth-1" placeholder="지분율">
-                        </div>
-                    </div>
-
-                    <!-- 공유자 2 정보 입력 -->
-                    <div class="row mb-2 align-items-center g-2">
-                        <div class="col-auto">
-                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3);">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="공유자 1 고객명 & 생년월일">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder="지분율">
-                        </div>
-                    </div>
-                </div>
-                <!-- ====================================================== -->
-                <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
-                <!-- ====================================================== -->
-            </div>                
-            
-            <!-- ✅ 공통 대출항목 영역 -->
-            <div id="loan-section" class="mt-3" style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
-                <div id="loan-items-container"></div>
-            </div>
-
-        document.getElementById('deduction_amount').value = e.target.value !== '0' ?
+        document.getElementById('deduction_amount').value = e.target.value !== '0' ? 
             parseInt(e.target.value).toLocaleString() : '';
-        checkTenantDeductionWarning();
+        checkTenantDeductionWarning(); 
         triggerMemoGeneration();
     });
-            <hr class="my-2">
-            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <textarea class="form-control md-input" id="generated-memo" rows="15" placeholder="입력/수정 시 잠시 후 실시간으로 요약 메모를 업데이트합니다..."></textarea>
-            </div>
-            
-            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
-                <div class="d-grid gap-2 d-md-flex">
-                    <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary me-auto"><i class="bi bi-distribute-horizontal"></i> 가로 모드</button>
-                    <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
-                    <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
-                </div>
-            </div>
 
     // 방공제 금액 수기 입력 시 지역 선택 확인
     document.getElementById('deduction_amount').addEventListener('input', (e) => {
@@ -1703,25 +1424,11 @@ function attachAllEventListeners() {
             showCustomAlert("방공제지역을 선택하여 주세요", () => {
                 // 확인/닫기 버튼 클릭 시 포커스를 지역 선택으로 이동
                 deductionRegionSelect.focus();
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
-
-<script>
-// PWA Service Worker 등록
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js')
-            .then(function(registration) {
-                console.log('Service Worker registered successfully:', registration);
-            })
-            .catch(function(error) {
-                console.log('Service Worker registration failed:', error);
-});
+            });
         }
         
         triggerMemoGeneration();
-});
-}
+    });
 
     document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
        field.addEventListener('change', triggerMemoGeneration);
@@ -1890,21 +1597,6 @@ if ('serviceWorker' in navigator) {
             saveLayoutSettings();
         });
     }
-// PWA 설치 프롬프트 처리
-let deferredPrompt;
-const installButton = document.createElement('button');
-installButton.innerHTML = '📱 앱 설치';
-installButton.className = 'btn btn-primary btn-sm position-fixed';
-installButton.style.cssText = 'top: 10px; right: 10px; z-index: 1000; display: none; border-radius: 20px; padding: 5px 15px; font-size: 12px;';
-installButton.id = 'install-button';
-document.body.appendChild(installButton);
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('PWA install prompt triggered');
-    e.preventDefault(); // 기본 설치 배너 숨기기
-    deferredPrompt = e;
-    installButton.style.display = 'block'; // 커스텀 버튼 표시
-});
 
     // ✨ LTV 비율 조정 함수들
     function adjustLtvValue(inputId, change) {
@@ -1922,15 +1614,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
             }
             triggerMemoGeneration();
             return;
-// 설치 버튼 클릭 이벤트
-installButton.addEventListener('click', async () => {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log('User choice:', outcome);
-        if (outcome === 'accepted') {
-            console.log('User accepted install');
-}
+        }
         
         let newValue = currentValue + change;
         
@@ -1945,9 +1629,7 @@ installButton.addEventListener('click', async () => {
         const input = document.getElementById(inputId);
         input.value = '';
         triggerMemoGeneration();
-        deferredPrompt = null;
-        installButton.style.display = 'none';
-}
+    }
 
 // 고객명 & 생년월일 자동 파싱 기능
 function parseCustomerNames() {
@@ -2000,76 +1682,11 @@ document.addEventListener('DOMContentLoaded', () => {
        // 페이지 로드시에도 한번 실행
        parseCustomerNames();
    }
-
-   // 희망담보대부 체크박스 리스너 추가
-   const hopeCollateralCheckbox = document.getElementById('hope-collateral-loan');
-   if (hopeCollateralCheckbox) {
-       hopeCollateralCheckbox.addEventListener('change', () => {
-           const regionButtonsDiv = document.getElementById('hope-loan-region-buttons');
-
-           if (hopeCollateralCheckbox.checked) {
-               // 희망담보대부 체크 시 방공제를 "방공제없음"(value: 0)으로 자동 변경
-               const deductionRegionSelect = document.getElementById('deduction_region');
-               if (deductionRegionSelect) {
-                   deductionRegionSelect.value = '0';
-               }
-               // 지역 선택 버튼 표시
-               if (regionButtonsDiv) {
-                   regionButtonsDiv.classList.add('active');
-               }
-           } else {
-               // 희망담보대부 언체크 시 지역 선택 버튼 숨기기
-               if (regionButtonsDiv) {
-                   regionButtonsDiv.classList.remove('active');
-                   // 모든 버튼에서 active 제거
-                   regionButtonsDiv.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
-                       btn.classList.remove('active');
-                   });
-               }
-           }
-           validateKbPrice();
-           validateUnitCount();
-           triggerMemoGeneration();
-       });
-   }
-
-   // 희망담보대부 지역 선택 버튼 리스너
-   const regionButtons = document.querySelectorAll('.hope-loan-region-btn');
-   regionButtons.forEach(button => {
-       button.addEventListener('click', () => {
-           // 모든 버튼에서 active 제거
-           regionButtons.forEach(btn => btn.classList.remove('active'));
-
-           // 클릭한 버튼에 active 추가
-           button.classList.add('active');
-
-           // LTV ① 값 변경
-           const ltv1Input = document.getElementById('ltv1');
-           const ltvValue = button.getAttribute('data-ltv');
-           if (ltv1Input && ltvValue) {
-               ltv1Input.value = ltvValue;
-           }
-
-           // 메모 재생성
-           triggerMemoGeneration();
-       });
-   });
-
-   // KB시세 필드에 blur 이벤트 추가 (검증)
-   const kbPriceInput = document.getElementById('kb_price');
-   if (kbPriceInput) {
-       kbPriceInput.addEventListener('blur', validateKbPrice);
-   }
 });
 
 // 페이지를 떠날 때 자동 저장
 window.addEventListener('beforeunload', () => {
     saveLayoutSettings();
-// 이미 설치된 경우 버튼 숨기기
-window.addEventListener('appinstalled', () => {
-    console.log('PWA was installed');
-    installButton.style.display = 'none';
-    deferredPrompt = null;
 });
 
 // 페이지 숨김/표시 시 저장 (모바일 브라우저 대응)
@@ -2077,21 +1694,9 @@ document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         saveLayoutSettings();
     }
-// 설치 완료 후 처리
-window.addEventListener('appinstalled', (evt) => {
-    console.log('PWA was installed');
-    // 설치 완료 후 추가 로직
 });
 
-// 온라인/오프라인 상태 감지
-window.addEventListener('online', function() {
-    console.log('앱이 온라인 상태입니다.');
-});
 
-window.addEventListener('offline', function() {
-    console.log('앱이 오프라인 상태입니다.');
-});
-</script>
 
 // ✨ 원금 분할 계산기 함수들
 function formatNumberWithCommas(value) {
@@ -2130,86 +1735,7 @@ function calculateBalloonLoan() {
 
     if (monthlyPrincipalEl) monthlyPrincipalEl.value = Math.round(monthlyPrincipal).toLocaleString() + ' 원';
     if (firstPaymentEl) firstPaymentEl.value = Math.round(firstMonthPayment).toLocaleString() + ' 원';
-    if (breakdownEl) breakdownEl.textContent =
+    if (breakdownEl) breakdownEl.textContent = 
         `(원금 ${Math.round(monthlyPrincipal).toLocaleString()} + 이자 ${Math.round(firstMonthInterest).toLocaleString()})`;
 }
 
-// ✨ 희망담보대부 KB시세 검증 함수
-function validateKbPrice() {
-    const isHopeLoan = document.getElementById('hope-collateral-loan')?.checked || false;
-    const kbPriceInput = document.getElementById('kb_price');
-
-    if (!kbPriceInput) return;
-
-    // 입력값을 만원 단위로 파싱
-    const kbPriceValue = parseAdvancedAmount(kbPriceInput.value);
-
-    // 희망담보대부 체크 + KB시세 < 3억(30000만원)인 경우 빨간색 표시
-    if (isHopeLoan && kbPriceValue > 0 && kbPriceValue < 30000) {
-        kbPriceInput.classList.add('kb-price-warning');
-    } else {
-        kbPriceInput.classList.remove('kb-price-warning');
-    }
-}
-
-// ✨ 소유권이전일 검증 함수 - 3개월 미만일 경우 빨간색 표시
-function validateOwnershipTransferDate() {
-    const ownershipTransferInput = document.getElementById('ownership_transfer_date');
-
-    if (!ownershipTransferInput || !ownershipTransferInput.value.trim()) {
-        ownershipTransferInput?.classList.remove('ownership-transfer-warning');
-        return;
-    }
-
-    try {
-        // "YYYY-MM-DD" 형식의 문자열을 Date 객체로 변환
-        const transferDate = new Date(ownershipTransferInput.value);
-        const currentDate = new Date();
-
-        // 경과한 일수 계산
-        const timeDiff = currentDate - transferDate;
-        const daysPassed = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-
-        // 3개월(90일) 미만인 경우 경고 표시
-        if (daysPassed < 90) {
-            ownershipTransferInput.classList.add('ownership-transfer-warning');
-        } else {
-            ownershipTransferInput.classList.remove('ownership-transfer-warning');
-        }
-    } catch (error) {
-        // 날짜 파싱 오류 시 경고 제거
-        ownershipTransferInput.classList.remove('ownership-transfer-warning');
-    }
-}
-
-// ✨ 세대수 검증 함수 - 희망담보대부 체크 + 세대수 < 100일 경우 빨간색 표시
-function validateUnitCount() {
-    const isHopeLoan = document.getElementById('hope-collateral-loan')?.checked || false;
-    const unitCountInput = document.getElementById('unit_count');
-
-    if (!unitCountInput) return;
-
-    // 희망담보대부 미체크 상태면 경고 제거
-    if (!isHopeLoan) {
-        unitCountInput.classList.remove('unit-count-warning');
-        return;
-    }
-
-    // 입력값이 없으면 경고 제거
-    if (!unitCountInput.value.trim()) {
-        unitCountInput.classList.remove('unit-count-warning');
-        return;
-    }
-
-    // 입력값을 숫자로 파싱
-    const unitCount = parseInt(unitCountInput.value.replace(/,/g, '')) || 0;
-</body>
-</html>
-
-    // 희망담보대부 체크 + 세대수 < 100인 경우 빨간색 표시
-    if (isHopeLoan && unitCount > 0 && unitCount < 100) {
-        unitCountInput.classList.add('unit-count-warning');
-    } else {
-        unitCountInput.classList.remove('unit-count-warning');
-    }
-}
