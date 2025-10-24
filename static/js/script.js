@@ -1531,6 +1531,12 @@ function attachAllEventListeners() {
             if (e.target.checked) {
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
+                // 방공제 없음으로 자동 선택
+                const deductionRegionField = document.getElementById('deduction_region');
+                if (deductionRegionField) {
+                    deductionRegionField.value = '0';
+                    console.log('💰 방공제 지역 - "방공제없음"으로 자동 선택');
+                }
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
             } else {
                 // 체크 해제되면 지역 버튼 숨김
