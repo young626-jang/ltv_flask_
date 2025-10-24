@@ -1032,3 +1032,101 @@
         .loan-col-principal { flex: 1 1 15%; min-width: 90px; }
         .loan-col-status { flex: 1 1 12%; min-width: 80px; }
         .loan-col-action { flex: 0 0 40px; display: flex; justify-content: flex-end; }
+
+        /* 희망담보대부 KB시세 경고 스타일 */
+        .kb-price-warning {
+            background-color: #ff6b6b !important;
+            color: white;
+            border-color: #c92a2a !important;
+            font-weight: 600;
+        }
+
+        .kb-price-warning::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .kb-price-warning:focus {
+            background-color: #ff5252 !important;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
+        }
+
+        .ownership-transfer-warning {
+            background-color: #ff6b6b !important;
+            color: white;
+            border-color: #c92a2a !important;
+            font-weight: 600;
+        }
+
+        .ownership-transfer-warning::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .ownership-transfer-warning:focus {
+            background-color: #ff5252 !important;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
+        }
+
+        .unit-count-warning {
+            background-color: #ff6b6b !important;
+            color: white;
+            border-color: #c92a2a !important;
+            font-weight: 600;
+        }
+
+        .unit-count-warning::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .unit-count-warning:focus {
+            background-color: #ff5252 !important;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
+        }
+
+        /* 희망담보대부 지역 선택 버튼 스타일 */
+        #hope-loan-region-buttons {
+            display: none !important;
+        }
+
+        #hope-loan-region-buttons:not(.hidden) {
+            display: flex !important;
+        }
+
+        .hope-loan-region-btn {
+            flex: 1;
+            background-color: #f0f0f0;
+            color: #333;
+            border: 2px solid #666;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hope-loan-region-btn:hover {
+            background-color: #e0e0e0;
+            border-color: #555;
+        }
+
+        .hope-loan-region-btn.active {
+            background-color: #9CC3D5;
+            color: #0063B2;
+            border-color: #9CC3D5;
+        }
+
+        .hope-loan-region-btn.active:hover {
+            background-color: #8ab4c8;
+            border-color: #8ab4c8;
+        }
+
+        /* 희망담보대부 체크박스 테두리 굵게 */
+        #hope-collateral-loan {
+            border: 2px solid #333 !important;
+            cursor: pointer;
+        }
+
+        #hope-collateral-loan:focus {
+            border-color: #333 !important;
+            box-shadow: 0 0 0 0.2rem rgba(51, 51, 51, 0.25);
+        }
+
