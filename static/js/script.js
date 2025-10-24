@@ -130,9 +130,8 @@
 
         // 날짜가 없으면 스타일 초기화
         if (!dateString || dateString.trim() === '') {
-            field.style.backgroundColor = '';
-            field.style.borderColor = '';
-            field.style.borderWidth = '';
+            field.removeAttribute('style');
+            field.classList.remove('red-highlight');
             return;
         }
 
@@ -145,29 +144,27 @@
                 return;
             }
 
-            const today = new Date();
-
             // 3개월 전 날짜
             const threeMonthsAgo = new Date();
             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
+            console.log(`📅 소유권이전일: ${dateString}, 3개월 이전: ${threeMonthsAgo.toISOString().split('T')[0]}`);
+
             // 소유권이전일이 3개월 이내면 빨강색
             if (transferDate >= threeMonthsAgo) {
-                field.style.backgroundColor = '#ffcccc';
-                field.style.borderColor = '#ff0000';
-                field.style.borderWidth = '2px';
-                console.log('3개월 이내 - 빨강색 적용됨:', dateString);
+                // CSS를 직접 적용해서 다른 스타일을 덮어씌운다
+                field.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                field.classList.add('red-highlight');
+                console.log('🔴 3개월 이내 - 빨강색 적용됨:', dateString);
             } else {
-                field.style.backgroundColor = '';
-                field.style.borderColor = '';
-                field.style.borderWidth = '';
-                console.log('3개월 이상 - 스타일 제거됨:', dateString);
+                field.removeAttribute('style');
+                field.classList.remove('red-highlight');
+                console.log('⚪ 3개월 이상 - 스타일 제거됨:', dateString);
             }
         } catch (e) {
             console.error('날짜 색상 체크 중 오류:', e);
-            field.style.backgroundColor = '';
-            field.style.borderColor = '';
-            field.style.borderWidth = '';
+            field.removeAttribute('style');
+            field.classList.remove('red-highlight');
         }
     }
 
@@ -1523,6 +1520,59 @@ function attachAllEventListeners() {
             console.log('📄 페이지 로드 - ownership_transfer_date 색상 체크:', transferDateField.value);
             checkTransferDateColor(transferDateField.value);
         }
+    });
+
+    // 희망담보대부 적용 체크박스 이벤트
+    const hopeCollateralCheckbox = document.getElementById('hope-collateral-loan');
+    const regionButtonsDiv = document.getElementById('hope-loan-region-buttons');
+
+    if (hopeCollateralCheckbox) {
+        hopeCollateralCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // 체크 되면 지역 버튼 표시
+                regionButtonsDiv.style.display = 'flex';
+                console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
+            } else {
+                // 체크 해제되면 지역 버튼 숨김
+                regionButtonsDiv.style.display = 'none';
+                // 버튼 스타일 초기화
+                document.querySelectorAll('.hope-loan-region-btn').forEach(b => {
+                    b.style.backgroundColor = '';
+                    b.style.color = '';
+                    b.style.borderColor = '';
+                });
+                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김');
+            }
+            triggerMemoGeneration();
+        });
+    }
+
+    // 희망담보대부 지역 선택 버튼 이벤트
+    document.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const ltv = e.target.getAttribute('data-ltv');
+            const region = e.target.getAttribute('data-region');
+
+            // LTV 값 변경
+            document.getElementById('ltv1').value = ltv;
+            console.log(`🌍 지역 선택: ${region} (LTV: ${ltv}%)`);
+
+            // 모든 버튼 스타일 초기화
+            document.querySelectorAll('.hope-loan-region-btn').forEach(b => {
+                b.style.backgroundColor = '';
+                b.style.color = '';
+                b.style.borderColor = '';
+            });
+
+            // 클릭된 버튼에만 스타일 적용
+            e.target.style.backgroundColor = '#9CC3D5';
+            e.target.style.color = '#0063B2';
+            e.target.style.borderColor = '#9CC3D5';
+
+            // LTV 변경으로 인한 계산 트리거
+            calculateIndividualShare();
+            triggerMemoGeneration();
+        });
     });
 
 } // <--- 이 닫는 괄호가 핵심입니다.
