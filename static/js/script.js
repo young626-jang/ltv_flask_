@@ -1530,11 +1530,11 @@ function attachAllEventListeners() {
         hopeCollateralCheckbox.addEventListener('change', (e) => {
             if (e.target.checked) {
                 // 체크 되면 지역 버튼 표시
-                regionButtonsDiv.style.display = 'flex';
+                regionButtonsDiv.style.cssText = 'display: flex !important;';
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
             } else {
                 // 체크 해제되면 지역 버튼 숨김
-                regionButtonsDiv.style.display = 'none';
+                regionButtonsDiv.style.cssText = 'display: none !important;';
                 // 버튼 스타일 초기화
                 document.querySelectorAll('.hope-loan-region-btn').forEach(b => {
                     b.style.backgroundColor = '';
