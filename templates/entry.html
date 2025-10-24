@@ -54,7 +54,7 @@
                     <select class="form-select md-input" id="customer-history" style="flex: 2;"><option value="" selected>기존 고객 불러오기...</option></select>
                     <button class="btn md-btn md-btn-primary" id="load-customer-btn" type="button" style="flex: 0 0 auto;">불러오기</button>
                     <button class="btn md-btn md-btn-danger" id="delete-customer-btn" type="button" style="flex: 0 0 auto;">삭제</button>
-                    <button class="btn md-btn md-btn-warning" type="button" id="reset-btn" style="flex: 0 0 auto;">✨ 전체 초기화</button>
+                    <button class="btn md-btn md-btn-warning" type="button" id="reset-btn" style="flex: 0 0 auto;">🔄 새로고침</button>
                 </div>
                 <div class="form-check mt-2 d-flex justify-content-end">
                     <input class="form-check-input" type="checkbox" id="hope-collateral-loan">
@@ -100,7 +100,7 @@
                 </div>
 
                 <!-- 희망담보대부 지역 선택 버튼 -->
-                <div id="hope-loan-region-buttons" class="d-flex gap-2 mb-2" style="display: none;">
+                <div id="hope-loan-region-buttons" class="d-flex gap-2 mb-2" style="display: none !important;">
                     <button type="button" class="btn md-btn hope-loan-region-btn" data-region="서울" data-ltv="80">서울</button>
                     <button type="button" class="btn md-btn hope-loan-region-btn" data-region="경기" data-ltv="75">경기</button>
                     <button type="button" class="btn md-btn hope-loan-region-btn" data-region="인천" data-ltv="70">인천</button>
@@ -328,5 +328,4 @@ window.addEventListener('offline', function() {
 
 </body>
 </html>
-
 
