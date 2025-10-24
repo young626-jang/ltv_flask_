@@ -119,6 +119,58 @@
         }
     }
 
+    // 소유권이전일이 3개월 미만인 경우 빨강색으로 표시
+    function checkTransferDateColor(dateString) {
+        const field = document.getElementById('ownership_transfer_date');
+
+        if (!field) {
+            console.warn('ownership_transfer_date 필드를 찾을 수 없습니다');
+            return;
+        }
+
+        // 날짜가 없으면 스타일 초기화
+        if (!dateString || dateString.trim() === '') {
+            field.style.backgroundColor = '';
+            field.style.borderColor = '';
+            field.style.borderWidth = '';
+            return;
+        }
+
+        try {
+            const transferDate = new Date(dateString);
+
+            // 유효한 날짜인지 확인
+            if (isNaN(transferDate.getTime())) {
+                console.warn('유효하지 않은 날짜 형식:', dateString);
+                return;
+            }
+
+            const today = new Date();
+
+            // 3개월 전 날짜
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+            // 소유권이전일이 3개월 이내면 빨강색
+            if (transferDate >= threeMonthsAgo) {
+                field.style.backgroundColor = '#ffcccc';
+                field.style.borderColor = '#ff0000';
+                field.style.borderWidth = '2px';
+                console.log('3개월 이내 - 빨강색 적용됨:', dateString);
+            } else {
+                field.style.backgroundColor = '';
+                field.style.borderColor = '';
+                field.style.borderWidth = '';
+                console.log('3개월 이상 - 스타일 제거됨:', dateString);
+            }
+        } catch (e) {
+            console.error('날짜 색상 체크 중 오류:', e);
+            field.style.backgroundColor = '';
+            field.style.borderColor = '';
+            field.style.borderWidth = '';
+        }
+    }
+
     // 레이아웃 설정 저장/복원 기능
     function saveLayoutSettings() {
         const mainContainer = document.getElementById('main-layout-wrapper');
@@ -702,17 +754,24 @@ function collectAllData() {
     async function loadCustomerList() {
         try {
             const response = await fetch('/api/customers');
-            const customers = await response.json();
+            let customers = await response.json();
             const select = document.getElementById('customer-history');
             select.innerHTML = '<option value="" selected>기존 고객 불러오기...</option>';
+
+            // customers가 배열이 아니면 빈 배열로 처리
+            if (!Array.isArray(customers)) {
+                console.warn('⚠️ 고객 목록이 배열이 아님:', customers);
+                return;
+            }
+
             customers.forEach(customer => {
                 const option = document.createElement('option');
                 option.value = customer.id;
                 option.textContent = customer.name;
                 select.appendChild(option);
             });
-        } catch (error) { 
-            console.error("고객 목록 로딩 실패:", error); 
+        } catch (error) {
+            console.error("❌ 고객 목록 로딩 실패:", error);
         }
     }
 
@@ -974,10 +1033,17 @@ async function handleFileUpload(file) {
         }
         const result = await response.json();
 
+        // 디버깅: 전체 응답 로그
+        console.log('📥 API 응답:', result);
+
         if (result.success) {
             // 1. 서버가 보내준 데이터를 각각의 변수에 저장합니다.
             const scraped = result.scraped_data;  // 기본 정보 (주소, 소유자, 지분 등)
             const rights_info = result.rights_info; // 근저당권 정보
+
+            // 디버깅: 추출된 데이터 로그
+            console.log('📊 scraped_data:', scraped);
+            console.log('📅 transfer_date:', scraped.transfer_date);
 
             // --- 2. 추출된 기본 정보를 각 필드에 자동으로 채워 넣습니다. ---
             
@@ -994,6 +1060,13 @@ async function handleFileUpload(file) {
             document.getElementById('address').value = scraped.address || '';
             const areaValue = scraped.area || '';
             document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
+
+            // 소유권이전일 추가
+            const transferDateField = document.getElementById('ownership_transfer_date');
+            console.log('🔍 transferDateField 확인:', transferDateField ? '존재' : '없음');
+            transferDateField.value = scraped.transfer_date || '';
+            console.log('✅ ownership_transfer_date 값:', transferDateField.value);
+            checkTransferDateColor(transferDateField.value);
 
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
@@ -1401,7 +1474,7 @@ function attachAllEventListeners() {
 
     document.getElementById('load-customer-btn').addEventListener('click', loadCustomerData);
     document.getElementById('delete-customer-btn').addEventListener('click', deleteCustomer);
-    document.getElementById('reset-btn').addEventListener('click', clearAllFields);
+    document.getElementById('reset-btn').addEventListener('click', () => location.reload());
     document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
     document.getElementById('update-btn').addEventListener('click', updateCustomer);
     document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
@@ -1430,12 +1503,28 @@ function attachAllEventListeners() {
         triggerMemoGeneration();
     });
 
+    // 소유권이전일 입력 시 색상 변경
+    document.getElementById('ownership_transfer_date').addEventListener('input', (e) => {
+        checkTransferDateColor(e.target.value);
+        triggerMemoGeneration();
+    });
+
     document.querySelectorAll('.form-field:not(.loan-input)').forEach(field => {
        field.addEventListener('change', triggerMemoGeneration);
        if (field.type === 'text' && !field.classList.contains('manwon-format')) {
            field.addEventListener('keyup', triggerMemoGeneration);
        }
     });
+
+    // 페이지 로드 시 소유권이전일이 있으면 색상 체크
+    window.addEventListener('load', () => {
+        const transferDateField = document.getElementById('ownership_transfer_date');
+        if (transferDateField && transferDateField.value) {
+            console.log('📄 페이지 로드 - ownership_transfer_date 색상 체크:', transferDateField.value);
+            checkTransferDateColor(transferDateField.value);
+        }
+    });
+
 } // <--- 이 닫는 괄호가 핵심입니다.
 
 
