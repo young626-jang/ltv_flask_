@@ -141,6 +141,59 @@ def format_manwon(value):
     except:
         return str(value)
 
+def get_region_from_address(address):
+    """주소에서 지역(서울/경기/인천) 추출"""
+    if not address or not address.strip():
+        return None
+
+    # 지역명 확인 (우선순위: 서울 > 인천 > 경기)
+    if '서울' in address:
+        return '서울'
+    elif '인천' in address:
+        return '인천'
+    elif '경기' in address:
+        return '경기'
+
+    return None
+
+
+def get_hope_collateral_interest_rate(region, ltv_rate):
+    """
+    희망담보대부 적용 시 지역과 LTV 기준에 따른 금리 구간을 반환합니다.
+
+    지역 및 LTV 기준	적용 금리 (연이율)
+    A. 서울지역 LTV 75% 미만	10.9% ~ 12.9%
+    B. 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만	11.9% ~ 13.9%
+    C. 경기/인천 LTV 80% 미만	12.9% ~ 14.9%
+    예외상품 서울지역 LTV 70% 미만	9.9% ~ 10.9%
+    """
+    if not region or not ltv_rate:
+        return None
+
+    try:
+        ltv = float(ltv_rate)
+    except (ValueError, TypeError):
+        return None
+
+    # 예외상품: 서울 LTV 70% 미만
+    if region == '서울' and ltv <= 70:
+        return "9.9% ~ 10.9%"
+
+    # A: 서울 LTV 75% 미만 -> 75% 이하로 수정
+    if region == '서울' and ltv <= 75:
+        return "10.9% ~ 12.9%"
+
+    # B: 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만
+    if (region == '서울' and ltv <= 80) or (region in ['경기', '인천'] and ltv <= 75):
+        return "11.9% ~ 13.9%"
+
+    # C: 경기/인천 LTV 80% 미만 -> 80% 이하로 수정
+    if region in ['경기', '인천'] and ltv <= 80:
+        return "12.9% ~ 14.9%"
+
+    # 조건을 만족하지 않으면 None 반환
+    return None
+
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
     memo_lines = []
@@ -261,12 +314,14 @@ def generate_memo(data):
 
         # LTV 계산 부분 (기존 코드 유지)
         ltv_rates = []
-        ltv1 = inputs.get('ltv_rates', [None, None])[0] if isinstance(inputs.get('ltv_rates'), list) else inputs.get('ltv1')
-        ltv2 = inputs.get('ltv_rates', [None, None])[1] if isinstance(inputs.get('ltv_rates'), list) else inputs.get('ltv2')
-        
+        # script.js에서 ltv1만 전송합니다.
+        # [수정] ltv_rates에서 첫 번째 값(ltv1)만 파싱하도록 변경
+        ltv1 = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
+
         if ltv1: ltv_rates.append(float(ltv1))
-        if ltv2: ltv_rates.append(float(ltv2))
-        if not ltv_rates: ltv_rates = [70]
+
+        # ltv2가 없으므로 ltv_rates는 최대 1개
+        if not ltv_rates: ltv_rates = [80] # 기본값
         
         ltv_results = []
         ltv_lines_exist = False
@@ -367,8 +422,33 @@ def generate_memo(data):
                     
         except Exception as e:
             logger.warning(f"수수료 계산 중 오류 (무시됨): {e}")
-        
+
+        # ✨ 희망담보대부 적용 로직
+        hope_collateral_checked = inputs.get('hope_collateral_checked', False)
+
+        if hope_collateral_checked:
+            # 첫 번째 LTV 결과를 기반으로 금리 계산
+            if ltv_results and len(ltv_results) > 0:
+                first_ltv_result = ltv_results[0]
+                ltv_rate = first_ltv_result.get('ltv_rate')
+
+                # 주소에서 지역 추출
+                address = inputs.get('address', '')
+                region = get_region_from_address(address)
+
+                # 지역과 LTV에 따른 금리 구간 조회
+                if region and ltv_rate:
+                    interest_rate = get_hope_collateral_interest_rate(region, ltv_rate)
+                    if interest_rate:
+                        memo_lines.append("")  # 빈 줄 추가
+                        memo_lines.append(f"적용 금리 (연이율) {interest_rate}")
+                        memo_lines.append("")  # 빈 줄 추가
+
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
+        # ✨ 희망담보대부 적용 시 고정 텍스트 추가 (맨 하단)
+        if hope_collateral_checked:
+            memo_lines.append("* 신용점수 및 소득확인 후 금리 및 한도 결정 *")
+
         memo_text = "\n".join(memo_lines)
         price_type = ""
         
@@ -529,4 +609,4 @@ def calculate_individual_share():
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='localhost', port=5001)
