@@ -691,12 +691,20 @@ function collectAllData() {
             area: document.getElementById('area').value,
             deduction_region_text: selectedRegionText,
             deduction_amount: document.getElementById('deduction_amount').value,
-            ltv_rates: [document.getElementById('ltv1').value, document.getElementById('ltv2').value],
+            
+            // [복구] LTV1만 전송
+            ltv_rates: [document.getElementById('ltv1').value], 
+            
+            // [삭제] required_amount 필드 제거
+            // required_amount: document.getElementById('required_amount').value, 
+            
             share_rate1: document.getElementById('share-customer-birth-1').value,
             share_rate2: document.getElementById('share-customer-birth-2').value,
+            hope_collateral_checked: document.getElementById('hope-collateral-loan').checked,
         },
         fees: {
-            consult_amt: document.getElementById('consult_amt').value,
+            // [복구] consult_amt가 컨설팅 금액으로 돌아옵니다.
+            consult_amt: document.getElementById('consult_amt').value, 
             consult_rate: document.getElementById('consult_rate').value,
             bridge_amt: document.getElementById('bridge_amt').value,
             bridge_rate: document.getElementById('bridge_rate').value,
@@ -704,6 +712,7 @@ function collectAllData() {
         loans: loanItems
     };
 }
+
     
     // 메모 생성 요청 (디바운스 적용)
     function triggerMemoGeneration() {
@@ -1420,11 +1429,22 @@ function attachAllEventListeners() {
         });
     });
     
+
+    // [정리 및 통합] KB시세, 필요금액 변경 시 LTV 자동 계산을 최우선으로 실행
+    
+    // 1. KB시세 변경 시: LTV 자동 계산 -> 지분 개별 계산
+    document.getElementById('kb_price')?.addEventListener('change', calculateLTVFromRequiredAmount);
+    document.getElementById('kb_price')?.addEventListener('blur', calculateLTVFromRequiredAmount);
+    
+    // 2. 필요금액 변경 시: LTV 자동 계산 -> 지분 개별 계산
+    document.getElementById('required_amount')?.addEventListener('change', calculateLTVFromRequiredAmount);
+    document.getElementById('required_amount')?.addEventListener('blur', calculateLTVFromRequiredAmount);
+    
+    // 3. LTV1 변경 시 (수동 입력 또는 +/- 버튼): 메모/지분 계산만 실행
     document.getElementById('ltv1')?.addEventListener('change', calculateIndividualShare);
     document.getElementById('ltv1')?.addEventListener('blur', calculateIndividualShare);
-    document.getElementById('kb_price')?.addEventListener('change', calculateIndividualShare);
-    document.getElementById('kb_price')?.addEventListener('blur', calculateIndividualShare);
-    
+
+    // 4. 지분율 변경 시: 지분 개별 계산 (기존 로직 유지)
     document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
         autoCalculateShareRatio(1, 2);
         calculateIndividualShare();
@@ -1442,6 +1462,16 @@ function attachAllEventListeners() {
         calculateIndividualShare();
     });
     
+    // LTV1의 +/- 버튼 클릭 시에도 메모 생성 및 지분 계산을 트리거하도록 수정
+    document.querySelectorAll('.md-ltv-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+             // LTV1 값이 수동으로 변경된 후, 메모 및 지분 계산 트리거 호출
+             triggerMemoGeneration();
+             calculateIndividualShare();
+        });
+    });
+
+
     const loanAmountInput = document.getElementById('interest-loan-amount');
     const annualRateInput = document.getElementById('interest-annual-rate');
     const balloonPrincipalPctInput = document.getElementById('balloon-principal-pct');
@@ -1759,38 +1789,95 @@ function attachAllEventListeners() {
         });
     }
 
-    // ✨ LTV 비율 조정 함수들
-    function adjustLtvValue(inputId, change) {
-        const input = document.getElementById(inputId);
-        let currentValue = parseInt(input.value) || 0;
-        
-        // 빈 값일 때 버튼별 동작
-        if (input.value === '' || currentValue === 0) {
-            if (change < 0) {
-                // - 버튼 누르면 75로 설정
-                input.value = 75;
-            } else {
-                // + 버튼 누르면 85로 설정
-                input.value = 85;
-            }
-            triggerMemoGeneration();
-            return;
+// ✨ LTV 비율 조정 함수들
+function adjustLtvValue(inputId, change) {
+    const input = document.getElementById(inputId);
+    let currentValue = parseInt(input.value) || 0;
+    
+    // 빈 값일 때 버튼별 동작
+    if (input.value === '' || currentValue === 0) {
+        if (change < 0) {
+            // - 버튼 누르면 75로 설정
+            input.value = 75;
+        } else {
+            // + 버튼 누르면 85로 설정
+            input.value = 85;
         }
-        
-        let newValue = currentValue + change;
-        
-        // 0 미만이면 0으로, 200 초과하면 200으로 제한 (5 단위 조정)
-        newValue = Math.max(0, Math.min(200, newValue));
-        
-        input.value = newValue;
         triggerMemoGeneration();
+        return;
     }
+    
+    let newValue = currentValue + change;
+    
+    // 0 미만이면 0으로, 200 초과하면 200으로 제한 (5 단위 조정)
+    newValue = Math.max(0, Math.min(200, newValue));
+    
+    input.value = newValue;
+    triggerMemoGeneration();
+}
 
-    function clearLtvValue(inputId) {
-        const input = document.getElementById(inputId);
-        input.value = '';
+function clearLtvValue(inputId) {
+    const input = document.getElementById(inputId);
+    input.value = '';
+    triggerMemoGeneration();
+}
+
+// [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
+function calculateLTVFromRequiredAmount() {
+    const kbPriceField = document.getElementById('kb_price');
+    const requiredAmtField = document.getElementById('required_amount');
+    const ltv1Field = document.getElementById('ltv1');
+
+    if (!kbPriceField || !requiredAmtField || !ltv1Field) return;
+
+    // KB시세(만), 필요금액(만) 값을 파싱 (콤마 제거)
+    const kbPrice = parseKoreanNumberString(kbPriceField.value);
+    const requiredAmt = parseKoreanNumberString(requiredAmtField.value);
+
+    // 1. 기존 대출 원금 합계 계산
+    let existingPrincipalSum = 0;
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const principalInput = item.querySelector('[name="principal"]');
+        const statusSelect = item.querySelector('[name="status"]');
+        const principal = parseKoreanNumberString(principalInput.value);
+        const status = statusSelect.value.trim();
+        
+        // '유지', '동의', '비동의' 상태의 대출 원금은 제외하고, 
+        // '대환', '선말소', '퇴거자금' 상태의 대출 원금만 더합니다.
+        // 즉, '신청할 총 원금'을 계산합니다.
+        if (['대환', '선말소', '퇴거자금'].includes(status)) {
+            existingPrincipalSum += principal;
+        }
+    });
+
+    // 2. 총 신청 원금 = 기존 대환/말소/퇴거 원금 합계 + 현재 필요금액
+    const totalNewPrincipal = existingPrincipalSum + requiredAmt;
+
+
+    // KB시세가 유효해야 계산 가능
+    if (kbPrice > 0 && totalNewPrincipal >= 0) {
+        // LTV 계산: (총 신청 원금 / KB시세) * 100
+        let calculatedLTV = (totalNewPrincipal / kbPrice) * 100;
+        
+        // 소수점 첫째 자리에서 반올림하여 정수로 표시 (최대 80%로 제한)
+        let roundedLTV = Math.round(calculatedLTV); 
+        roundedLTV = Math.min(80, roundedLTV); // 최대 80%로 제한 (선택 사항이지만 안전을 위해)
+
+
+        // LTV 비율을 ltv1 필드에 업데이트
+        ltv1Field.value = roundedLTV > 0 ? roundedLTV : '';
+        
+        // 메모 업데이트 및 지분 계산 트리거
         triggerMemoGeneration();
+        calculateIndividualShare();
+
+    } else {
+        ltv1Field.value = '';
+        triggerMemoGeneration();
+        calculateIndividualShare();
     }
+}
+
 
 // 고객명 & 생년월일 자동 파싱 기능
 function parseCustomerNames() {
@@ -1845,6 +1932,68 @@ document.addEventListener('DOMContentLoaded', () => {
        parseCustomerNames();
    }
 });
+
+// [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
+function calculateLTVFromRequiredAmount() {
+    const kbPriceField = document.getElementById('kb_price');
+    const requiredAmtField = document.getElementById('required_amount');
+    const ltv1Field = document.getElementById('ltv1');
+
+    if (!kbPriceField || !requiredAmtField || !ltv1Field) return;
+
+    // KB시세(만), 필요금액(만) 값을 파싱 (콤마 제거)
+    const kbPrice = parseKoreanNumberString(kbPriceField.value);
+    const requiredAmt = parseKoreanNumberString(requiredAmtField.value);
+
+    // 1. 기존 대출의 '채권최고액' 합계와 '방공제 금액'을 구합니다.
+    let totalMaxAmountSum = 0;
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const maxAmountInput = item.querySelector('[name="max_amount"]');
+        const maxAmount = parseKoreanNumberString(maxAmountInput.value);
+        totalMaxAmountSum += maxAmount;
+    });
+
+    // 방공제 금액을 입력 필드에서 가져옵니다.
+    const deductionAmount = parseKoreanNumberString(document.getElementById('deduction_amount').value);
+
+    // [핵심 수정] 2. 총 LTV 산출 기준 금액 = 총 채권최고액 합계 + 필요금액 + 방공제 금액
+    // 이 금액이 담보가치(KB시세 * LTV)와 같아지는 LTV를 역산합니다.
+    const totalLTVBaseAmount = totalMaxAmountSum + requiredAmt + deductionAmount;
+
+
+    // KB시세가 유효해야 계산 가능
+    if (kbPrice > 0 && requiredAmt >= 0) {
+        // [수정된 부분] LTV 계산: (총 LTV 산출 기준 금액 / KB시세) * 100
+        let calculatedLTV = (totalLTVBaseAmount / kbPrice) * 100; // <- totalLTVBaseAmount 사용
+
+        // 소수점 첫째 자리에서 반올림하여 정수로 표시 (예: 79.5 -> 80, 79.4 -> 79)
+        let roundedLTV = Math.round(calculatedLTV); 
+        roundedLTV = Math.min(80, roundedLTV); // 최대 80%로 제한 (선택 사항이지만 유지)
+
+
+        // LTV 비율을 ltv1 필드에 업데이트
+        ltv1Field.value = roundedLTV > 0 ? roundedLTV : '';
+        
+        // 메모 업데이트 및 지분 계산 트리거
+        triggerMemoGeneration();
+        calculateIndividualShare(); // 지분 계산도 LTV 변경에 따라 업데이트
+
+    } else if (kbPrice === 0) {
+        // KB시세가 0이면 필요금액을 비우고 경고
+        if (requiredAmt > 0) {
+            showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
+            requiredAmtField.value = '';
+        }
+        ltv1Field.value = '';
+        triggerMemoGeneration(); // 초기화 후 메모 업데이트
+        calculateIndividualShare();
+    } else {
+        // 필요금액이 없으면 ltv1 초기화
+        ltv1Field.value = '';
+        triggerMemoGeneration();
+        calculateIndividualShare();
+    }
+}
 
 // 페이지를 떠날 때 자동 저장
 window.addEventListener('beforeunload', () => {
