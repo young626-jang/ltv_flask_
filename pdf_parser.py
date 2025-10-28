@@ -328,33 +328,47 @@ def extract_rights_info(full_text):
 
 def extract_ownership_transfer_date(text):
     """
-    【갑구】에서 '소유권이전'의 날짜를 모두 찾아 가장 최신 날짜를
-    "YYYY-MM-DD" 형식의 문자열로 반환합니다.
+    【갑구】에서 발견된 모든 날짜 중 가장 최신 날짜를 찾아
+    "YYYY-MM-DD" 형식의 문자열로 반환합니다. (검색 범위 수정)
     """
     try:
-        # '갑구' 섹션만으로 범위를 좁혀서 정확도를 높입니다.
-        kapgu_match = re.search(r'【\s*갑\s*구\s*】(?:\s*\(소유권에 관한 사항\))?(.*?)(?=【\s*을\s*구\s*】|주요 등기사항 요약)', text, re.DOTALL)
+        # --- ▼▼▼ 여기가 핵심 수정 부분입니다 ▼▼▼ ---
+        # 1. '갑구' 섹션의 범위를 【을구】, '주요 등기사항 요약', '열람일시' 중
+        #    가장 먼저 나오는 키워드까지만으로 제한하여, 페이지 하단의 열람일시가
+        #    포함되지 않도록 수정합니다.
+        kapgu_match = re.search(
+            r'【\s*갑\s*구\s*】(?:\s*\(소유권에 관한 사항\))?(.*?)(?=【\s*을\s*구\s*】|주요 등기사항 요약|열람일시)',
+            text,
+            re.DOTALL
+        )
         if not kapgu_match:
             return ""
         search_text = kapgu_match.group(1)
+        # --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
 
         dates = []
+        date_pattern = r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일'
 
-        # 소유권이전 관련 날짜를 찾습니다.
-        pattern1_matches = re.finditer(r'소유권\s*이전[^0-9]*(\d{4})[^\d]+(\d{1,2})[^\d]+(\d{1,2})', search_text)
-        for match in pattern1_matches:
+        # 2. 갑구 텍스트 전체에서 'YYYY년 MM월 DD일' 형식의 모든 날짜를 찾습니다.
+        all_matches = re.finditer(date_pattern, search_text)
+
+        current_year = datetime.now().year
+
+        for match in all_matches:
             try:
-                year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
-                # 유효한 날짜인지 확인
-                if 1990 <= year <= 2024 and 1 <= month <= 12 and 1 <= day <= 31:
+                year, month, day = map(int, match.groups())
+
+                # 3. 유효한 날짜들을 datetime 객체로 변환하여 리스트에 추가합니다.
+                if 1990 <= year <= current_year + 1 and 1 <= month <= 12 and 1 <= day <= 31:
                     dates.append(datetime(year, month, day))
             except (ValueError, TypeError):
                 continue
 
+        # 4. 날짜가 하나도 없으면 빈 문자열을 반환합니다.
         if not dates:
             return ""
 
-        # 가장 최신 날짜를 반환
+        # 5. [핵심] 찾아낸 모든 날짜 중에서 가장 최신 날짜(max)를 선택하여 반환합니다.
         latest_date = max(dates)
         return latest_date.strftime('%Y-%m-%d')
 
