@@ -723,7 +723,6 @@ function collectAllData() {
     // 메모 생성 및 하안가/일반가 표시
     async function generateMemo() {
         const memoArea = document.getElementById('generated-memo');
-        memoArea.placeholder
         const data = collectAllData();
         const requestData = { inputs: data.inputs, loans: data.loans, fees: data.fees };
         try {
@@ -1822,63 +1821,6 @@ function clearLtvValue(inputId) {
     triggerMemoGeneration();
 }
 
-// [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
-function calculateLTVFromRequiredAmount() {
-    const kbPriceField = document.getElementById('kb_price');
-    const requiredAmtField = document.getElementById('required_amount');
-    const ltv1Field = document.getElementById('ltv1');
-
-    if (!kbPriceField || !requiredAmtField || !ltv1Field) return;
-
-    // KB시세(만), 필요금액(만) 값을 파싱 (콤마 제거)
-    const kbPrice = parseKoreanNumberString(kbPriceField.value);
-    const requiredAmt = parseKoreanNumberString(requiredAmtField.value);
-
-    // 1. 기존 대출 원금 합계 계산
-    let existingPrincipalSum = 0;
-    document.querySelectorAll('.loan-item').forEach(item => {
-        const principalInput = item.querySelector('[name="principal"]');
-        const statusSelect = item.querySelector('[name="status"]');
-        const principal = parseKoreanNumberString(principalInput.value);
-        const status = statusSelect.value.trim();
-        
-        // '유지', '동의', '비동의' 상태의 대출 원금은 제외하고, 
-        // '대환', '선말소', '퇴거자금' 상태의 대출 원금만 더합니다.
-        // 즉, '신청할 총 원금'을 계산합니다.
-        if (['대환', '선말소', '퇴거자금'].includes(status)) {
-            existingPrincipalSum += principal;
-        }
-    });
-
-    // 2. 총 신청 원금 = 기존 대환/말소/퇴거 원금 합계 + 현재 필요금액
-    const totalNewPrincipal = existingPrincipalSum + requiredAmt;
-
-
-    // KB시세가 유효해야 계산 가능
-    if (kbPrice > 0 && totalNewPrincipal >= 0) {
-        // LTV 계산: (총 신청 원금 / KB시세) * 100
-        let calculatedLTV = (totalNewPrincipal / kbPrice) * 100;
-        
-        // 소수점 첫째 자리에서 반올림하여 정수로 표시 (최대 80%로 제한)
-        let roundedLTV = Math.round(calculatedLTV); 
-        roundedLTV = Math.min(80, roundedLTV); // 최대 80%로 제한 (선택 사항이지만 안전을 위해)
-
-
-        // LTV 비율을 ltv1 필드에 업데이트
-        ltv1Field.value = roundedLTV > 0 ? roundedLTV : '';
-        
-        // 메모 업데이트 및 지분 계산 트리거
-        triggerMemoGeneration();
-        calculateIndividualShare();
-
-    } else {
-        ltv1Field.value = '';
-        triggerMemoGeneration();
-        calculateIndividualShare();
-    }
-}
-
-
 // 고객명 & 생년월일 자동 파싱 기능
 function parseCustomerNames() {
     const customerNameField = document.getElementById('customer_name');
@@ -1934,61 +1876,78 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
-function calculateLTVFromRequiredAmount() {
+async function calculateLTVFromRequiredAmount() {
     const kbPriceField = document.getElementById('kb_price');
     const requiredAmtField = document.getElementById('required_amount');
     const ltv1Field = document.getElementById('ltv1');
 
     if (!kbPriceField || !requiredAmtField || !ltv1Field) return;
 
-    // KB시세(만), 필요금액(만) 값을 파싱 (콤마 제거)
-    const kbPrice = parseKoreanNumberString(kbPriceField.value);
-    const requiredAmt = parseKoreanNumberString(requiredAmtField.value);
+    const kbPrice = kbPriceField.value;
+    const requiredAmt = requiredAmtField.value;
+    const deductionAmount = document.getElementById('deduction_amount').value;
 
-    // 1. 기존 대출의 '채권최고액' 합계와 '방공제 금액'을 구합니다.
-    let totalMaxAmountSum = 0;
-    document.querySelectorAll('.loan-item').forEach(item => {
-        const maxAmountInput = item.querySelector('[name="max_amount"]');
-        const maxAmount = parseKoreanNumberString(maxAmountInput.value);
-        totalMaxAmountSum += maxAmount;
-    });
-
-    // 방공제 금액을 입력 필드에서 가져옵니다.
-    const deductionAmount = parseKoreanNumberString(document.getElementById('deduction_amount').value);
-
-    // [핵심 수정] 2. 총 LTV 산출 기준 금액 = 총 채권최고액 합계 + 필요금액 + 방공제 금액
-    // 이 금액이 담보가치(KB시세 * LTV)와 같아지는 LTV를 역산합니다.
-    const totalLTVBaseAmount = totalMaxAmountSum + requiredAmt + deductionAmount;
-
-
-    // KB시세가 유효해야 계산 가능
-    if (kbPrice > 0 && requiredAmt >= 0) {
-        // [수정된 부분] LTV 계산: (총 LTV 산출 기준 금액 / KB시세) * 100
-        let calculatedLTV = (totalLTVBaseAmount / kbPrice) * 100; // <- totalLTVBaseAmount 사용
-
-        // 소수점 첫째 자리에서 반올림하여 정수로 표시 (예: 79.5 -> 80, 79.4 -> 79)
-        let roundedLTV = Math.round(calculatedLTV); 
-        roundedLTV = Math.min(80, roundedLTV); // 최대 80%로 제한 (선택 사항이지만 유지)
-
-
-        // LTV 비율을 ltv1 필드에 업데이트
-        ltv1Field.value = roundedLTV > 0 ? roundedLTV : '';
-        
-        // 메모 업데이트 및 지분 계산 트리거
-        triggerMemoGeneration();
-        calculateIndividualShare(); // 지분 계산도 LTV 변경에 따라 업데이트
-
-    } else if (kbPrice === 0) {
-        // KB시세가 0이면 필요금액을 비우고 경고
-        if (requiredAmt > 0) {
+    // KB시세가 0이면 필요금액을 비우고 경고
+    if (parseKoreanNumberString(kbPrice) === 0) {
+        if (parseKoreanNumberString(requiredAmt) > 0) {
             showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
             requiredAmtField.value = '';
         }
         ltv1Field.value = '';
-        triggerMemoGeneration(); // 초기화 후 메모 업데이트
+        triggerMemoGeneration();
         calculateIndividualShare();
-    } else {
-        // 필요금액이 없으면 ltv1 초기화
+        return;
+    }
+
+    // 대출 정보 수집
+    const loans = [];
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const maxAmount = item.querySelector('[name="max_amount"]')?.value || '0';
+        const status = item.querySelector('[name="status"]')?.value || '-';
+
+        loans.push({
+            max_amount: maxAmount,
+            status: status
+        });
+    });
+
+    try {
+        // 서버 API 호출
+        const response = await fetch('/api/calculate_ltv_from_required_amount', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                kb_price: kbPrice,
+                required_amount: requiredAmt,
+                loans: loans,
+                deduction_amount: deductionAmount
+            })
+        });
+
+        if (!response.ok) {
+            console.error('API 응답 실패:', response.status);
+            return;
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.ltv !== undefined) {
+            // ltv1 필드에 계산된 LTV 설정
+            ltv1Field.value = result.ltv > 0 ? result.ltv : '';
+
+            // 메모 업데이트 및 지분 계산 트리거
+            triggerMemoGeneration();
+            calculateIndividualShare();
+        } else {
+            console.error('LTV 계산 실패:', result.error);
+            ltv1Field.value = '';
+            triggerMemoGeneration();
+            calculateIndividualShare();
+        }
+    } catch (error) {
+        console.error('LTV 계산 중 오류:', error);
         ltv1Field.value = '';
         triggerMemoGeneration();
         calculateIndividualShare();
@@ -2006,8 +1965,6 @@ document.addEventListener('visibilitychange', () => {
         saveLayoutSettings();
     }
 });
-
-
 
 // ✨ 원금 분할 계산기 함수들
 function formatNumberWithCommas(value) {
