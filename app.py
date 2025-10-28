@@ -529,6 +529,56 @@ def calculate_principal_route():
         logger.error(f"원금 계산 중 오류: {e}")
         return jsonify({"error": "원금 계산 중 오류가 발생했습니다."}), 500
 
+@app.route('/api/calculate_ltv_from_required_amount', methods=['POST'])
+def calculate_ltv_from_required_amount_route():
+    """
+    필요금액으로부터 LTV를 역산하는 API
+
+    요청 데이터:
+    {
+        "kb_price": 5000,
+        "required_amount": 800,
+        "loans": [
+            {"max_amount": 2000, "status": "유지"},
+            {"max_amount": 1000, "status": "선말소"}
+        ],
+        "deduction_amount": 0
+    }
+
+    응답:
+    {
+        "ltv": 76,
+        "success": true
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "잘못된 요청 데이터"}), 400
+
+        # 요청 데이터 파싱
+        kb_price = parse_korean_number(data.get('kb_price', '0'))
+        required_amount = parse_korean_number(data.get('required_amount', '0'))
+        loans = data.get('loans', [])
+        deduction_amount = parse_korean_number(data.get('deduction_amount', '0'))
+
+        # utils.py의 함수 호출
+        from utils import calculate_ltv_from_required_amount
+        calculated_ltv = calculate_ltv_from_required_amount(
+            kb_price,
+            required_amount,
+            loans,
+            deduction_amount
+        )
+
+        return jsonify({
+            "success": True,
+            "ltv": calculated_ltv
+        })
+    except Exception as e:
+        logger.error(f"LTV 역산 계산 중 오류: {e}")
+        return jsonify({"error": "LTV 계산 중 오류가 발생했습니다."}), 500
+
 @app.route('/api/customers')
 def get_customers():
     try:
