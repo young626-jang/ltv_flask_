@@ -312,22 +312,25 @@ def generate_memo(data):
                 memo_lines.extend(loan_memo)
                 memo_lines.append("")
 
-        # LTV 계산 부분 (기존 코드 유지)
+        # --- ▼▼▼ LTV 계산 부분 (기본값 삭제, 유효한 값만 처리) ▼▼▼ ---
         ltv_rates = []
         # script.js에서 ltv1만 전송합니다.
-        # [수정] ltv_rates에서 첫 번째 값(ltv1)만 파싱하도록 변경
-        ltv1 = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
+        ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
 
-        if ltv1: ltv_rates.append(float(ltv1))
+        try:
+            if ltv1_raw is not None and str(ltv1_raw).strip():
+                ltv_rates.append(float(ltv1_raw))  # <-- 유효한 숫자일 때만 LTV 추가
+        except (ValueError, TypeError):
+            pass
 
-        # ltv2가 없으므로 ltv_rates는 최대 1개
-        if not ltv_rates: ltv_rates = [80] # 기본값
-        
+        # if not ltv_rates: ltv_rates = [80]  <-- 기본값 설정 라인 삭제됨
+
         ltv_results = []
         ltv_lines_exist = False
-        
-        if kb_price_val > 0:
+
+        if kb_price_val > 0 and ltv_rates:  # <-- ltv_rates에 값이 있을 때만 실행!
             for ltv_rate in ltv_rates:
+        # --- ▲▲▲ 여기까지가 핵심 수정 부분 ▲▲▲ ---
                 if ltv_rate > 0:
                     maintain_sum, replace_sum, exit_sum, principal_sum = 0, 0, 0, 0
                     
