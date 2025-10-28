@@ -1,6 +1,26 @@
+/**
+ * ============================================================
+ * LTV 계산기 메인 스크립트
+ * ============================================================
+ * 파일 구조:
+ * 1. 초기화 변수 (라인 1-3)
+ * 2. 기본 UI 함수 (라인 4-170)
+ * 3. 파싱/포맷팅 유틸 함수 (라인 249-320)
+ * 4. 클라이언트 계산 함수 (라인 321-435)
+ * 5. UI/UX 함수 - 드래그, 리사이즈, 레이아웃 (라인 332-1800)
+ * 6. 대출 항목 관련 함수 (라인 386-500)
+ * 7. 이벤트 리스너 함수 (라인 622-1476)
+ * 8. 서버 API 호출 함수 (라인 718-1955)
+ * 9. 기타 유틸 함수 (라인 1970-2100)
+ * ============================================================
+ */
+
     let loanItemCounter = 0;
     let memoDebounceTimeout;
 
+    // ========================================================
+    // 2. 기본 UI 함수
+    // ========================================================
     // 커스텀 알림창 함수 (닫기 버튼으로 즉시 닫힘)
     function showCustomAlert(message, callback = null) {
         // 기존 알림창이 있으면 제거
@@ -245,7 +265,11 @@
         }
     }
 
+    // ========================================================
+    // 3. 파싱/포맷팅 유틸 함수
+    // ========================================================
     // 고급 금액 파싱 함수
+    // [관련 함수] formatManwonValue(라인 539), formatNumberWithCommas(라인 2011) 참고
     function parseAdvancedAmount(text) {
         if (!text) return 0;
         
@@ -317,7 +341,11 @@
         return parseAdvancedAmount(wonAmount);
     }
 
+    // ========================================================
+    // 4. 클라이언트 계산 함수 (서버 호출 없음)
+    // ========================================================
     // 채권최고액과 비율로 원금 계산하는 함수
+    // [관련 계산] calculateSimpleInterest(라인 472), calculateIndividualShare(라인 1279), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     function calculatePrincipalFromRatio(maxAmount, ratio) {
         const maxAmt = parseFloat(String(maxAmount).replace(/,/g, '')) || 0;
         const ratioVal = parseFloat(ratio) || 120;
@@ -328,7 +356,11 @@
         return Math.round(maxAmt / (ratioVal / 100));
     }
 
+    // ========================================================
+    // 5. UI/UX 함수 - 드래그, 리사이즈, 레이아웃
+    // ========================================================
     // ✨ 드래그앤드롭 기능 추가 - Material Design 스타일
+    // [관련 함수] PDF 드래그앤드롭 처리는 라인 1404 참고
     function initializeDragAndDrop() {
         const container = document.getElementById('loan-items-container');
         
@@ -382,6 +414,9 @@
         });
     }
 
+    // ========================================================
+    // 6. 대출 항목 관련 함수
+    // ========================================================
     // createLoanItemHTML 함수 - 드래그 핸들 추가
     function createLoanItemHTML(index, loan = {}) {
         const formatValue = (val) => {
@@ -433,6 +468,7 @@
     }
 
     // ✨ [신규] 단순 이자 계산 함수
+    // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateIndividualShare(라인 1279), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     function calculateSimpleInterest() {
         // 입력 요소에서 값 가져오기
         const loanAmountInput = document.getElementById('interest-loan-amount');
@@ -496,6 +532,7 @@
     }
     
     // 숫자 자동 포맷 (개선된 고급 금액 처리)
+    // [관련 함수] parseAdvancedAmount(라인 273), formatNumberWithCommas(라인 2011) 참고
     function formatManwonValue(e) {
         const field = e.target;
         let value = field.value.trim();
@@ -618,6 +655,9 @@
         }
     }
 
+    // ========================================================
+    // 7. 이벤트 리스너 부착 함수
+    // ========================================================
     // [수정됨] 동적 생성된 대출 항목에 이벤트 리스너 연결
     function attachEventListenersForLoanItems() {
         document.querySelectorAll('.loan-item').forEach(item => {
@@ -780,8 +820,12 @@ function collectAllData() {
         }
     }
 
+    // ========================================================
+    // 8. 서버 API 호출 함수 (async)
+    // ========================================================
 
 // 특정 고객 데이터 불러오기
+// [API 호출 함수들] handleFileUpload(라인 1068), calculateIndividualShare(라인 1273), calculateLTVFromRequiredAmount(라인 1921) 참고
 async function loadCustomerData() {
     const select = document.getElementById('customer-history');
     const pageId = select.value;
@@ -1024,6 +1068,7 @@ async function loadCustomerData() {
     }
 
 // PDF 파일 업로드 핸들러 (최종 완성본)
+// [API 호출 함수들] loadCustomerData(라인 827), calculateIndividualShare(라인 1273), calculateLTVFromRequiredAmount(라인 1921) 참고
 async function handleFileUpload(file) {
     const spinner = document.getElementById('upload-spinner');
     spinner.style.display = 'block';
@@ -1229,6 +1274,8 @@ async function handleFileUpload(file) {
     }
     
     // 개별 차주 지분 한도 계산
+    // [API 호출 함수들] loadCustomerData(라인 827), handleFileUpload(라인 1070), calculateLTVFromRequiredAmount(라인 1929) 참고
+    // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     async function calculateIndividualShare() {
         try {
             // 선택된 차주 찾기
@@ -1397,10 +1444,11 @@ function attachAllEventListeners() {
     if (reuploadBtn) {
         reuploadBtn.addEventListener('click', () => fileInput.click());
     }
-    fileInput.addEventListener('change', () => { 
-        if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]); 
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) handleFileUpload(fileInput.files[0]);
     });
-    
+
+    // [관련 함수] 대출 항목 드래그는 라인 362의 initializeDragAndDrop() 참고
     ['dragover','dragleave','drop'].forEach(eventName => {
         uploadSection.addEventListener(eventName, e => { 
             e.preventDefault(); 
@@ -1560,12 +1608,18 @@ function attachAllEventListeners() {
             if (e.target.checked) {
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
-                // 방공제 없음으로 자동 선택
+                // --- ▼▼▼ 방공제 없음으로 자동 선택 및 방공제(만) 금액 삭제 ▼▼▼ ---
                 const deductionRegionField = document.getElementById('deduction_region');
+                const deductionAmountField = document.getElementById('deduction_amount');
                 if (deductionRegionField) {
                     deductionRegionField.value = '0';
                     console.log('💰 방공제 지역 - "방공제없음"으로 자동 선택');
                 }
+                if (deductionAmountField) {
+                    deductionAmountField.value = '';  // 방공제(만) 필드의 금액 삭제
+                    console.log('💰 방공제(만) - 금액 삭제');
+                }
+                // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
             } else {
                 // 체크 해제되면 지역 버튼 숨김
@@ -1876,6 +1930,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
+// [API 호출 함수들] loadCustomerData(라인 827), handleFileUpload(라인 1070), calculateIndividualShare(라인 1279) 참고
+// [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateIndividualShare(라인 1279), calculateBalloonLoan(라인 2034) 참고
 async function calculateLTVFromRequiredAmount() {
     const kbPriceField = document.getElementById('kb_price');
     const requiredAmtField = document.getElementById('required_amount');
@@ -1885,21 +1941,34 @@ async function calculateLTVFromRequiredAmount() {
 
     const kbPrice = kbPriceField.value;
     const requiredAmt = requiredAmtField.value;
-    const deductionAmount = document.getElementById('deduction_amount').value;
+
+    // --- ▼▼▼ 필요금액 체크가 가장 먼저 실행됩니다 ▼▼▼ ---
+    // '필요금액'을 숫자 값으로 파싱합니다.
+    const requiredAmountValue = parseKoreanNumberString(requiredAmt);
+
+    // 만약 필요금액이 0 이하(비어있거나 0)이면,
+    // LTV 역산을 실행하지 않고 함수를 즉시 종료합니다.
+    if (requiredAmountValue <= 0) {
+        // 기존 메모 생성 로직만 호출하여 화면을 현재 LTV 기준으로 업데이트합니다.
+        ltv1Field.value = ''; // LTV 필드를 명시적으로 비웁니다.
+        triggerMemoGeneration();
+        calculateIndividualShare();
+        return; // 여기서 함수 실행을 멈추는 것이 중요합니다.
+    }
+    // --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
 
     // KB시세가 0이면 필요금액을 비우고 경고
     if (parseKoreanNumberString(kbPrice) === 0) {
-        if (parseKoreanNumberString(requiredAmt) > 0) {
-            showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
-            requiredAmtField.value = '';
-        }
-        ltv1Field.value = '';
+        showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
+        requiredAmtField.value = '';
+        ltv1Field.value = ''; // LTV 필드도 비워줍니다.
         triggerMemoGeneration();
         calculateIndividualShare();
         return;
     }
 
     // 대출 정보 수집
+    const deductionAmount = document.getElementById('deduction_amount').value;
     const loans = [];
     document.querySelectorAll('.loan-item').forEach(item => {
         const maxAmount = item.querySelector('[name="max_amount"]')?.value || '0';
@@ -1912,7 +1981,7 @@ async function calculateLTVFromRequiredAmount() {
     });
 
     try {
-        // 서버 API 호출
+        // 서버 API 호출 (이 부분은 이제 requiredAmountValue > 0 일 때만 실행됩니다)
         const response = await fetch('/api/calculate_ltv_from_required_amount', {
             method: 'POST',
             headers: {
@@ -1934,10 +2003,7 @@ async function calculateLTVFromRequiredAmount() {
         const result = await response.json();
 
         if (result.success && result.ltv !== undefined) {
-            // ltv1 필드에 계산된 LTV 설정
             ltv1Field.value = result.ltv > 0 ? result.ltv : '';
-
-            // 메모 업데이트 및 지분 계산 트리거
             triggerMemoGeneration();
             calculateIndividualShare();
         } else {
@@ -1966,7 +2032,11 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
+// ========================================================
+// 9. 기타 유틸 함수 및 계산기
+// ========================================================
 // ✨ 원금 분할 계산기 함수들
+// [관련 함수] parseAdvancedAmount(라인 273), formatManwonValue(라인 534) 참고
 function formatNumberWithCommas(value) {
     if (value === null || value === undefined) return '';
     return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -1979,6 +2049,7 @@ function parseFormattedNumber(value) {
 
 function calculateBalloonLoan() {
     // 이자 계산기 탭의 원금 분할 계산을 담당합니다.
+    // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateIndividualShare(라인 1279), calculateLTVFromRequiredAmount(라인 1929) 참고
     const loanAmountInput = document.getElementById('interest-loan-amount');
     const annualRateInput = document.getElementById('interest-annual-rate');
     const principalPctInput = document.getElementById('balloon-principal-pct');
