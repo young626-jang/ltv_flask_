@@ -207,3 +207,41 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
         results.append(result)
 
     return results
+
+
+def calculate_ltv_from_required_amount(kb_price, required_amount, loans, deduction_amount):
+    """
+    필요금액을 기반으로 LTV를 역산하는 함수
+
+    계산식: LTV = (총 채권최고액 + 필요금액 + 방공제) / KB시세 × 100
+
+    Args:
+        kb_price (int): KB 시세 (만원 단위)
+        required_amount (int): 필요금액 (만원 단위)
+        loans (list): 대출 정보 리스트
+        deduction_amount (int): 방공제 금액 (만원 단위)
+
+    Returns:
+        int: 계산된 LTV (최대 80%)
+    """
+    if kb_price <= 0:
+        return 0
+
+    # 모든 대출의 채권최고액 합계
+    total_max_amount_sum = 0
+    for loan in loans:
+        if isinstance(loan, dict):
+            max_amount = parse_korean_number(loan.get('max_amount', '0'))
+            total_max_amount_sum += max_amount
+
+    # LTV 계산: (채권최고액 합계 + 필요금액 + 방공제) / KB시세 × 100
+    total_ltv_base_amount = total_max_amount_sum + required_amount + deduction_amount
+    calculated_ltv = (total_ltv_base_amount / kb_price) * 100
+
+    # 소수점 첫째 자리에서 반올림
+    rounded_ltv = round(calculated_ltv)
+
+    # 최대 80%로 제한
+    rounded_ltv = min(80, rounded_ltv)
+
+    return rounded_ltv if rounded_ltv > 0 else 0
