@@ -2113,7 +2113,9 @@ function validateHopeLoanConditions() {
     const isHopeChecked = hopeCheckbox.checked;
 
     // 세대수와 KB시세 값 가져오기 (값이 입력되지 않으면 0)
-    const unitCount = parseInt(unitCountField.value) || 0;
+    // --- ▼▼▼ [수정] 세대수도 콤마를 제거하고 파싱합니다 ▼▼▼
+    const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
+    // --- ▲▲▲ [수정] ▲▲▲
     const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
 
     // 3억 = 30,000만 (KB시세는 만 단위)
@@ -2144,4 +2146,3 @@ function validateHopeLoanConditions() {
         kbPriceField.removeAttribute('style');
     }
 }
-
