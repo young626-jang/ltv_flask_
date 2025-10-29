@@ -188,20 +188,17 @@
         }
     }
 
-    // 레이아웃 설정 저장/복원 기능
+    // 레이아웃 설정 저장/복원 기능 (세로 모드만 지원)
     function saveLayoutSettings() {
-        const mainContainer = document.getElementById('main-layout-wrapper');
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
-        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
-        
+
         const layoutSettings = {
-            isHorizontalMode: isHorizontal,
-            pdfColumnFlex: pdfColumn.style.flex || (isHorizontal ? '3' : '2'),
-            formColumnFlex: formColumn.style.flex || (isHorizontal ? '2' : '3'),
+            pdfColumnFlex: pdfColumn.style.flex || '2',
+            formColumnFlex: formColumn.style.flex || '3',
             timestamp: Date.now()
         };
-        
+
         localStorage.setItem('ltvLayoutSettings', JSON.stringify(layoutSettings));
     }
 
@@ -209,34 +206,23 @@
         try {
             const saved = localStorage.getItem('ltvLayoutSettings');
             if (!saved) return;
-            
+
             const settings = JSON.parse(saved);
-            const mainContainer = document.getElementById('main-layout-wrapper');
-            const btn = document.getElementById('layout-toggle-btn');
             const pdfColumn = document.getElementById('pdf-column');
             const formColumn = document.getElementById('form-column-wrapper');
-            
+
             // 저장된 설정이 24시간 이내인지 확인
             const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
             if (!isRecent) return;
-            
-            // 레이아웃 모드 복원
-            if (settings.isHorizontalMode) {
-                mainContainer.classList.add('horizontal-mode');
-                btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
-            } else {
-                mainContainer.classList.remove('horizontal-mode');
-                btn.innerHTML = '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
-            }
-            
-            // 컬럼 크기 복원 (flex 기반)
+
+            // 컬럼 크기 복원 (flex 기반, 세로 모드만 지원)
             if (settings.pdfColumnFlex) {
                 pdfColumn.style.flex = settings.pdfColumnFlex;
             }
             if (settings.formColumnFlex) {
                 formColumn.style.flex = settings.formColumnFlex;
             }
-            
+
         } catch (error) {
             console.error('레이아웃 설정 로드 실패:', error);
         }
@@ -1194,44 +1180,7 @@ async function handleFileUpload(file) {
     }
 }
 
-    // 레이아웃 토글
-    function toggleLayout() {
-        const mainContainer = document.getElementById('main-layout-wrapper');
-        const btn = document.getElementById('layout-toggle-btn');
-        const pdfColumn = document.getElementById('pdf-column');
-        const formColumn = document.getElementById('form-column-wrapper');
-        if (!mainContainer || !btn || !pdfColumn || !formColumn) return;
-
-        mainContainer.classList.toggle('horizontal-mode');
-        const isHorizontal = mainContainer.classList.contains('horizontal-mode');
-        btn.innerHTML = isHorizontal ? '<i class="bi bi-distribute-vertical"></i> 세로 모드' : '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
-        
-        // 컬럼 크기 초기화
-        if (isHorizontal) {
-            // [정상 동작] 가로모드: JS는 높이를 비우고, CSS flex가 자동 계산
-            pdfColumn.style.width = '100%';
-            pdfColumn.style.height = '';
-            pdfColumn.style.flex = '3';
-            formColumn.style.width = '100%';
-            formColumn.style.height = '';
-            formColumn.style.flex = '2';
-        } else {
-            // [수정 완료] 세로모드: JS가 높이를 비워서, CSS가 자동 계산하도록 변경
-            pdfColumn.style.width = '100%';
-            pdfColumn.style.height = ''; // ★★★ 핵심: 문제가 되었던 calc() 코드를 삭제했습니다.
-            pdfColumn.style.flex = '3';
-            formColumn.style.width = '100%';
-            formColumn.style.height = ''; // ★★★ 핵심: 문제가 되었던 calc() 코드를 삭제했습니다.
-            formColumn.style.flex = '2';
-        }
-        
-        // 레이아웃 상태 저장 및 리사이즈 바 재설정
-        saveLayoutSettings();
-        
-        setTimeout(() => {
-            initializeResizeBar();
-        }, 100);
-    }
+    // 레이아웃 토글 (제거됨 - 세로 모드만 지원)
 
     // 전체 초기화
     function clearAllFields() {
@@ -1551,7 +1500,7 @@ function attachAllEventListeners() {
     document.getElementById('reset-btn').addEventListener('click', () => location.reload());
     document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
     document.getElementById('update-btn').addEventListener('click', updateCustomer);
-    document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+    // layout-toggle-btn 이벤트 제거됨 (가로 모드 제거)
 
     // 방공제 지역 선택 시 자동 금액 설정
     document.getElementById('deduction_region').addEventListener('change', (e) => {
@@ -1702,76 +1651,49 @@ function attachAllEventListeners() {
         let startPos = 0;
         let startPdfSize = 0;
         
-        const isHorizontalMode = () => mainContainer.classList.contains('horizontal-mode');
-        
-        function startResize(clientX, clientY) {
+        // 세로 모드만 지원 (가로 모드 제거)
+
+        function startResize(clientX) {
             isResizing = true;
-            
+
             // [수정 1] 드래그를 시작할 때 iframe의 마우스 이벤트를 '끈다'.
             if (pdfViewer) pdfViewer.style.pointerEvents = 'none';
-            
+
             // 트랜지션 효과를 잠시 꺼서 드래그가 끊기지 않게 합니다.
             pdfColumn.style.transition = 'none';
             formColumn.style.transition = 'none';
-            
+
             // 드래그 중 텍스트가 선택되는 것을 방지합니다.
             document.body.style.userSelect = 'none';
-            
-            if (isHorizontalMode()) {
-                startPos = clientY;
-                startPdfSize = pdfColumn.getBoundingClientRect().height;
-                document.body.style.cursor = 'row-resize';
-            } else {
-                startPos = clientX;
-                startPdfSize = pdfColumn.getBoundingClientRect().width;
-                document.body.style.cursor = 'col-resize';
-            }
+
+            // 세로 모드 (좌우 분할)
+            startPos = clientX;
+            startPdfSize = pdfColumn.getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
         }
         
-        function doResize(clientX, clientY) {
+        function doResize(clientX) {
             if (!isResizing) return;
-            
-            if (isHorizontalMode()) {
-                // --- 가로 모드 (상하 분할) ---
-                const deltaY = clientY - startPos;
-                const containerHeight = mainContainer.clientHeight;
-                const minHeight = 150; // 패널이 너무 작아지는 것을 방지하기 위한 최소 높이
-                
-                let newPdfHeight = startPdfSize + deltaY;
-                
-                // 최소/최대 높이 제한을 두어 레이아웃이 깨지지 않게 합니다.
-                newPdfHeight = Math.max(minHeight, newPdfHeight);
-                newPdfHeight = Math.min(containerHeight - minHeight, newPdfHeight);
 
-                const newFormHeight = containerHeight - newPdfHeight - resizeBar.clientHeight;
-                
-                const totalFlexHeight = newPdfHeight + newFormHeight;
-                pdfColumn.style.flex = `${(newPdfHeight / totalFlexHeight) * 5}`;
-                formColumn.style.flex = `${(newFormHeight / totalFlexHeight) * 5}`;
-                
-            } else {
-                // --- 세로 모드 (좌우 분할) ---
-                /* ▼▼▼ 이 코드로 교체하세요 ▼▼▼ */
-                const deltaX = clientX - startPos;
-                const containerWidth = mainContainer.clientWidth;
-                const resizeBarWidth = resizeBar.clientWidth;
-                const availableWidth = containerWidth - resizeBarWidth;
-                const minWidth = 150;
+            // 세로 모드만 지원 (좌우 분할)
+            const deltaX = clientX - startPos;
+            const containerWidth = mainContainer.clientWidth;
+            const resizeBarWidth = resizeBar.clientWidth;
+            const availableWidth = containerWidth - resizeBarWidth;
+            const minWidth = 150;
 
-                // PDF 컬럼의 새로운 너비 계산 (최소/최대 제한 포함)
-                let newPdfWidth = startPdfSize + deltaX;
-                newPdfWidth = Math.max(minWidth, newPdfWidth);
-                newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
+            // PDF 컬럼의 새로운 너비 계산 (최소/최대 제한 포함)
+            let newPdfWidth = startPdfSize + deltaX;
+            newPdfWidth = Math.max(minWidth, newPdfWidth);
+            newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
 
-                // 폼 컬럼의 새로운 너비 계산
-                const newFormWidth = availableWidth - newPdfWidth;
-                
-                // 계산된 너비 비율에 따라 flex 값을 동적으로 설정 (가로 모드와 로직 통일)
-                const totalFlexWidth = newPdfWidth + newFormWidth;
-                pdfColumn.style.flex = `${(newPdfWidth / totalFlexWidth) * 5}`;
-                formColumn.style.flex = `${(newFormWidth / totalFlexWidth) * 5}`;
-                /* ▲▲▲ 여기까지 교체 ▲▲▲ */
-            }
+            // 폼 컬럼의 새로운 너비 계산
+            const newFormWidth = availableWidth - newPdfWidth;
+
+            // 계산된 너비 비율에 따라 flex 값을 동적으로 설정
+            const totalFlexWidth = newPdfWidth + newFormWidth;
+            pdfColumn.style.flex = `${(newPdfWidth / totalFlexWidth) * 5}`;
+            formColumn.style.flex = `${(newFormWidth / totalFlexWidth) * 5}`;
         }
         
         function endResize() {
@@ -1829,15 +1751,10 @@ function attachAllEventListeners() {
         document.addEventListener('touchend', endResize);
         document.addEventListener('touchcancel', endResize);
         
-        // 더블클릭으로 기본 비율 복원
+        // 더블클릭으로 기본 비율 복원 (세로 모드만 지원)
         resizeBar.addEventListener('dblclick', () => {
-            if (isHorizontalMode()) {
-                pdfColumn.style.flex = '3';
-                formColumn.style.flex = '2';
-            } else {
-                pdfColumn.style.width = '62.5%';
-                formColumn.style.width = '37.5%';
-            }
+            pdfColumn.style.flex = '2';
+            formColumn.style.flex = '3';
             saveLayoutSettings();
         });
     }
