@@ -328,50 +328,67 @@ def extract_rights_info(full_text):
 
 def extract_ownership_transfer_date(text):
     """
-    【갑구】에서 발견된 모든 날짜 중 가장 최신 날짜를 찾아
-    "YYYY-MM-DD" 형식의 문자열로 반환합니다. (검색 범위 수정)
+    등기부등본 텍스트의 【갑구】에서 '소유권이전' 항목들의 '접수일'을 정확히 파싱하여
+    가장 최신 날짜를 "YYYY-MM-DD" 형식으로 반환합니다.
+
+    [핵심 로직]
+    1. '갑구' 섹션 전체를 추출하여 검색 범위를 한정합니다.
+    2. '순위번호'를 기준으로 '갑구'를 개별 등기 항목으로 분리합니다.
+    3. 각 항목별로 등기 목적이 '소유권이전'인지 명확히 확인합니다.
+       - '등기명의인표시변경' 등 다른 목적의 항목은 철저히 배제합니다.
+    4. '소유권이전'이 맞는 항목에서만 날짜(접수일)를 추출합니다.
+    5. 추출된 모든 '소유권이전' 날짜 중 가장 최신 날짜를 찾아 반환합니다.
     """
     try:
-        # --- ▼▼▼ 여기가 핵심 수정 부분입니다 ▼▼▼ ---
-        # 1. '갑구' 섹션의 범위를 【을구】, '주요 등기사항 요약', '열람일시' 중
-        #    가장 먼저 나오는 키워드까지만으로 제한하여, 페이지 하단의 열람일시가
-        #    포함되지 않도록 수정합니다.
+        # 1. 【갑구】 섹션 전체 텍스트를 정확하게 추출합니다.
         kapgu_match = re.search(
-            r'【\s*갑\s*구\s*】(?:\s*\(소유권에 관한 사항\))?(.*?)(?=【\s*을\s*구\s*】|주요 등기사항 요약|열람일시)',
+            r'【\s*갑\s*구\s*】([\s\S]*?)(?=【\s*을\s*구\s*】|주요 등기사항 요약)',
             text,
             re.DOTALL
         )
         if not kapgu_match:
+            print("오류: 【갑구】 섹션을 찾을 수 없습니다.")
             return ""
-        search_text = kapgu_match.group(1)
-        # --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
+        kapgu_text = kapgu_match.group(1)
 
-        dates = []
-        date_pattern = r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일'
+        # 2. '순위번호'를 기준으로 갑구 내용을 개별 등기 항목으로 분리합니다.
+        # 순위번호는 라인 시작 부분의 '숫자' 또는 '숫자-숫자' 형식입니다.
+        entries = re.split(r'\n\s*(?=\d{1,2}(?:-\d{1,2})?\s)', kapgu_text)
 
-        # 2. 갑구 텍스트 전체에서 'YYYY년 MM월 DD일' 형식의 모든 날짜를 찾습니다.
-        all_matches = re.finditer(date_pattern, search_text)
+        ownership_dates = []
+        date_pattern = r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
 
-        current_year = datetime.now().year
-
-        for match in all_matches:
-            try:
-                year, month, day = map(int, match.groups())
-
-                # 3. 유효한 날짜들을 datetime 객체로 변환하여 리스트에 추가합니다.
-                if 1990 <= year <= current_year + 1 and 1 <= month <= 12 and 1 <= day <= 31:
-                    dates.append(datetime(year, month, day))
-            except (ValueError, TypeError):
+        # 3. 각 등기 항목을 순회하며 분석합니다.
+        for entry in entries:
+            entry_text = entry.strip()
+            if not entry_text:
                 continue
 
-        # 4. 날짜가 하나도 없으면 빈 문자열을 반환합니다.
-        if not dates:
+            # 3-1. 등기 목적이 '소유권이전'인지 명확히 판별합니다.
+            # 항목의 첫 부분에 '소유권이전'이 있는지 확인하고, '표시변경' 등 다른 키워드는 없는지 확인합니다.
+            # 여러 줄일 수 있으므로 줄바꿈을 공백으로 합쳐서 분석합니다.
+            purpose_check_text = ' '.join(entry_text.splitlines()[:2]) # 보통 목적은 첫 두 줄 안에 있음
+
+            if '소유권이전' in purpose_check_text and '등기명의인표시' not in purpose_check_text:
+
+                # 4. 해당 항목 내에서 날짜(접수일)를 찾습니다.
+                date_match = re.search(date_pattern, entry_text)
+
+                if date_match:
+                    date_str = date_match.group(1)
+                    # 날짜 문자열에서 공백 제거 후 datetime 객체로 변환
+                    cleaned_date_str = re.sub(r'\s+', '', date_str)
+                    dt_obj = datetime.strptime(cleaned_date_str, "%Y년%m월%d일")
+                    ownership_dates.append(dt_obj)
+
+        # 5. 추출된 모든 소유권이전 날짜 중 가장 최신 날짜를 찾아 반환합니다.
+        if not ownership_dates:
+            print("오류: '소유권이전' 항목에서 유효한 날짜를 찾지 못했습니다.")
             return ""
 
-        # 5. [핵심] 찾아낸 모든 날짜 중에서 가장 최신 날짜(max)를 선택하여 반환합니다.
-        latest_date = max(dates)
+        latest_date = max(ownership_dates)
         return latest_date.strftime('%Y-%m-%d')
 
     except Exception as e:
-        print(f"소유권 이전일 파싱 중 오류: {e}")
+        print(f"소유권 이전일 파싱 중 오류 발생: {e}")
         return ""
