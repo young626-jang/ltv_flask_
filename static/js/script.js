@@ -19,6 +19,18 @@
     let memoDebounceTimeout;
 
     // ========================================================
+    // 1. Helper 함수 - 안전한 요소 접근
+    // ========================================================
+    function safeSetValue(elementId, value) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.value = value;
+        } else {
+            console.warn(`⚠️ Element not found: ${elementId}`);
+        }
+    }
+
+    // ========================================================
     // 2. 기본 UI 함수
     // ========================================================
     // 커스텀 알림창 함수 (닫기 버튼으로 즉시 닫힘)
@@ -826,71 +838,66 @@ async function loadCustomerData() {
         // Notion에서 온 '홍길동 800101, 김철수 900202' 같은 데이터를 나눕니다.
         if (data.customer_name) {
             const owners = data.customer_name.split(',').map(name => name.trim());
-            document.getElementById('customer_name').value = owners[0] || '';
-            document.getElementById('customer_name_2').value = owners[1] || '';
+            safeSetValue('customer_name', owners[0] || '');
+            safeSetValue('customer_name_2', owners[1] || '');
         } else {
-            document.getElementById('customer_name').value = '';
-            document.getElementById('customer_name_2').value = '';
+            safeSetValue('customer_name', '');
+            safeSetValue('customer_name_2', '');
         }
         // --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
-        
-        document.getElementById('address').value = data.address || '';
-        document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
-        document.getElementById('area').value = data.area || '';
-        document.getElementById('ltv1').value = data.ltv1 || '80';
-        document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
-        document.getElementById('consult_rate').value = data.consult_rate || '1.5';
-        document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
-        document.getElementById('bridge_rate').value = data.bridge_rate || '0.7';
+
+        // 안전한 요소 접근 (null 체크 포함)
+        safeSetValue('address', data.address || '');
+        safeSetValue('kb_price', (data.kb_price || '').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        safeSetValue('area', data.area || '');
+        safeSetValue('ltv1', data.ltv1 || '80');
+        safeSetValue('consult_amt', (data.consult_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        safeSetValue('consult_rate', data.consult_rate || '1.5');
+        safeSetValue('bridge_amt', (data.bridge_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        safeSetValue('bridge_rate', data.bridge_rate || '0.7');
         
         const regionSelect = document.getElementById('deduction_region');
-        const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
-        if(regionOption) {
-            regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
-        } else if(regionSelect.options.length > 0) {
-            regionSelect.selectedIndex = 0;
+        if (regionSelect) {
+            const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
+            if(regionOption) {
+                regionSelect.selectedIndex = Array.from(regionSelect.options).indexOf(regionOption);
+            } else if(regionSelect.options.length > 0) {
+                regionSelect.selectedIndex = 0;
+            }
+            safeSetValue('deduction_amount', (regionSelect.value || '').toLocaleString());
         }
-        document.getElementById('deduction_amount').value = (regionSelect.value || '').toLocaleString();
-        document.getElementById('loan-items-container').innerHTML = '';
-        loanItemCounter = 0;
+        const loanContainer = document.getElementById('loan-items-container');
+        if (loanContainer) {
+            loanContainer.innerHTML = '';
+            loanItemCounter = 0;
 
-        if (data.loans && data.loans.length > 0) {
-            data.loans.forEach(loan => addLoanItem(loan));
-        } else { 
-            addLoanItem(); 
+            if (data.loans && data.loans.length > 0) {
+                data.loans.forEach(loan => addLoanItem(loan));
+            } else {
+                addLoanItem();
+            }
         }
 
         // customer_name 데이터를 지분한도 계산기 탭 공유자 필드에 자동 입력
         if (data.customer_name) {
             const owners = data.customer_name.split(',').map(name => name.trim());
             if (owners.length >= 1) {
-                document.getElementById('share-customer-name-1').value = owners[0];
+                safeSetValue('share-customer-name-1', owners[0]);
             }
             if (owners.length >= 2) {
-                document.getElementById('share-customer-name-2').value = owners[1];
+                safeSetValue('share-customer-name-2', owners[1]);
             }
         }
 
-            // customer_name 데이터를 지분한도 계산기 탭 공유자 필드에 자동 입력
-            if (data.customer_name) {
-                const owners = data.customer_name.split(',').map(name => name.trim());
-                if (owners.length >= 1) {
-                    document.getElementById('share-customer-name-1').value = owners[0];
-                }
-                if (owners.length >= 2) {
-                    document.getElementById('share-customer-name-2').value = owners[1];
-                }
-            }
-            
-            // 공유자 지분율 자동 입력
-            if (data.share_rate1) {
-                document.getElementById('share-customer-birth-1').value = data.share_rate1;
-            }
-            if (data.share_rate2) {
-                document.getElementById('share-customer-birth-2').value = data.share_rate2;
-            }
+        // 공유자 지분율 자동 입력
+        if (data.share_rate1) {
+            safeSetValue('share-customer-birth-1', data.share_rate1);
+        }
+        if (data.share_rate2) {
+            safeSetValue('share-customer-birth-2', data.share_rate2);
+        }
 
-            triggerMemoGeneration();
+        triggerMemoGeneration();
         } catch (error) {
             alert(`고객 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
         }
@@ -1085,23 +1092,26 @@ async function handleFileUpload(file) {
             // 소유자 이름 & 생년월일 (2명까지 지원)
             if (scraped.customer_name) {
                 const owners = scraped.customer_name.split(',').map(name => name.trim());
-                document.getElementById('customer_name').value = owners[0] || '';
-                document.getElementById('customer_name_2').value = owners[1] || '';
+                safeSetValue('customer_name', owners[0] || '');
+                safeSetValue('customer_name_2', owners[1] || '');
             } else {
-                document.getElementById('customer_name').value = '';
-                document.getElementById('customer_name_2').value = '';
+                safeSetValue('customer_name', '');
+                safeSetValue('customer_name_2', '');
             }
 
-            document.getElementById('address').value = scraped.address || '';
+            safeSetValue('address', scraped.address || '');
             const areaValue = scraped.area || '';
-            document.getElementById('area').value = areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : '');
+            safeSetValue('area', areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : ''));
 
             // 소유권이전일 추가
             const transferDateField = document.getElementById('ownership_transfer_date');
-            console.log('🔍 transferDateField 확인:', transferDateField ? '존재' : '없음');
-            transferDateField.value = scraped.transfer_date || '';
-            console.log('✅ ownership_transfer_date 값:', transferDateField.value);
-            checkTransferDateColor(transferDateField.value);
+            if (transferDateField) {
+                transferDateField.value = scraped.transfer_date || '';
+                console.log('✅ ownership_transfer_date 값:', transferDateField.value);
+                checkTransferDateColor(transferDateField.value);
+            } else {
+                console.warn('⚠️ ownership_transfer_date 요소를 찾을 수 없습니다');
+            }
 
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
@@ -1159,10 +1169,15 @@ async function handleFileUpload(file) {
 
             // PDF 뷰어를 표시하고 파일 이름을 보여줍니다.
             const fileURL = URL.createObjectURL(file);
-            document.getElementById('pdf-viewer').src = fileURL;
-            document.getElementById('upload-section').style.display = 'none';
-            document.getElementById('viewer-section').style.display = 'block';
-            document.getElementById('file-name-display').textContent = file.name;
+            const pdfViewer = document.getElementById('pdf-viewer');
+            const uploadSection = document.getElementById('upload-section');
+            const viewerSection = document.getElementById('viewer-section');
+            const fileNameDisplay = document.getElementById('file-name-display');
+
+            if (pdfViewer) pdfViewer.src = fileURL;
+            if (uploadSection) uploadSection.style.display = 'none';
+            if (viewerSection) viewerSection.style.display = 'block';
+            if (fileNameDisplay) fileNameDisplay.textContent = file.name;
             setPdfColumnExpanded(); // PDF 업로드 시 PDF 컬럼 확장
 
             // 최종적으로 메모를 업데이트합니다.
@@ -1184,38 +1199,53 @@ async function handleFileUpload(file) {
     // 전체 초기화
     function clearAllFields() {
         document.querySelectorAll('.form-field').forEach(field => {
-        document.getElementById('customer_name_2').value = ''; // 이 줄을 추가해주세요.
-        document.getElementById('ltv1').value = '80';    
-            if(field.tagName === 'SELECT') { 
-                field.selectedIndex = 0; 
-            } else { 
-                field.value = ''; 
+            if(field.tagName === 'SELECT') {
+                field.selectedIndex = 0;
+            } else {
+                field.value = '';
             }
         });
-        document.getElementById('ltv1').value = '80';
-        document.getElementById('consult_rate').value = '1.5';
-        document.getElementById('bridge_rate').value = '0.7';
-        const deductionRegionValue = document.getElementById('deduction_region').value;
-        document.getElementById('deduction_amount').value = (deductionRegionValue !== '0' && deductionRegionValue) ? 
-            parseInt(deductionRegionValue).toLocaleString() : '';
-        document.getElementById('loan-items-container').innerHTML = '';
-        loanItemCounter = 0;
-        addLoanItem();
+
+        safeSetValue('customer_name_2', '');
+        safeSetValue('ltv1', '80');
+        safeSetValue('consult_rate', '1.5');
+        safeSetValue('bridge_rate', '0.7');
+
+        const deductionRegion = document.getElementById('deduction_region');
+        if (deductionRegion) {
+            const deductionRegionValue = deductionRegion.value;
+            safeSetValue('deduction_amount', (deductionRegionValue !== '0' && deductionRegionValue) ?
+                parseInt(deductionRegionValue).toLocaleString() : '');
+        }
+
+        const loanContainer = document.getElementById('loan-items-container');
+        if (loanContainer) {
+            loanContainer.innerHTML = '';
+            loanItemCounter = 0;
+            addLoanItem();
+        }
+
         const fileInput = document.getElementById('file-input');
         if (fileInput) fileInput.value = null;
-        document.getElementById('pdf-viewer').src = 'about:blank';
-        document.getElementById('upload-section').style.display = 'flex';
-        
+
+        const pdfViewer = document.getElementById('pdf-viewer');
+        if (pdfViewer) pdfViewer.src = 'about:blank';
+
+        const uploadSection = document.getElementById('upload-section');
+        if (uploadSection) uploadSection.style.display = 'flex';
+
         // 지분한도 계산기 필드 초기화
-        document.getElementById('share-customer-name-1').value = '';
-        document.getElementById('share-customer-birth-1').value = '';
-        document.getElementById('share-customer-name-2').value = '';
-        document.getElementById('share-customer-birth-2').value = '';
-        document.getElementById('viewer-section').style.display = 'none';
-        
+        safeSetValue('share-customer-name-1', '');
+        safeSetValue('share-customer-birth-1', '');
+        safeSetValue('share-customer-name-2', '');
+        safeSetValue('share-customer-birth-2', '');
+
+        const viewerSection = document.getElementById('viewer-section');
+        if (viewerSection) viewerSection.style.display = 'none';
+
         // 등기 경고 숨김
         hideRegistrationWarning();
-        
+
         setPdfColumnCompact(); // 전체 초기화 시 PDF 컬럼 컴팩트
         alert("모든 입력 내용이 초기화되었습니다.");
         triggerMemoGeneration();
@@ -1385,7 +1415,12 @@ function attachAllEventListeners() {
     const uploadSection = document.getElementById('upload-section');
     const fileInput = document.getElementById('file-input');
     const reuploadBtn = document.getElementById('reupload-btn');
-    
+
+    if (!uploadSection || !fileInput) {
+        console.error('⚠️ uploadSection 또는 fileInput을 찾을 수 없습니다');
+        return;
+    }
+
     uploadSection.addEventListener('click', () => fileInput.click());
     if (reuploadBtn) {
         reuploadBtn.addEventListener('click', () => fileInput.click());
@@ -1396,12 +1431,12 @@ function attachAllEventListeners() {
 
     // [관련 함수] 대출 항목 드래그는 라인 362의 initializeDragAndDrop() 참고
     ['dragover','dragleave','drop'].forEach(eventName => {
-        uploadSection.addEventListener(eventName, e => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
+        uploadSection.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
         }, false);
     });
-    
+
     uploadSection.addEventListener('dragover', () => uploadSection.classList.add('dragover'));
     uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
     uploadSection.addEventListener('drop', (e) => {
