@@ -838,7 +838,6 @@ async function loadCustomerData() {
         document.getElementById('kb_price').value = (data.kb_price || '').toLocaleString();
         document.getElementById('area').value = data.area || '';
         document.getElementById('ltv1').value = data.ltv1 || '80';
-        document.getElementById('ltv2').value = data.ltv2 || '';
         document.getElementById('consult_amt').value = (data.consult_amt || '0').toLocaleString();
         document.getElementById('consult_rate').value = data.consult_rate || '1.5';
         document.getElementById('bridge_amt').value = (data.bridge_amt || '0').toLocaleString();
@@ -1236,12 +1235,10 @@ async function handleFileUpload(file) {
             const kbPriceText = document.getElementById("kb_price").value.replace(/,/g,'') || "0";
             const kbPrice = parseInt(kbPriceText);
             
-            // LTV 비율 수집 (ltv1, ltv2)
+            // LTV 비율 수집 (ltv1만 사용)
             const ltvRates = [];
             const ltv1 = document.getElementById("ltv1").value;
-            const ltv2 = document.getElementById("ltv2").value;
             if (ltv1 && ltv1.trim()) ltvRates.push(parseFloat(ltv1));
-            if (ltv2 && ltv2.trim()) ltvRates.push(parseFloat(ltv2));
             if (ltvRates.length === 0) ltvRates.push(70); // 기본값
 
             // 대출 데이터 수집
