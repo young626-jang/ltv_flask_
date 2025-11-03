@@ -200,18 +200,26 @@
         }
     }
 
-    // 레이아웃 설정 저장/복원 기능 (세로 모드만 지원)
+    // 레이아웃 설정 저장/복원 기능
     function saveLayoutSettings() {
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
+        const mainContainer = document.querySelector('.main-container');
+
+        if (!pdfColumn || !formColumn || !mainContainer) {
+            console.warn('⚠️ 레이아웃 설정 저장 실패: 필수 요소를 찾을 수 없습니다');
+            return;
+        }
 
         const layoutSettings = {
             pdfColumnFlex: pdfColumn.style.flex || '2',
             formColumnFlex: formColumn.style.flex || '3',
+            isHorizontalMode: mainContainer.classList.contains('horizontal-layout'),
             timestamp: Date.now()
         };
 
         localStorage.setItem('ltvLayoutSettings', JSON.stringify(layoutSettings));
+        console.log('💾 레이아웃 설정 저장됨:', layoutSettings);
     }
 
     function loadLayoutSettings() {
@@ -222,17 +230,33 @@
             const settings = JSON.parse(saved);
             const pdfColumn = document.getElementById('pdf-column');
             const formColumn = document.getElementById('form-column-wrapper');
+            const mainContainer = document.querySelector('.main-container');
+
+            if (!pdfColumn || !formColumn || !mainContainer) {
+                console.warn('⚠️ 레이아웃 설정 로드 실패: 필수 요소를 찾을 수 없습니다');
+                return;
+            }
 
             // 저장된 설정이 24시간 이내인지 확인
             const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
             if (!isRecent) return;
 
-            // 컬럼 크기 복원 (flex 기반, 세로 모드만 지원)
+            // 컬럼 크기 복원
             if (settings.pdfColumnFlex) {
                 pdfColumn.style.flex = settings.pdfColumnFlex;
             }
             if (settings.formColumnFlex) {
                 formColumn.style.flex = settings.formColumnFlex;
+            }
+
+            // 가로 모드 복원
+            if (settings.isHorizontalMode) {
+                mainContainer.classList.add('horizontal-layout');
+                const btn = document.getElementById('layout-toggle-btn');
+                if (btn) {
+                    btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
+                }
+                console.log('📋 가로 모드 복원됨');
             }
 
         } catch (error) {
@@ -258,9 +282,10 @@
         if (pdfColumn && formColumn) {
             pdfColumn.classList.remove('compact');
             // 확장 모드에서의 기본 비율
-            // 모바일에서 flex 비율이 아닌 min-height를 설정하여 기본 높이를 확보
+            // 모바일에서는 30vh 높이로 설정하여 폼 영역이 보이도록 함
             if (window.matchMedia('(max-width: 768px)').matches) {
-                 pdfColumn.style.flex = '0 0 35vh'; // 모바일 기본값 35vh
+                 pdfColumn.style.flex = '0 0 auto';
+                 pdfColumn.style.height = '30vh'; // 모바일에서 화면 아래 폼이 보이도록 30vh
                  formColumn.style.flex = '1';
             } else {
                  pdfColumn.style.flex = '2';
@@ -1214,7 +1239,31 @@ async function handleFileUpload(file) {
     }
 }
 
-    // 레이아웃 토글 (제거됨 - 세로 모드만 지원)
+    // 레이아웃 토글 (가로/세로 모드 전환)
+    function toggleLayout() {
+        const mainContainer = document.querySelector('.main-container');
+        const layoutToggleBtn = document.getElementById('layout-toggle-btn');
+
+        if (!mainContainer || !layoutToggleBtn) {
+            console.error('❌ main-container 또는 layout-toggle-btn을 찾을 수 없습니다');
+            return;
+        }
+
+        // 가로 모드 토글
+        mainContainer.classList.toggle('horizontal-layout');
+
+        // 버튼 텍스트 업데이트
+        if (mainContainer.classList.contains('horizontal-layout')) {
+            layoutToggleBtn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
+            console.log('✅ 가로 모드로 전환됨');
+        } else {
+            layoutToggleBtn.innerHTML = '<i class="bi bi-distribute-horizontal"></i> 가로 모드';
+            console.log('✅ 세로 모드로 전환됨');
+        }
+
+        // 현재 레이아웃 설정 저장
+        saveLayoutSettings();
+    }
 
     // 전체 초기화
     function clearAllFields() {
@@ -1556,7 +1605,7 @@ function attachAllEventListeners() {
     document.getElementById('reset-btn').addEventListener('click', () => location.reload());
     document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
     document.getElementById('update-btn').addEventListener('click', updateCustomer);
-    // layout-toggle-btn 이벤트 제거됨 (가로 모드 제거)
+    document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
 
     // 방공제 지역 선택 시 자동 금액 설정
     document.getElementById('deduction_region').addEventListener('change', (e) => {
@@ -1694,10 +1743,10 @@ function attachAllEventListeners() {
         const resizeBar = document.getElementById('resize-bar');
         const pdfColumn = document.getElementById('pdf-column');
         const formColumn = document.getElementById('form-column-wrapper');
-        const mainContainer = document.getElementById('main-layout-wrapper');
+        const mainContainer = document.querySelector('.main-container');
         const pdfViewer = document.getElementById('pdf-viewer');
 
-        if (!resizeBar || !pdfColumn || !formColumn) return;
+        if (!resizeBar || !pdfColumn || !formColumn || !mainContainer) return;
 
         // 이미 초기화된 경우 중복 방지
         if (resizeBar.dataset.initialized === 'true') return;
@@ -1707,8 +1756,13 @@ function attachAllEventListeners() {
         let startPos = 0;
         let startPdfSize = 0;
 
-        // ✅ [수정] 모바일/스택 모드 여부를 판단하는 헬퍼 함수
-        const isStackedMode = () => window.matchMedia('(max-width: 768px)').matches;
+        // ✅ [수정] 수직 리사이징 모드 여부를 판단하는 헬퍼 함수
+        // 가로 모드(상하 분할) 또는 모바일 화면(768px 이하)일 때 Y축 기반 리사이징
+        const isVerticalResize = () => {
+            const isHorizontalLayout = mainContainer.classList.contains('horizontal-layout');
+            const isMobileSize = window.matchMedia('(max-width: 768px)').matches;
+            return isHorizontalLayout || isMobileSize;
+        };
 
         // 세로 모드만 지원 (가로 모드 제거)
 
@@ -1725,13 +1779,13 @@ function attachAllEventListeners() {
             // 드래그 중 텍스트가 선택되는 것을 방지합니다.
             document.body.style.userSelect = 'none';
 
-            if (isStackedMode()) {
-                // ✅ [수정] 모바일/상하 분할 모드: 세로 리사이징 (Y축 기준)
+            if (isVerticalResize()) {
+                // ✅ [수정] 가로 모드/모바일: 상하 분할 모드, 세로 리사이징 (Y축 기준)
                 startPos = clientY;
                 startPdfSize = pdfColumn.getBoundingClientRect().height; // 높이 사용
                 document.body.style.cursor = 'row-resize'; // 상하 조절 커서
             } else {
-                // PC/좌우 분할 모드: 가로 리사이징 (X축 기준)
+                // PC/세로 모드: 좌우 분할 모드, 가로 리사이징 (X축 기준)
                 startPos = clientX;
                 startPdfSize = pdfColumn.getBoundingClientRect().width; // 너비 사용
                 document.body.style.cursor = 'col-resize'; // 좌우 조절 커서
@@ -1741,12 +1795,12 @@ function attachAllEventListeners() {
         function doResize(clientX, clientY) { // clientY를 인자로 받도록 수정
             if (!isResizing) return;
 
-            const isStack = isStackedMode();
-            const delta = isStack ? clientY - startPos : clientX - startPos; // Y축 또는 X축 델타
-            const containerSize = isStack ? mainContainer.clientHeight : mainContainer.clientWidth; // 전체 높이 또는 너비
-            const resizeBarSize = isStack ? resizeBar.clientHeight : resizeBar.clientWidth;
+            const isVertical = isVerticalResize();
+            const delta = isVertical ? clientY - startPos : clientX - startPos; // Y축 또는 X축 델타
+            const containerSize = isVertical ? mainContainer.clientHeight : mainContainer.clientWidth; // 전체 높이 또는 너비
+            const resizeBarSize = isVertical ? resizeBar.clientHeight : resizeBar.clientWidth;
             const availableSize = containerSize - resizeBarSize;
-            const minSize = 150; // 최소 크기 (PC: 150px 너비, Mobile: 150px 높이)
+            const minSize = 150; // 최소 크기 (150px)
 
             // PDF 컬럼의 새로운 크기 계산 (최소/최대 제한 포함)
             let newPdfSize = startPdfSize + delta;
@@ -1758,20 +1812,14 @@ function attachAllEventListeners() {
 
             // 계산된 크기 비율에 따라 flex 값을 동적으로 설정
             const totalFlexSize = newPdfSize + newFormSize;
-            // flex 비율을 5로 고정하고, 크기 비율에 따라 설정
-            pdfColumn.style.flex = `0 0 ${newPdfSize}px`; // 고정 픽셀로 설정 후 flex-grow를 0으로
-            formColumn.style.flex = `1 1 ${newFormSize}px`;
 
-            // HACK: flex-grow: 1을 유지하고 싶을 경우 flex-basis 대신 flex를 사용
-            // pdfColumn.style.flex = `${(newPdfSize / totalFlexSize) * 5}`;
-            // formColumn.style.flex = `${(newFormSize / totalFlexSize) * 5}`;
-
-            // NOTE: 모바일에서 flex-basis/flex-shrink를 사용하여 height를 고정시키는 것이 더 안정적입니다.
-            if (isStack) {
+            // 수직 리사이징(가로 모드/모바일): 높이 기반
+            if (isVertical) {
                 pdfColumn.style.flex = `0 0 ${newPdfSize}px`;
                 pdfColumn.style.height = `${newPdfSize}px`;
                 formColumn.style.flex = '1';
             } else {
+                // 수평 리사이징(세로 모드): 너비 기반
                 pdfColumn.style.flex = `0 0 ${newPdfSize}px`;
                 pdfColumn.style.width = `${newPdfSize}px`;
                 formColumn.style.flex = '1';
@@ -1834,14 +1882,16 @@ function attachAllEventListeners() {
         document.addEventListener('touchend', endResize);
         document.addEventListener('touchcancel', endResize);
 
-        // 더블클릭으로 기본 비율 복원 (세로 모드만 지원)
+        // 더블클릭으로 기본 비율 복원
         resizeBar.addEventListener('dblclick', () => {
             // ✅ [수정] 모드에 따라 기본 비율 복원
-            if (isStackedMode()) {
-                pdfColumn.style.flex = '0 0 35vh';
+            if (isVerticalResize()) {
+                // 가로 모드/모바일: 상하 분할 레이아웃
+                pdfColumn.style.flex = '0 0 auto';
                 formColumn.style.flex = '1';
-                pdfColumn.style.height = '35vh';
+                pdfColumn.style.height = '30vh'; // 화면 아래 폼이 보이도록 30vh
             } else {
+                // 세로 모드: 좌우 분할 레이아웃
                 pdfColumn.style.flex = '2';
                 formColumn.style.flex = '3';
                 pdfColumn.style.width = 'initial';
