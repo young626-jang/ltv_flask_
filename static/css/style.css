@@ -398,138 +398,112 @@
             </div>
 
         /* ============= 📱 모바일 반응형 개선 ============= */
-        
-        /* 태블릿 (768px 이하) */
+
+        /* 태블릿 및 모바일 공통 (768px 이하) */
         @media (max-width: 768px) {
+            /* --- 핵심 레이아웃 전환 (PDF 위에 폼) --- */
             body {
                 font-size: 0.85rem;
                 margin: 0;
                 padding: 0;
+                overflow-x: hidden !important; /* 가로 스크롤 완전 방지 */
             }
-            
+
             .main-container {
-                flex-direction: column;
+                flex-direction: column; /* 가로(row)에서 세로(column)로 전환 */
                 padding: 0.5rem;
                 gap: 0.5rem;
                 height: 100vh;
+                min-height: 100svh; /* 최신 뷰포트 단위 적용 */
                 width: 100vw;
                 overflow: hidden;
             }
-            
+
             .pdf-viewer-column {
-                flex: 0 0 35vh;
+                flex: 0 0 35vh; /* PDF 뷰어의 높이를 화면의 35%로 고정 */
                 min-height: 200px;
                 width: 100% !important;
                 margin: 0;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* 그림자 추가 */
             }
-            
+
             .form-column {
-                flex: 1;
+                flex: 1; /* 남은 공간을 모두 폼 컬럼이 차지 */
                 width: 100% !important;
                 height: auto;
                 max-height: none;
-                overflow-y: auto;
+                overflow-y: auto; /* 폼 내용이 길어지면 스크롤 가능 */
                 margin: 0;
+                padding: 0.5rem;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05); /* 상단에 미세한 그림자 */
             }
-            
-            /* 모바일에서도 리사이즈 바 표시하되 터치에 최적화 */
+
             .resize-bar {
-                width: 100% !important;
-                height: 12px; /* 터치하기 쉽도록 높이 확대 */
-                cursor: row-resize;
-                background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
-                touch-action: none;
-                position: relative;
-                z-index: 999;
+                display: none; /* 모바일 세로 모드에서는 리사이즈 바 숨김 */
             }
-            
-            .resize-bar::before {
-                width: 40px !important; /* 터치 영역 확대 */
-                height: 3px !important;
-                background: rgba(0,0,0,0.3) !important;
+
+            /* --- 폼 컴포넌트 터치 최적화 --- */
+            .btn, .form-control, .form-select {
+                min-height: 48px; /* 터치 영역 확대 */
+                font-size: 16px !important; /* iOS 줌 방지 */
             }
-            
-            .resize-bar::after {
-                width: 6px !important;
-                height: 30px !important;
-                background: rgba(255,255,255,0.8) !important;
+
+            /* --- 대출 항목 (Loan Item) 모바일 최적화 --- */
+            .loan-row-header {
+                display: none !important; /* 헤더 숨김 */
             }
-            
-            /* 버튼들을 터치하기 편하게 크게 */
-            .btn {
-                min-height: 44px; /* 애플 가이드라인 44px */
-                font-size: 0.9rem;
-            }
-            
-            .btn-sm {
-                min-height: 38px;
-                font-size: 0.8rem;
-            }
-            
-            /* 입력 필드들을 터치하기 편하게 */
-            .form-control, .form-select {
-                min-height: 44px;
-                font-size: 16px; /* iOS 줌 방지 */
-            }
-            
-            .form-control-sm, .form-select-sm {
-                min-height: 38px;
-                font-size: 14px;
-            }
-            
-            /* 순서 조정 버튼 모바일 최적화 */
-            .order-btn {
-                width: 28px;
-                height: 24px;
-                font-size: 12px;
-            }
-            
-            /* 대출 항목 모바일 최적화 */
+            .loan-col-drag { display: none; } /* 드래그 핸들 숨김 */
+
             .loan-item {
-                display: block !important;
+                display: block !important; /* Flexbox 구조를 블록(세로 스택)으로 강제 전환 */
                 padding: 0.75rem;
                 border: 1px solid #dee2e6;
                 border-radius: 0.5rem;
                 margin-bottom: 0.75rem;
                 background: #f8f9fa;
             }
-            
-            .loan-item > div {
-                margin-bottom: 0.5rem;
+
+            /* 각 컬럼이 전체 너비를 차지하도록 설정 */
+            .loan-col-lender, .loan-col-max-amount, .loan-col-ratio,
+            .loan-col-principal, .loan-col-status, .loan-col-action {
+                flex: 0 0 100% !important;
+                min-width: unset !important;
+                padding: 0 !important;
+                margin-bottom: 0.75rem;
             }
-            
-            /* 대출 헤더 테이블 형태 숨기기 */
-            .loan-row-header {
-                display: none !important;
+
+            .loan-col-action {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px dashed #e9ecef;
             }
-            
-            /* 모바일에서는 불필요한 라벨 제거 - placeholder로 충분 */
-            
-            /* 업로드 영역 모바일 최적화 */
-            #upload-section {
-                min-height: 150px;
+
+            .mobile-label {
+                display: block !important; /* 모바일에서 라벨 보이게 설정 (핵심) */
+                margin-bottom: 0.25rem;
+                color: #495057;
+                font-size: 0.8rem;
+                font-weight: 600;
             }
-            
-            #upload-section h4 {
-                font-size: 1.1rem;
-            }
-            
-            /* 텍스트 영역 모바일 최적화 */
-            #generated-memo {
-                min-height: 300px;
-                font-size: 0.85rem;
-            }
-            
-            /* 탭 버튼들 모바일에서 스크롤 가능하게 */
-            .nav-tabs {
+
+            /* --- 희망담보대부 버튼 그룹 --- */
+            #hope-loan-region-buttons {
+                display: flex !important;
+                gap: 0.5rem;
                 flex-wrap: nowrap;
-                overflow-x: auto;
-                white-space: nowrap;
+                overflow-x: auto; /* 버튼이 많으면 가로 스크롤 가능 */
+                padding-bottom: 0.25rem;
+                -webkit-overflow-scrolling: touch;
             }
-            
-            .nav-tabs .nav-link {
-                white-space: nowrap;
-                min-width: 80px;
+
+            .hope-loan-region-btn {
+                flex: 0 0 auto;
+                min-width: 70px;
+                min-height: 40px;
+                padding: 0.5rem 0.75rem;
             }
         }
         
