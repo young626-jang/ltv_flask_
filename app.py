@@ -19,8 +19,7 @@ from pdf_parser import (
     extract_viewing_datetime,
     check_registration_age,
     extract_owner_shares_with_birth,
-    extract_rights_info,  # <-- 핵심! 근저당권 분석 함수 추가!
-    extract_ownership_transfer_date  # <-- 소유권이전일 추출
+    extract_rights_info  # <-- 핵심! 근저당권 분석 함수
 )
 from history_manager_flask import (
     fetch_all_customers, 
@@ -95,7 +94,6 @@ def upload_and_parse_pdf():
 
         # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
         viewing_dt = extract_viewing_datetime(full_text)
-        transfer_date = extract_ownership_transfer_date(full_text)
 
         scraped_data = {
             'address': extract_address(full_text),
@@ -103,7 +101,6 @@ def upload_and_parse_pdf():
             'customer_name': extract_owner_info(full_text),
             'viewing_datetime': viewing_dt,
             'age_check': check_registration_age(viewing_dt),
-            'transfer_date': transfer_date,
             'owner_shares': extract_owner_shares_with_birth(full_text)
         }
         
