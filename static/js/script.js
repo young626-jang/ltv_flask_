@@ -258,8 +258,14 @@
         if (pdfColumn && formColumn) {
             pdfColumn.classList.remove('compact');
             // 확장 모드에서의 기본 비율
-            pdfColumn.style.flex = '2';
-            formColumn.style.flex = '3';
+            // 모바일에서 flex 비율이 아닌 min-height를 설정하여 기본 높이를 확보
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                 pdfColumn.style.flex = '0 0 35vh'; // 모바일 기본값 35vh
+                 formColumn.style.flex = '1';
+            } else {
+                 pdfColumn.style.flex = '2';
+                 formColumn.style.flex = '3';
+            }
         }
     }
 
@@ -1182,8 +1188,13 @@ async function handleFileUpload(file) {
             const uploadSection = document.getElementById('upload-section');
             const viewerSection = document.getElementById('viewer-section');
             const fileNameDisplay = document.getElementById('file-name-display');
+            // ✅ [수정] PDF 직접 열기 버튼에 클릭 이벤트 추가
+            const directViewBtn = document.getElementById('direct-view-pdf-btn');
 
             if (pdfViewer) pdfViewer.src = fileURL;
+            // ✅ [수정] PDF 직접 열기 기능 구현 (모바일 iframe 문제 해결)
+            if (directViewBtn) directViewBtn.onclick = () => window.open(fileURL, '_blank');
+
             if (uploadSection) uploadSection.style.display = 'none';
             if (viewerSection) viewerSection.style.display = 'block';
             if (fileNameDisplay) fileNameDisplay.textContent = file.name;
@@ -1239,6 +1250,10 @@ async function handleFileUpload(file) {
 
         const pdfViewer = document.getElementById('pdf-viewer');
         if (pdfViewer) pdfViewer.src = 'about:blank';
+
+        // ✅ [수정] 직접 열기 버튼 이벤트 핸들러 초기화
+        const directViewBtn = document.getElementById('direct-view-pdf-btn');
+        if (directViewBtn) directViewBtn.onclick = null;
 
         const uploadSection = document.getElementById('upload-section');
         if (uploadSection) uploadSection.style.display = 'flex';
@@ -1681,20 +1696,23 @@ function attachAllEventListeners() {
         const formColumn = document.getElementById('form-column-wrapper');
         const mainContainer = document.getElementById('main-layout-wrapper');
         const pdfViewer = document.getElementById('pdf-viewer');
-        
+
         if (!resizeBar || !pdfColumn || !formColumn) return;
-        
+
         // 이미 초기화된 경우 중복 방지
         if (resizeBar.dataset.initialized === 'true') return;
         resizeBar.dataset.initialized = 'true';
-        
+
         let isResizing = false;
         let startPos = 0;
         let startPdfSize = 0;
-        
+
+        // ✅ [수정] 모바일/스택 모드 여부를 판단하는 헬퍼 함수
+        const isStackedMode = () => window.matchMedia('(max-width: 768px)').matches;
+
         // 세로 모드만 지원 (가로 모드 제거)
 
-        function startResize(clientX) {
+        function startResize(clientX, clientY) { // clientY를 인자로 받도록 수정
             isResizing = true;
 
             // [수정 1] 드래그를 시작할 때 iframe의 마우스 이벤트를 '끈다'.
@@ -1707,80 +1725,104 @@ function attachAllEventListeners() {
             // 드래그 중 텍스트가 선택되는 것을 방지합니다.
             document.body.style.userSelect = 'none';
 
-            // 세로 모드 (좌우 분할)
-            startPos = clientX;
-            startPdfSize = pdfColumn.getBoundingClientRect().width;
-            document.body.style.cursor = 'col-resize';
+            if (isStackedMode()) {
+                // ✅ [수정] 모바일/상하 분할 모드: 세로 리사이징 (Y축 기준)
+                startPos = clientY;
+                startPdfSize = pdfColumn.getBoundingClientRect().height; // 높이 사용
+                document.body.style.cursor = 'row-resize'; // 상하 조절 커서
+            } else {
+                // PC/좌우 분할 모드: 가로 리사이징 (X축 기준)
+                startPos = clientX;
+                startPdfSize = pdfColumn.getBoundingClientRect().width; // 너비 사용
+                document.body.style.cursor = 'col-resize'; // 좌우 조절 커서
+            }
         }
-        
-        function doResize(clientX) {
+
+        function doResize(clientX, clientY) { // clientY를 인자로 받도록 수정
             if (!isResizing) return;
 
-            // 세로 모드만 지원 (좌우 분할)
-            const deltaX = clientX - startPos;
-            const containerWidth = mainContainer.clientWidth;
-            const resizeBarWidth = resizeBar.clientWidth;
-            const availableWidth = containerWidth - resizeBarWidth;
-            const minWidth = 150;
+            const isStack = isStackedMode();
+            const delta = isStack ? clientY - startPos : clientX - startPos; // Y축 또는 X축 델타
+            const containerSize = isStack ? mainContainer.clientHeight : mainContainer.clientWidth; // 전체 높이 또는 너비
+            const resizeBarSize = isStack ? resizeBar.clientHeight : resizeBar.clientWidth;
+            const availableSize = containerSize - resizeBarSize;
+            const minSize = 150; // 최소 크기 (PC: 150px 너비, Mobile: 150px 높이)
 
-            // PDF 컬럼의 새로운 너비 계산 (최소/최대 제한 포함)
-            let newPdfWidth = startPdfSize + deltaX;
-            newPdfWidth = Math.max(minWidth, newPdfWidth);
-            newPdfWidth = Math.min(availableWidth - minWidth, newPdfWidth);
+            // PDF 컬럼의 새로운 크기 계산 (최소/최대 제한 포함)
+            let newPdfSize = startPdfSize + delta;
+            newPdfSize = Math.max(minSize, newPdfSize);
+            newPdfSize = Math.min(availableSize - minSize, newPdfSize);
 
-            // 폼 컬럼의 새로운 너비 계산
-            const newFormWidth = availableWidth - newPdfWidth;
+            // 폼 컬럼의 새로운 크기 계산
+            const newFormSize = availableSize - newPdfSize;
 
-            // 계산된 너비 비율에 따라 flex 값을 동적으로 설정
-            const totalFlexWidth = newPdfWidth + newFormWidth;
-            pdfColumn.style.flex = `${(newPdfWidth / totalFlexWidth) * 5}`;
-            formColumn.style.flex = `${(newFormWidth / totalFlexWidth) * 5}`;
+            // 계산된 크기 비율에 따라 flex 값을 동적으로 설정
+            const totalFlexSize = newPdfSize + newFormSize;
+            // flex 비율을 5로 고정하고, 크기 비율에 따라 설정
+            pdfColumn.style.flex = `0 0 ${newPdfSize}px`; // 고정 픽셀로 설정 후 flex-grow를 0으로
+            formColumn.style.flex = `1 1 ${newFormSize}px`;
+
+            // HACK: flex-grow: 1을 유지하고 싶을 경우 flex-basis 대신 flex를 사용
+            // pdfColumn.style.flex = `${(newPdfSize / totalFlexSize) * 5}`;
+            // formColumn.style.flex = `${(newFormSize / totalFlexSize) * 5}`;
+
+            // NOTE: 모바일에서 flex-basis/flex-shrink를 사용하여 height를 고정시키는 것이 더 안정적입니다.
+            if (isStack) {
+                pdfColumn.style.flex = `0 0 ${newPdfSize}px`;
+                pdfColumn.style.height = `${newPdfSize}px`;
+                formColumn.style.flex = '1';
+            } else {
+                pdfColumn.style.flex = `0 0 ${newPdfSize}px`;
+                pdfColumn.style.width = `${newPdfSize}px`;
+                formColumn.style.flex = '1';
+            }
+
         }
-        
+
         function endResize() {
             if (!isResizing) return;
             isResizing = false;
-            
+
             // [수정 2] 드래그가 끝나면 iframe의 마우스 이벤트를 다시 '켠다'.
             pdfViewer.style.pointerEvents = 'auto';
-            
+
             // 부드러운 효과를 위해 트랜지션을 다시 활성화합니다.
             pdfColumn.style.transition = '';
             formColumn.style.transition = '';
-            
+
             // 텍스트 선택 방지 및 마우스 커서 스타일을 원래대로 복원합니다.
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
-            
+
             // 리사이즈가 끝난 후 현재 레이아웃 상태를 저장합니다.
             saveLayoutSettings();
         }
-        
+
         // --- 이벤트 리스너 등록 ---
-        
+
         // 마우스 이벤트
         resizeBar.addEventListener('mousedown', (e) => {
             e.preventDefault();
             startResize(e.clientX, e.clientY);
         });
-        
+
         document.addEventListener('mousemove', (e) => {
             if (isResizing) {
                 e.preventDefault();
                 doResize(e.clientX, e.clientY);
             }
         });
-        
+
         document.addEventListener('mouseup', endResize);
         document.addEventListener('mouseleave', endResize); // 마우스가 창 밖으로 나가도 드래그가 멈추도록 추가
-        
+
         // 터치 이벤트 (모바일)
         resizeBar.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             startResize(touch.clientX, touch.clientY);
         }, { passive: false });
-        
+
         document.addEventListener('touchmove', (e) => {
             if (isResizing) {
                 e.preventDefault();
@@ -1788,14 +1830,22 @@ function attachAllEventListeners() {
                 doResize(touch.clientX, touch.clientY);
             }
         }, { passive: false });
-        
+
         document.addEventListener('touchend', endResize);
         document.addEventListener('touchcancel', endResize);
-        
+
         // 더블클릭으로 기본 비율 복원 (세로 모드만 지원)
         resizeBar.addEventListener('dblclick', () => {
-            pdfColumn.style.flex = '2';
-            formColumn.style.flex = '3';
+            // ✅ [수정] 모드에 따라 기본 비율 복원
+            if (isStackedMode()) {
+                pdfColumn.style.flex = '0 0 35vh';
+                formColumn.style.flex = '1';
+                pdfColumn.style.height = '35vh';
+            } else {
+                pdfColumn.style.flex = '2';
+                formColumn.style.flex = '3';
+                pdfColumn.style.width = 'initial';
+            }
             saveLayoutSettings();
         });
     }
