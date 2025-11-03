@@ -37,15 +37,17 @@
             background: var(--background-light);
             gap: 0.5rem;
         }
-        .pdf-viewer-column { 
+        .pdf-viewer-column {
             flex: 2; /* <-- 변경: 2/5 비율 (기존 40% 역할) */
-            display: flex; 
-            flex-direction: column; 
+            display: flex;
+            flex-direction: column;
             transition: flex 0.3s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: #F2EDD7;
             border-radius: 12px;
             padding: 0;
             box-shadow: var(--shadow-soft);
+            width: initial; /* PC: 너비 초기화 */
+            height: initial; /* PC: 높이 초기화 */
         }
         
         /* PDF 업로드 전 상태 - 드래그앤드롭만 보이는 컴팩트 모드 */
@@ -62,15 +64,17 @@
         .pdf-viewer-column.compact #viewer-section {
             display: none !important;
         }
-        .form-column { 
+        .form-column {
             flex: 3; /* <-- 변경: 3/5 비율 (기존 60% 역할) */
-            height: 100%; 
-            overflow-y: scroll; 
+            height: 100%;
+            overflow-y: scroll;
             transition: flex 0.1s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: var(--background-white);
             border-radius: 12px;
             padding: 0.5rem;
             box-shadow: var(--shadow-soft);
+            width: initial; /* PC: 너비 초기화 */
+            height: initial; /* PC: 높이 초기화 */
         }
         
         /* 리사이즈 바 스타일 */
@@ -84,6 +88,7 @@
             z-index: 10;
             transition: all 0.3s ease;
             touch-action: none; /* 터치 스크롤 방지 */
+            height: initial; /* PC: 높이 초기화 */
         }
         
         /* PDF 컴팩트 상태에서 리사이즈 바는 정상 동작 */
@@ -417,14 +422,15 @@
             }
             
             .pdf-viewer-column {
-                flex: 0 0 35vh;
-                min-height: 200px;
+                flex: 0 0 35vh; /* ✅ PDF 뷰어에 기본 높이 설정 (35% of viewport height) */
+                min-height: 150px;
                 width: 100% !important;
                 margin: 0;
+                height: initial !important; /* JS 리사이징을 위해 height 초기화 */
             }
             
             .form-column {
-                flex: 1;
+                flex: 1; /* ✅ 남은 공간을 폼 컬럼이 차지 */
                 width: 100% !important;
                 height: auto;
                 max-height: none;
@@ -435,24 +441,28 @@
             /* 모바일에서도 리사이즈 바 표시하되 터치에 최적화 */
             .resize-bar {
                 width: 100% !important;
-                height: 12px; /* 터치하기 쉽도록 높이 확대 */
-                cursor: row-resize;
-                background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
+                height: 12px; /* ✅ 터치하기 쉽도록 높이 확대 */
+                cursor: row-resize; /* ✅ 상하 조절 커서 적용 */
+                background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef) !important; /* 배경을 가로로 변경 */
                 touch-action: none;
                 position: relative;
                 z-index: 999;
             }
-            
+
             .resize-bar::before {
                 width: 40px !important; /* 터치 영역 확대 */
                 height: 3px !important;
                 background: rgba(0,0,0,0.3) !important;
+                /* 세로모드에서 상하로 변경된 리사이즈 바 중앙의 수직선을 수평선으로 변경 */
+                transform: translate(-50%, -50%) rotate(0deg) !important;
             }
-            
+
             .resize-bar::after {
                 width: 6px !important;
                 height: 30px !important;
                 background: rgba(255,255,255,0.8) !important;
+                /* 세로모드에서 상하로 변경된 리사이즈 바 중앙의 수평선을 수직선으로 변경 */
+                transform: translate(-50%, -50%) rotate(90deg) !important;
             }
             
             /* 버튼들을 터치하기 편하게 크게 */
@@ -1436,3 +1446,6 @@ window.addEventListener('offline', function() {
             border-color: #333 !important;
             box-shadow: 0 0 0 0.2rem rgba(51, 51, 51, 0.25);
         }
+
+
+        
