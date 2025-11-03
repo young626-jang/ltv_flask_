@@ -220,6 +220,8 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "consult_rate": get_number(props, "컨설팅수수료율"),
         "bridge_amt": get_number(props, "브릿지금액"),
         "bridge_rate": get_number(props, "브릿지수수료율"),
+        "ownership_transfer_date": get_rich_text(props, "소유권이전일"),
+        "unit_count": get_rich_text(props, "세대수"),
     }
     
     # 대출 정보 조회
@@ -311,6 +313,12 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "브릿지수수료율": {
             "number": float(fees.get("bridge_rate", "0") or 0)
+        },
+        "소유권이전일": {
+            "rich_text": [{"text": {"content": inputs.get("ownership_transfer_date", "").strip()}}]
+        },
+        "세대수": {
+            "rich_text": [{"text": {"content": inputs.get("unit_count", "").strip()}}]
         },
     }
 
@@ -528,6 +536,8 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
 
 
 
