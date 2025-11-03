@@ -729,16 +729,18 @@ function collectAllData() {
             area: document.getElementById('area').value,
             deduction_region_text: selectedRegionText,
             deduction_amount: document.getElementById('deduction_amount').value,
-            
+
             // [복구] LTV1만 전송
-            ltv_rates: [document.getElementById('ltv1').value], 
-            
+            ltv_rates: [document.getElementById('ltv1').value],
+
             // [삭제] required_amount 필드 제거
-            // required_amount: document.getElementById('required_amount').value, 
-            
+            // required_amount: document.getElementById('required_amount').value,
+
             share_rate1: document.getElementById('share-customer-birth-1').value,
             share_rate2: document.getElementById('share-customer-birth-2').value,
             hope_collateral_checked: document.getElementById('hope-collateral-loan').checked,
+            ownership_transfer_date: document.getElementById('ownership_transfer_date').value,
+            unit_count: document.getElementById('unit_count').value,
         },
         fees: {
             // [복구] consult_amt가 컨설팅 금액으로 돌아옵니다.
@@ -855,7 +857,14 @@ async function loadCustomerData() {
         safeSetValue('consult_rate', data.consult_rate || '1.5');
         safeSetValue('bridge_amt', (data.bridge_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         safeSetValue('bridge_rate', data.bridge_rate || '0.7');
-        
+
+        // 소유권이전일 및 세대수 로드
+        safeSetValue('ownership_transfer_date', data.ownership_transfer_date || '');
+        if (data.ownership_transfer_date) {
+            checkTransferDateColor(data.ownership_transfer_date);
+        }
+        safeSetValue('unit_count', data.unit_count || '');
+
         const regionSelect = document.getElementById('deduction_region');
         if (regionSelect) {
             const regionOption = Array.from(regionSelect.options).find(opt => opt.text === data.deduction_region);
