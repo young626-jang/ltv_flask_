@@ -399,8 +399,8 @@
 
         /* ============= 📱 모바일 반응형 개선 ============= */
 
-        /* 태블릿 및 모바일 공통 (768px 이하) */
-        @media (max-width: 768px) {
+        /* ⭐ 모바일/태블릿 세로 모드 (768px 이하, Portrait) */
+        @media (max-width: 768px) and (orientation: portrait) {
             /* --- 핵심 레이아웃 전환 (PDF 위에 폼) --- */
             body {
                 font-size: 0.85rem;
@@ -410,7 +410,7 @@
             }
 
             .main-container {
-                flex-direction: column; /* 가로(row)에서 세로(column)로 전환 */
+                flex-direction: column; /* 세로 배치 */
                 padding: 0.5rem;
                 gap: 0.5rem;
                 height: 100vh;
@@ -504,6 +504,113 @@
                 min-width: 70px;
                 min-height: 40px;
                 padding: 0.5rem 0.75rem;
+            }
+        }
+
+        /* ⭐ 모바일/태블릿 가로 모드 (768px 이하, Landscape) */
+        @media (max-width: 768px) and (orientation: landscape) {
+            body {
+                font-size: 0.8rem;
+                margin: 0;
+                padding: 0;
+                overflow-x: hidden !important;
+            }
+
+            /* 가로 모드: 좌우 분할 레이아웃 (PC와 유사) */
+            .main-container {
+                flex-direction: row; /* 가로 분할 */
+                padding: 0.5rem;
+                gap: 0.5rem;
+                height: 100vh;
+                min-height: 100svh;
+                width: 100vw;
+                overflow: hidden;
+            }
+
+            /* PDF 컬럼: 왼쪽 (화면의 약 40%) */
+            .pdf-viewer-column {
+                flex: 0 0 40%; /* 고정 너비 */
+                min-height: unset !important;
+                height: 100% !important;
+                width: auto !important;
+                margin: 0;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                transition: flex 0.3s ease; /* 리사이즈를 위한 트랜지션 */
+            }
+
+            /* 폼 컬럼: 오른쪽 (남은 공간) */
+            .form-column {
+                flex: 1; /* 남은 공간 차지 */
+                width: auto !important;
+                height: 100% !important;
+                max-height: none;
+                overflow-y: auto;
+                margin: 0;
+                padding: 0.5rem;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+                transition: flex 0.3s ease; /* 리사이즈를 위한 트랜지션 */
+            }
+
+            /* 리사이즈 바: 세로로 표시 (가로 모드에서만 보임) */
+            .resize-bar {
+                display: block !important;
+                width: 8px;
+                height: 100%;
+                cursor: col-resize;
+                background: linear-gradient(to bottom, #e9ecef, #dee2e6, #e9ecef);
+                flex-shrink: 0;
+            }
+
+            .resize-bar::before {
+                width: 2px !important;
+                height: 30px !important;
+                background: rgba(255,255,255,0.7) !important;
+            }
+
+            .resize-bar::after {
+                width: 20px !important;
+                height: 4px !important;
+                background: rgba(0,0,0,0.1) !important;
+            }
+
+            /* 폼 컴포넌트 터치 최적화 */
+            .btn, .form-control, .form-select {
+                min-height: 44px;
+                font-size: 14px !important;
+            }
+
+            /* 대출 항목도 가로 모드에서는 기본 레이아웃 유지 */
+            .loan-row-header {
+                display: flex !important; /* 헤더 표시 */
+            }
+            .loan-col-drag { display: flex; } /* 드래그 핸들 표시 */
+
+            .loan-item {
+                display: flex !important; /* 기본 flex 레이아웃 유지 */
+            }
+
+            .loan-col-lender, .loan-col-max-amount, .loan-col-ratio,
+            .loan-col-principal, .loan-col-status, .loan-col-action {
+                flex: initial !important; /* 기본값 복원 */
+                min-width: initial !important;
+                padding: initial !important;
+                margin-bottom: 0;
+            }
+
+            .loan-col-action {
+                border-top: none;
+                margin-top: 0;
+                padding-top: 0;
+            }
+
+            .mobile-label {
+                display: none !important; /* 가로 모드에서는 라벨 숨김 */
+            }
+
+            #hope-loan-region-buttons {
+                display: flex !important;
+                gap: 0.5rem;
+                flex-wrap: wrap;
             }
         }
         
@@ -632,24 +739,7 @@
                 font-size: 0.9rem;
             }
         }
-        
-        
-        /* 가로모드 모바일 최적화 */
-        @media (max-width: 768px) and (orientation: landscape) {
-            .main-container {
-                flex-direction: row;
-            }
-            
-            .pdf-viewer-column {
-                flex: 0 0 45%;
-            }
-            
-            .form-column {
-                flex: 1;
-                height: calc(100vh - 1rem);
-            }
-        }
-        
+
         /* 터치 디바이스 최적화 */
         @media (hover: none) and (pointer: coarse) {
             /* 터치 디바이스에서 호버 효과 제거 */
@@ -725,28 +815,28 @@
             }
         }
         
-        /* 추가 모바일 개선사항 */
-        @media (max-width: 768px) {
+        /* 추가 모바일 개선사항 (세로 모드) */
+        @media (max-width: 768px) and (orientation: portrait) {
             /* 뷰포트 단위 최적화 */
             .main-container {
                 min-height: 100vh;
                 min-height: -webkit-fill-available;
                 min-height: 100svh; /* 최신 뷰포트 단위 */
             }
-            
+
             /* 가로 스크롤 완전 방지 */
             body {
                 overflow-x: hidden !important;
                 max-width: 100vw !important;
                 position: relative;
             }
-            
+
             /* 모든 요소 최대 너비 제한 */
             * {
                 max-width: 100% !important;
                 box-sizing: border-box;
             }
-            
+
             /* 입력 필드 줌 방지 (iOS) */
             input[type="text"], input[type="number"], select, textarea {
                 font-size: 16px !important;
