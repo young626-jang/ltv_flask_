@@ -1557,13 +1557,12 @@ function attachAllEventListeners() {
     });
     
 
-    // [정리 및 통합] KB시세, 필요금액 변경 시 LTV 자동 계산을 최우선으로 실행
-    
-    // 1. KB시세 변경 시: LTV 자동 계산 -> 지분 개별 계산
-    document.getElementById('kb_price')?.addEventListener('change', calculateLTVFromRequiredAmount);
-    document.getElementById('kb_price')?.addEventListener('blur', calculateLTVFromRequiredAmount);
-    
-    // 2. 필요금액 변경 시: LTV 자동 계산 -> 지분 개별 계산
+    // [정리 및 통합] 필요금액 변경 시 LTV 자동 계산을 최우선으로 실행
+
+    // ✅ [수정] KB시세 입력 시에는 LTV 초기값(80)이 지워지지 않도록 이벤트 리스너 제거
+    // 필요금액 역계산 시에만 LTV를 자동 계산하고 싶으면 필요금액 필드에만 이벤트 추가
+
+    // 필요금액 변경 시: LTV 자동 계산 -> 지분 개별 계산
     document.getElementById('required_amount')?.addEventListener('change', calculateLTVFromRequiredAmount);
     document.getElementById('required_amount')?.addEventListener('blur', calculateLTVFromRequiredAmount);
     
@@ -1685,6 +1684,8 @@ function attachAllEventListeners() {
 
     if (hopeCollateralCheckbox) {
         hopeCollateralCheckbox.addEventListener('change', (e) => {
+            const ltv1Field = document.getElementById('ltv1');
+
             if (e.target.checked) {
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
@@ -1699,6 +1700,11 @@ function attachAllEventListeners() {
                     deductionAmountField.value = '';  // 방공제(만) 필드의 금액 삭제
                     console.log('💰 방공제(만) - 금액 삭제');
                 }
+                // --- LTV 비율 초기값 없음 (빈 상태) ---
+                if (ltv1Field) {
+                    ltv1Field.value = '';
+                    console.log('📊 LTV 비율 ① - 초기값 없음');
+                }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
             } else {
@@ -1710,7 +1716,12 @@ function attachAllEventListeners() {
                     b.style.color = '';
                     b.style.borderColor = '';
                 });
-                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김');
+                // --- LTV 비율 초기값 80 ---
+                if (ltv1Field) {
+                    ltv1Field.value = '80';
+                    console.log('📊 LTV 비율 ① - 초기값 80');
+                }
+                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김, LTV 초기값 80 설정');
             }
             // 희망담보대부 조건 검증
             validateHopeLoanConditions();
