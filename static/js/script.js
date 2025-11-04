@@ -224,39 +224,57 @@
 
     function loadLayoutSettings() {
         try {
-            const saved = localStorage.getItem('ltvLayoutSettings');
-            if (!saved) return;
-
-            const settings = JSON.parse(saved);
+            const mainContainer = document.querySelector('.main-container');
             const pdfColumn = document.getElementById('pdf-column');
             const formColumn = document.getElementById('form-column-wrapper');
-            const mainContainer = document.querySelector('.main-container');
 
             if (!pdfColumn || !formColumn || !mainContainer) {
                 console.warn('⚠️ 레이아웃 설정 로드 실패: 필수 요소를 찾을 수 없습니다');
                 return;
             }
 
-            // 저장된 설정이 24시간 이내인지 확인
-            const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
-            if (!isRecent) return;
+            const saved = localStorage.getItem('ltvLayoutSettings');
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-            // 컬럼 크기 복원
-            if (settings.pdfColumnFlex) {
-                pdfColumn.style.flex = settings.pdfColumnFlex;
-            }
-            if (settings.formColumnFlex) {
-                formColumn.style.flex = settings.formColumnFlex;
+            // 1. 저장된 설정이 있으면 우선 적용
+            if (saved) {
+                const settings = JSON.parse(saved);
+
+                // 저장된 설정이 24시간 이내인지 확인
+                const isRecent = (Date.now() - settings.timestamp) < (24 * 60 * 60 * 1000);
+                if (isRecent) {
+                    // 컬럼 크기 복원
+                    if (settings.pdfColumnFlex) {
+                        pdfColumn.style.flex = settings.pdfColumnFlex;
+                    }
+                    if (settings.formColumnFlex) {
+                        formColumn.style.flex = settings.formColumnFlex;
+                    }
+
+                    // 가로 모드 복원
+                    if (settings.isHorizontalMode) {
+                        mainContainer.classList.add('horizontal-layout');
+                        const btn = document.getElementById('layout-toggle-btn');
+                        if (btn) {
+                            btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
+                        }
+                        console.log('📋 저장된 레이아웃 복원됨');
+                    }
+                    return; // 저장된 설정이 적용되었으므로 여기서 종료
+                }
             }
 
-            // 가로 모드 복원
-            if (settings.isHorizontalMode) {
+            // 2. 저장된 설정이 없거나 만료된 경우
+            // 모바일이면 가로 모드로 자동 시작
+            if (isMobile) {
                 mainContainer.classList.add('horizontal-layout');
                 const btn = document.getElementById('layout-toggle-btn');
                 if (btn) {
                     btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
                 }
-                console.log('📋 가로 모드 복원됨');
+                console.log('📱 모바일 감지 - 가로 모드로 자동 시작됨');
+            } else {
+                console.log('🖥️ PC 화면 - 세로 모드로 시작됨');
             }
 
         } catch (error) {
@@ -1243,9 +1261,17 @@ async function handleFileUpload(file) {
     function toggleLayout() {
         const mainContainer = document.querySelector('.main-container');
         const layoutToggleBtn = document.getElementById('layout-toggle-btn');
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         if (!mainContainer || !layoutToggleBtn) {
             console.error('❌ main-container 또는 layout-toggle-btn을 찾을 수 없습니다');
+            return;
+        }
+
+        // 모바일 기기에서 가로 모드 상태일 때 변경 방지
+        if (isMobile && mainContainer.classList.contains('horizontal-layout')) {
+            console.warn('⚠️ 모바일에서는 가로 모드로만 사용할 수 있습니다');
+            showCustomAlert('모바일에서는 가로 모드로만 사용할 수 있습니다');
             return;
         }
 
