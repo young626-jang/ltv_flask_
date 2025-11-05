@@ -1236,7 +1236,13 @@ async function handleFileUpload(file) {
 
             if (pdfViewer) pdfViewer.src = fileURL;
             // ✅ [수정] PDF 직접 열기 기능 구현 (모바일 iframe 문제 해결)
-            if (directViewBtn) directViewBtn.onclick = () => window.open(fileURL, '_blank');
+            if (directViewBtn) {
+                directViewBtn.onclick = () => {
+                    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+                    // 모바일: 새 탭, PC: 현재 창에서 열기
+                    window.open(fileURL, isMobile ? '_blank' : '_self');
+                };
+            }
 
             if (uploadSection) uploadSection.style.display = 'none';
             if (viewerSection) viewerSection.style.display = 'block';
