@@ -447,7 +447,12 @@ def generate_memo(data):
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
         # ✨ 희망담보대부 적용 시 고정 텍스트 추가 (맨 하단)
         if hope_collateral_checked:
-            memo_lines.append("* 신용점수 및 소득확인 후 금리 및 한도 결정 *")
+            memo_lines.append("*본심사시 금액 변동될수 있습니다.")
+            memo_lines.append("*사업자 담보대출 (사업자필)")
+            memo_lines.append("*계약 2년")
+            memo_lines.append("*중도 3%")
+            memo_lines.append("*환수 92일이내 50%")
+            memo_lines.append("*연체이력 및 권리침해사항 1% 할증")
 
         memo_text = "\n".join(memo_lines)
         price_type = ""
