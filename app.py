@@ -10,6 +10,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 import fitz # PDF 텍스트 추출을 위해 fitz(PyMuPDF) 임포트
 import json
+import subprocess
+import threading
 
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
 from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
@@ -851,6 +853,43 @@ def delete_loan_review_data(record_id):
         db.session.rollback()
         logger.error(f"대출 심사 데이터 삭제 오류: {e}")
         return jsonify({"success": False, "error": "데이터 삭제 실패"}), 500
+
+# --- NICECREDIT 연동 API ---
+@app.route('/api/open-nicecredit', methods=['POST'])
+def open_nicecredit():
+    """NICECREDIT 애플리케이션 실행"""
+    try:
+        nicecredit_path = r'C:\Program Files (x86)\nexacro\nicecredit\17.1\nexacro.exe'
+
+        # 파일 존재 확인
+        if not os.path.exists(nicecredit_path):
+            return jsonify({
+                "success": False,
+                "error": "NICECREDIT 애플리케이션을 찾을 수 없습니다"
+            }), 404
+
+        # 별도 스레드에서 NICECREDIT 실행 (응답을 빠르게 반환하기 위함)
+        def run_nicecredit():
+            try:
+                subprocess.Popen(nicecredit_path, shell=False)
+                logger.info("NICECREDIT 애플리케이션 실행됨")
+            except Exception as e:
+                logger.error(f"NICECREDIT 실행 오류: {e}")
+
+        thread = threading.Thread(target=run_nicecredit)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({
+            "success": True,
+            "message": "NICECREDIT 애플리케이션이 실행되었습니다"
+        }), 200
+    except Exception as e:
+        logger.error(f"NICECREDIT 실행 오류: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": f"NICECREDIT 실행 중 오류가 발생했습니다: {str(e)}"
+        }), 500
 
 # 데이터베이스 초기화 함수
 def init_db():
