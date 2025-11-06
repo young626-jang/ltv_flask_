@@ -309,6 +309,9 @@
 </head>
 <body>
     <div class="container">
+        <!-- 동적 모달 컨테이너 (타임라인, 기록, 메모 등) -->
+        <div id="modalContainer"></div>
+
         <div class="header">
             <h1>🏦 대출 심사 현황 관리</h1>
             <p>희망담보컨설팅대부 | 고객 접수 → 심사 → 서류발급 → 자서 → 송금</p>
@@ -519,26 +522,64 @@
             '송금': 'remitDate'
         };
 
-        // 로컬스토리지에서 데이터 로드
-        function loadData() {
-            const saved = localStorage.getItem('loanReviewData');
-            if (saved) {
-                allData = JSON.parse(saved);
-                // 기존 데이터에 히스토리 없으면 추가
-                allData.forEach(data => {
-                    if (!data.statusHistory) {
-                        data.statusHistory = [{status: data.status, date: new Date().toISOString()}];
-                    }
-                    if (!data.memoHistory) {
-                        data.memoHistory = [];
-                    }
+        // 서버에서 데이터 로드 (하이브리드: 서버 우선, 실패 시 로컬 사용)
+        async function loadData() {
+            try {
+                // 서버에서 데이터 로드 시도
+                const response = await fetch('/api/loan-review-data', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
+
+                if (response.ok) {
+                    const serverData = await response.json();
+                    // 서버 데이터를 로컬 형식으로 변환
+                    allData = serverData.map(item => ({
+                        id: item.id,
+                        customerName: item.customerName,
+                        phone: item.phone,
+                        birthDate: item.birthDate,
+                        collateralValue: item.collateralValue,
+                        loanAmount: item.loanAmount,
+                        status: item.status,
+                        creditCheckDate: item.creditCheckDate,
+                        contractScheduleDate: item.contractScheduleDate,
+                        contractCompleteDate: item.contractCompleteDate,
+                        remitDate: item.remitDate,
+                        manager: item.manager,
+                        statusHistory: item.statusHistory || [],
+                        memoHistory: item.memoHistory || []
+                    }));
+                    // 서버 데이터를 로컬스토리지에도 저장 (오프라인 대비)
+                    localStorage.setItem('loanReviewData', JSON.stringify(allData));
+                } else {
+                    throw new Error('서버 응답 오류');
+                }
+            } catch (error) {
+                console.warn('서버 로드 실패, 로컬스토리지 사용:', error);
+                // 서버 실패 시 로컬스토리지에서 로드
+                const saved = localStorage.getItem('loanReviewData');
+                if (saved) {
+                    allData = JSON.parse(saved);
+                }
             }
+
+            // 데이터 검증: 히스토리 없으면 추가
+            allData.forEach(data => {
+                if (!data.statusHistory) {
+                    data.statusHistory = [{status: data.status, date: new Date().toISOString()}];
+                }
+                if (!data.memoHistory) {
+                    data.memoHistory = [];
+                }
+            });
+
             renderTable();
             updateSummary();
 
-            // LTV 계산기에서 넘어온 고객정보가 있으면 자동으로 모달 열기
-            if (urlCustomerName && urlCustomerName.trim() !== '') {
+            // LTV 계산기에서 넘어온 고객정보가 있으면 자동으로 모달 열기 (한 번만)
+            const hasProcessedUrlParams = sessionStorage.getItem('urlParamsProcessed');
+            if (!hasProcessedUrlParams && urlCustomerName && urlCustomerName.trim() !== '') {
                 setTimeout(() => {
                     document.getElementById('editIndex').value = '';
                     document.getElementById('customerName').value = urlCustomerName;
@@ -546,11 +587,42 @@
                     document.getElementById('birthDate').value = formattedBirth;
                     document.getElementById('modalTitle').innerText = '고객 정보 추가';
                     document.getElementById('modal').classList.add('active');
+                    // 이미 처리했음을 표시
+                    sessionStorage.setItem('urlParamsProcessed', 'true');
                 }, 300);
             }
         }
+
+        // 서버에 데이터 동기화 (비동기, 오류 무시)
+        async function syncToServer(data, isUpdate = false) {
+            try {
+                const url = isUpdate && data.id ? `/api/loan-review-data/${data.id}` : '/api/loan-review-data';
+                const method = isUpdate && data.id ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('서버 동기화 성공:', result);
+                    // 서버에서 반환한 ID로 로컬 데이터 업데이트
+                    if (result.id && !data.id) {
+                        data.id = result.id;
+                    }
+                    return result;
+                } else {
+                    console.warn('서버 동기화 실패:', response.status);
+                }
+            } catch (error) {
+                console.warn('서버 동기화 오류 (무시됨):', error);
+            }
+            return null;
+        }
         
-        // 데이터 저장
+        // 데이터 저장 (로컬 + 서버 동기화)
         function saveData(event) {
             event.preventDefault();
 
@@ -562,8 +634,8 @@
                 phone: document.getElementById('phone').value,
                 birthDate: document.getElementById('birthDate').value,
                 collateralType: '아파트',
-                collateralValue: document.getElementById('collateralValue').value,
-                loanAmount: document.getElementById('loanAmount').value,
+                collateralValue: parseInt(document.getElementById('collateralValue').value) || null,
+                loanAmount: parseInt(document.getElementById('loanAmount').value) || null,
                 status: newStatus,
                 creditCheckDate: creditCheckSelect === 'yes' ? 'yes' : '',
                 contractScheduleDate: document.getElementById('contractScheduleDate').value,
@@ -585,6 +657,8 @@
                     });
                 }
 
+                // ID 유지
+                newData.id = allData[editIndex].id;
                 allData[editIndex] = newData;
                 allData[editIndex].statusHistory = statusHistory;
                 allData[editIndex].memoHistory = memoHistory;
@@ -598,13 +672,19 @@
                 allData.push(newData);
             }
 
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버에 비동기 동기화 (오류는 무시)
+            const dataToSync = editIndex ? allData[editIndex] : allData[allData.length - 1];
+            syncToServer(dataToSync, !!editIndex);
+
             closeModal();
             renderTable();
             updateSummary();
         }
 
-        // 상태 변경 함수
+        // 상태 변경 함수 (로컬 + 서버 동기화)
         function changeStatus(index, newStatus) {
             const oldStatus = allData[index].status;
             if (oldStatus === newStatus) return;
@@ -630,7 +710,12 @@
                 previousStatus: oldStatus
             });
 
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버에 비동기 동기화
+            syncToServer(allData[index], true);
+
             renderTable();
             updateSummary();
         }
@@ -661,18 +746,21 @@
 
             historyHTML += '</table>';
 
+            const modalId = 'popup-' + Date.now();
             const modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'popup-modal';
             modal.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;" onclick="closePopupModal('${modalId}')">
+                    <div style="background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
                         ${historyHTML}
                         <div style="margin-top: 20px; text-align: right;">
-                            <button class="btn btn-primary" onclick="this.closest('div').closest('div').parentElement.remove()">닫기</button>
+                            <button class="btn btn-primary" onclick="closePopupModal('${modalId}')">닫기</button>
                         </div>
                     </div>
                 </div>
             `;
-            document.body.appendChild(modal);
+            document.getElementById('modalContainer').appendChild(modal);
         }
 
         // 진행 타임라인 보기
@@ -747,19 +835,22 @@
 
             timelineHTML += '</div>';
 
+            const modalId = 'popup-' + Date.now();
             const modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'popup-modal';
             modal.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: white; padding: 30px; border-radius: 8px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;" onclick="closePopupModal('${modalId}')">
+                    <div style="background: white; padding: 30px; border-radius: 8px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
                         ${timelineHTML}
                         <div style="margin-top: 20px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
-                            <button class="btn btn-secondary" onclick="showStatusHistory(${index}); this.closest('div').closest('div').parentElement.remove()">히스토리</button>
-                            <button class="btn btn-primary" onclick="this.closest('div').closest('div').parentElement.remove()">닫기</button>
+                            <button class="btn btn-secondary" onclick="closePopupModal('${modalId}'); showStatusHistory(${index})">히스토리</button>
+                            <button class="btn btn-primary" onclick="closePopupModal('${modalId}')">닫기</button>
                         </div>
                     </div>
                 </div>
             `;
-            document.body.appendChild(modal);
+            document.getElementById('modalContainer').appendChild(modal);
         }
 
         // 행 선택 토글
@@ -786,7 +877,7 @@
             }
         }
 
-        // 일괄 상태 변경
+        // 일괄 상태 변경 (로컬 + 서버 동기화)
         function bulkChangeStatus(newStatus) {
             if (selectedRows.size === 0) {
                 alert('선택된 항목이 없습니다.');
@@ -798,6 +889,8 @@
             }
 
             const indices = Array.from(selectedRows);
+            const syncPromises = [];
+
             indices.forEach(index => {
                 const oldStatus = allData[index].status;
                 if (oldStatus !== newStatus) {
@@ -821,10 +914,18 @@
                         date: new Date().toISOString(),
                         previousStatus: oldStatus
                     });
+
+                    // 서버 동기화 추가
+                    syncPromises.push(syncToServer(allData[index], true));
                 }
             });
 
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버에 비동기 동기화
+            Promise.all(syncPromises);
+
             selectedRows.clear();
             renderTable();
             updateSummary();
@@ -937,18 +1038,24 @@
             document.getElementById('modal').classList.add('active');
         }
 
-        // 신용조회 토글
+        // 신용조회 토글 (로컬 + 서버 동기화)
         function toggleCreditCheck(index) {
             if (allData[index].creditCheckDate) {
                 allData[index].creditCheckDate = '';
             } else {
                 allData[index].creditCheckDate = 'yes';
             }
+
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버에 비동기 동기화
+            syncToServer(allData[index], true);
+
             renderTable();
         }
 
-        // 날짜 필드 편집
+        // 날짜 필드 편집 (로컬 + 서버 동기화)
         function editDateField(index, fieldName, fieldLabel) {
             const currentValue = allData[index][fieldName] || '';
             const newDate = prompt(`${fieldLabel}을(를) 입력하세요 (YYYY-MM-DD 형식):\n현재값: ${currentValue}`, currentValue);
@@ -960,16 +1067,36 @@
                     return;
                 }
                 allData[index][fieldName] = newDate;
+
+                // 1. 로컬스토리지에 즉시 저장
                 localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+                // 2. 서버에 비동기 동기화
+                syncToServer(allData[index], true);
+
                 renderTable();
             } else if (newDate === '') {
                 allData[index][fieldName] = '';
+
+                // 1. 로컬스토리지에 즉시 저장
                 localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+                // 2. 서버에 비동기 동기화
+                syncToServer(allData[index], true);
+
                 renderTable();
             }
         }
 
-        // 모달 닫기 (모든 메모 모달)
+        // 팝업 모달 닫기 (통합 함수)
+        function closePopupModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 모달 닫기 (모든 메모 모달) - 하위호환성용
         function closeMemoModal() {
             const memoModals = document.querySelectorAll('[data-memo-modal="true"]');
             memoModals.forEach(modal => modal.remove());
@@ -977,9 +1104,6 @@
 
         // 메모 모달 표시
         function showMemoModal(index) {
-            // 기존 모달 모두 제거
-            closeMemoModal();
-
             const data = allData[index];
             if (!data.memoHistory) {
                 data.memoHistory = [];
@@ -991,7 +1115,7 @@
             // 메모 입력 폼
             memoHTML += `
                 <div style="margin-bottom: 20px;">
-                    <textarea id="memoInput" placeholder="새로운 메모를 입력하세요..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px;"></textarea>
+                    <textarea id="memoInput-${index}" placeholder="새로운 메모를 입력하세요..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px;"></textarea>
                     <button onclick="saveMemo(${index})" style="margin-top: 10px; padding: 10px 20px; background: #2a5298; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">저장</button>
                 </div>
             `;
@@ -1017,30 +1141,32 @@
 
             memoHTML += '</div>';
 
+            const modalId = 'popup-' + Date.now();
             const modal = document.createElement('div');
-            modal.setAttribute('data-memo-modal', 'true');
+            modal.id = modalId;
+            modal.className = 'popup-modal';
             modal.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;" onclick="closeMemoModal()">
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center;" onclick="closePopupModal('${modalId}')">
                     <div style="background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
                         ${memoHTML}
                         <div style="margin-top: 20px; text-align: right;">
-                            <button class="btn btn-primary" onclick="closeMemoModal()">닫기</button>
+                            <button class="btn btn-primary" onclick="closePopupModal('${modalId}')">닫기</button>
                         </div>
                     </div>
                 </div>
             `;
-            document.body.appendChild(modal);
+            document.getElementById('modalContainer').appendChild(modal);
 
             // 포커스 설정
             setTimeout(() => {
-                const textarea = document.getElementById('memoInput');
+                const textarea = document.getElementById('memoInput-' + index);
                 if (textarea) textarea.focus();
             }, 100);
         }
 
-        // 메모 저장
+        // 메모 저장 (로컬 + 서버 동기화)
         function saveMemo(index) {
-            const memoText = document.getElementById('memoInput').value.trim();
+            const memoText = document.getElementById('memoInput-' + index).value.trim();
             if (!memoText) {
                 alert('메모 내용을 입력하세요.');
                 return;
@@ -1055,13 +1181,17 @@
                 date: new Date().toISOString()
             });
 
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버에 비동기 동기화
+            syncToServer(allData[index], true);
 
             // 메모 히스토리 새로고침
             showMemoModal(index);
         }
 
-        // 일괄 삭제
+        // 일괄 삭제 (로컬 + 서버 동기화)
         function bulkDelete() {
             if (selectedRows.size === 0) {
                 alert('선택된 항목이 없습니다.');
@@ -1073,11 +1203,25 @@
             }
 
             const indices = Array.from(selectedRows).sort((a, b) => b - a);
+            const deletePromises = [];
+
             indices.forEach(index => {
+                // 서버에서 삭제 (ID가 있으면)
+                if (allData[index].id) {
+                    deletePromises.push(
+                        fetch(`/api/loan-review-data/${allData[index].id}`, { method: 'DELETE' })
+                            .catch(e => console.warn('서버 삭제 실패:', e))
+                    );
+                }
                 allData.splice(index, 1);
             });
 
+            // 1. 로컬스토리지에 즉시 저장
             localStorage.setItem('loanReviewData', JSON.stringify(allData));
+
+            // 2. 서버 삭제는 비동기로 진행
+            Promise.all(deletePromises);
+
             selectedRows.clear();
             renderTable();
             updateSummary();
