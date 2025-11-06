@@ -12,6 +12,7 @@ import fitz # PDF 텍스트 추출을 위해 fitz(PyMuPDF) 임포트
 import json
 import subprocess
 import threading
+import requests
 
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
 from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
@@ -890,6 +891,112 @@ def open_nicecredit():
             "success": False,
             "error": f"NICECREDIT 실행 중 오류가 발생했습니다: {str(e)}"
         }), 500
+
+# --- Notion 동기화 API ---
+NOTION_DATABASE_ID = os.environ.get('NOTION_DATABASE_ID', '')
+NOTION_API_KEY = os.environ.get('NOTION_API_KEY', '')
+
+def sync_to_notion(loan_data):
+    """대출 데이터를 Notion에 동기화"""
+    try:
+        if not NOTION_API_KEY:
+            logger.warning("Notion API 키가 설정되지 않았습니다")
+            return None
+
+        headers = {
+            "Authorization": f"Bearer {NOTION_API_KEY}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+
+        # Notion 페이지 생성/업데이트 데이터
+        notion_page = {
+            "parent": {"database_id": NOTION_DATABASE_ID},
+            "properties": {
+                "고객명": {"title": [{"text": {"content": loan_data.get('customerName', '')}}]},
+                "휴대폰": {"rich_text": [{"text": {"content": loan_data.get('phone', '')}}]},
+                "생년월일": {"rich_text": [{"text": {"content": loan_data.get('birthDate', '')}}]},
+                "담보평가액": {"number": loan_data.get('collateralValue')},
+                "신청금액": {"number": loan_data.get('loanAmount')},
+                "진행상태": {"status": {"name": loan_data.get('status', '접수')}},
+                "신용조회": {"checkbox": loan_data.get('creditCheckDate') == 'yes'},
+                "자서예정일": {"date": {"start": loan_data.get('contractScheduleDate')} if loan_data.get('contractScheduleDate') else None},
+                "자서완료일": {"date": {"start": loan_data.get('contractCompleteDate')} if loan_data.get('contractCompleteDate') else None},
+                "송금일": {"date": {"start": loan_data.get('remitDate')} if loan_data.get('remitDate') else None},
+                "담당자": {"rich_text": [{"text": {"content": loan_data.get('manager', '')}}]}
+            }
+        }
+
+        # None 값 제거
+        notion_page["properties"] = {k: v for k, v in notion_page["properties"].items() if v is not None}
+
+        # Notion API 호출
+        response = requests.post(
+            "https://api.notion.com/v1/pages",
+            headers=headers,
+            json=notion_page
+        )
+
+        if response.status_code == 200:
+            logger.info(f"Notion 동기화 성공: {loan_data.get('customerName')}")
+            return response.json()
+        else:
+            logger.error(f"Notion 동기화 실패: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"Notion 동기화 오류: {e}", exc_info=True)
+        return None
+
+@app.route('/api/sync-loan-to-notion/<int:record_id>', methods=['POST'])
+def sync_loan_to_notion(record_id):
+    """특정 대출 심사 데이터를 Notion에 동기화"""
+    try:
+        record = LoanReviewData.query.get(record_id)
+        if not record:
+            return jsonify({"success": False, "error": "해당 데이터가 없습니다"}), 404
+
+        # 데이터를 Notion으로 동기화
+        result = sync_to_notion(record.to_dict())
+
+        if result:
+            return jsonify({
+                "success": True,
+                "message": "Notion 동기화가 완료되었습니다",
+                "notion_page_id": result.get('id')
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Notion 동기화에 실패했습니다"
+            }), 500
+    except Exception as e:
+        logger.error(f"Notion 동기화 오류: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/sync-all-to-notion', methods=['POST'])
+def sync_all_to_notion():
+    """모든 대출 심사 데이터를 Notion에 동기화"""
+    try:
+        records = LoanReviewData.query.all()
+        sync_count = 0
+        failed_count = 0
+
+        for record in records:
+            result = sync_to_notion(record.to_dict())
+            if result:
+                sync_count += 1
+            else:
+                failed_count += 1
+
+        return jsonify({
+            "success": True,
+            "message": f"Notion 동기화 완료: {sync_count}개 성공, {failed_count}개 실패",
+            "sync_count": sync_count,
+            "failed_count": failed_count
+        }), 200
+    except Exception as e:
+        logger.error(f"전체 Notion 동기화 오류: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # 데이터베이스 초기화 함수
 def init_db():
