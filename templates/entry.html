@@ -96,9 +96,9 @@
                 <div class="row g-2 mb-2">
                     <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB 시세(만)"></div>
                     <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공제(만)"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
                     <div class="col"><input type="text" class="form-control form-field md-input" id="ownership_transfer_date" placeholder="소유권이전일"></div>
                     <div class="col"><input type="text" class="form-control form-field md-input" id="unit_count" placeholder="세대수"></div>
+                    <div class="col"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
                 </div>
 
                 <!-- 희망담보대부 지역 선택 버튼 -->
@@ -251,12 +251,33 @@
                     <div class="d-flex gap-2 ms-auto">
                         <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
                         <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
+                        <button class="btn md-btn md-btn-info" id="loan-review-btn" type="button" onclick="goToLoanReview()"><i class="bi bi-arrow-right-circle"></i> 대출심사로 이동</button>
                     </div>
                 </div>
             </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+<script>
+// 대출심사 현황관리로 이동
+function goToLoanReview() {
+    const customerInput = document.getElementById('customer_name').value || '신규고객';
+    // 입력값이 "고객명 생년월일" 형식인 경우 분리
+    let customerName = customerInput;
+    let birthDate = '';
+
+    // 공백이나 숫자로 분리 시도
+    const parts = customerInput.trim().split(/\s+/);
+    if (parts.length > 1) {
+        customerName = parts[0];
+        birthDate = parts.slice(1).join('');
+    }
+
+    const url = `/loan-review?name=${encodeURIComponent(customerName)}&birth=${encodeURIComponent(birthDate)}`;
+    window.open(url, '_blank');
+}
+</script>
 
 </body>
 </html>
