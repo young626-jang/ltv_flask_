@@ -1773,6 +1773,33 @@ function attachAllEventListeners() {
                     console.log('📊 LTV 비율 ① - 초기값 없음');
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
+
+                // --- ▼▼▼ 주소 기반 지역 자동 선택 (서울/경기/인천) ▼▼▼ ---
+                const addressField = document.getElementById('address');
+                if (addressField && addressField.value) {
+                    let regionToSelect = null;
+                    const address = addressField.value;
+
+                    // 주소에 포함된 지역 확인 (우선순위: 인천 > 경기 > 서울)
+                    if (address.includes('인천')) {
+                        regionToSelect = '인천';
+                    } else if (address.includes('경기')) {
+                        regionToSelect = '경기';
+                    } else if (address.includes('서울')) {
+                        regionToSelect = '서울';
+                    }
+
+                    if (regionToSelect) {
+                        // 해당 지역 버튼 찾아서 자동 클릭
+                        const button = document.querySelector(`.hope-loan-region-btn[data-region="${regionToSelect}"]`);
+                        if (button) {
+                            button.click();
+                            console.log(`🌍 아이엠 지역 자동 선택: ${regionToSelect}`);
+                        }
+                    }
+                }
+                // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
+
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
             } else {
                 // 체크 해제되면 지역 버튼 숨김
@@ -1840,6 +1867,7 @@ function attachAllEventListeners() {
 
     // 메리츠 질권 적용 체크박스 이벤트
     const meritzCollateralCheckbox = document.getElementById('meritz-collateral-loan');
+    const meritzRegionButtonsDiv = document.getElementById('meritz-loan-region-buttons');
 
     if (meritzCollateralCheckbox) {
         meritzCollateralCheckbox.addEventListener('change', (e) => {
@@ -1851,9 +1879,56 @@ function attachAllEventListeners() {
                     // 아이엠 해제 이벤트 트리거
                     hopeCheckbox.dispatchEvent(new Event('change'));
                 }
+
+                // 체크 되면 메리츠 지역 버튼 표시
+                if (meritzRegionButtonsDiv) {
+                    meritzRegionButtonsDiv.style.cssText = 'display: flex !important;';
+                }
+
+                // --- ▼▼▼ 방공제 없음으로 자동 선택 및 방공제(만) 금액 삭제 ▼▼▼ ---
+                const deductionRegionField = document.getElementById('deduction_region');
+                const deductionAmountField = document.getElementById('deduction_amount');
+                if (deductionRegionField) {
+                    deductionRegionField.value = '0';
+                    console.log('💰 방공제 지역 - "방공제없음"으로 자동 선택');
+                }
+                if (deductionAmountField) {
+                    deductionAmountField.value = '';  // 방공제(만) 필드의 금액 삭제
+                    console.log('💰 방공제(만) - 금액 삭제');
+                }
+                // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
+
+                // --- ▼▼▼ 주소 기반 1군/2군 자동 선택 ▼▼▼ ---
+                const addressField = document.getElementById('address');
+                if (addressField && addressField.value) {
+                    const region = determineMeritzRegionFromAddress(addressField.value);
+                    if (region) {
+                        // 자동으로 해당 버튼 클릭
+                        const btnSelector = region === '1gun' ?
+                            '.meritz-loan-region-btn[data-region="1gun"]' :
+                            '.meritz-loan-region-btn[data-region="2gun"]';
+                        const button = document.querySelector(btnSelector);
+                        if (button) {
+                            button.click();
+                            console.log(`🌍 메리츠 지역 자동 선택: ${region === '1gun' ? '1군(일반)' : '2군'}`);
+                        }
+                    }
+                }
+                // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
+
                 console.log('✅ 메리츠질권적용 - 활성화');
             } else {
-                console.log('❌ 메리츠질권적용 - 비활성화');
+                // 체크 해제되면 메리츠 지역 버튼 숨김
+                if (meritzRegionButtonsDiv) {
+                    meritzRegionButtonsDiv.style.cssText = 'display: none !important;';
+                }
+                // 버튼 스타일 초기화
+                document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+                    b.style.backgroundColor = '';
+                    b.style.color = '';
+                    b.style.borderColor = '';
+                });
+                console.log('❌ 메리츠질권적용 - 비활성화, 지역 버튼 숨김');
             }
             // 메리츠 조건 검증
             validateMeritzLoanConditions();
@@ -2511,4 +2586,58 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
     }
 
     return ltv;
+}
+
+// ========================================================
+// 주소 기반 메리츠 지역 판단 함수
+// ========================================================
+function determineMeritzRegionFromAddress(address) {
+    /**
+     * 메리츠 지역 판단 기준
+     *
+     * 1군 지역:
+     * - 서울: 강남, 서초, 송파, 강동, 마포, 서대문, 종로, 중구, 중랑, 관악, 강북, 성북, 노원, 도봉
+     * - 경기: 용인, 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주
+     * - 인천: 계양구, 부평구, 연수구, 미추홀구
+     *
+     * 2군 지역:
+     * - 경기: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
+     * - 인천: 남동구, 동구, 서구, 중구
+     */
+
+    if (!address) return null;
+
+    // 1군 지역 목록
+    const region1Gun = [
+        // 서울
+        '강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '중랑', '관악', '강북', '성북', '노원', '도봉',
+        // 경기
+        '용인', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주',
+        // 인천
+        '계양구', '부평구', '연수구', '미추홀구'
+    ];
+
+    // 2군 지역 목록
+    const region2Gun = [
+        // 경기
+        '시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주',
+        // 인천
+        '남동구', '동구', '서구', '중구'
+    ];
+
+    // 주소에서 지역명 검색 (2군을 먼저 확인 - 더 구체적)
+    for (let region of region2Gun) {
+        if (address.includes(region)) {
+            return '2gun';
+        }
+    }
+
+    // 1군 검색
+    for (let region of region1Gun) {
+        if (address.includes(region)) {
+            return '1gun';
+        }
+    }
+
+    return null;
 }
