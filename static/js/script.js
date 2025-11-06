@@ -1541,10 +1541,27 @@ async function handleFileUpload(file) {
                     // --- ### 여기까지 수정 ### ---
                 }
             }
-            
+
+            // 아이엠질권적용 또는 메리츠질권적용 체크 여부 확인
+            const hopeCheckbox = document.getElementById('hope-collateral-loan');
+            const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+            const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+            // 아이엠 또는 메리츠가 체크된 경우, 고정 텍스트 섹션 추가
+            if (isHopeChecked || isMeritzChecked) {
+                individualShareMemo += '\n';
+                individualShareMemo += '\n*본심사시 금액 변동될수 있습니다.';
+                individualShareMemo += '\n*사업자 담보대출 (사업자필)';
+                individualShareMemo += '\n*계약 2년';
+                individualShareMemo += '\n*중도 3%';
+                individualShareMemo += '\n*환수 92일이내 50%';
+                individualShareMemo += '\n*연체이력 및 권리침해사항 1% 할증';
+            }
+
             const memoTextarea = document.getElementById('generated-memo');
             memoTextarea.value = currentMemo + individualShareMemo;
-            
+
             // 메모 크기 자동 조절
             autoResizeTextarea(memoTextarea);
         } catch (error) {
@@ -2456,19 +2473,19 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
     if (region === '1gun') {
         /**
          * 메리츠 질권 LTV 기준 - 1군(일반)
-         * 62.8㎡ 이하:              선순위 80.0%, 후순위 80.0%
+         * 62.8㎡ 이하:              선순위 83.0%, 후순위 80.0%
          * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 75.0%, 후순위 80.0%
          * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 60.0%, 후순위 70.0%
-         * 135㎡ 초과:                선순위 60.0%, 후순위 70.0%
+         * 135㎡ 초과:                선순위 75.0%, 후순위 80.0%
          */
         if (area <= 62.8) {
-            ltv = 80.0;
+            ltv = priority === 'first' ? 83.0 : 80.0;
         } else if (area <= 95.9) {
             ltv = priority === 'first' ? 75.0 : 80.0;
         } else if (area <= 135) {
             ltv = priority === 'first' ? 60.0 : 70.0;
         } else {
-            ltv = priority === 'first' ? 60.0 : 70.0;
+            ltv = priority === 'first' ? 75.0 : 80.0;
         }
     } else if (region === '2gun') {
         /**
@@ -2480,7 +2497,7 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
          * 62.8㎡ 이하:              선순위 75.0%, 후순위 80.0%
          * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 70.0%, 후순위 75.0%
          * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 55.0%, 후순위 65.0%
-         * 135㎡ 초과:                선순위 70.0%, 후순위 70.0%
+         * 135㎡ 초과:                선순위 70.0%, 후순위 75.0%
          */
         if (area <= 62.8) {
             ltv = priority === 'first' ? 75.0 : 80.0;
@@ -2489,7 +2506,7 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
         } else if (area <= 135) {
             ltv = priority === 'first' ? 55.0 : 65.0;
         } else {
-            ltv = 70.0;
+            ltv = priority === 'first' ? 70.0 : 75.0;
         }
     }
 
