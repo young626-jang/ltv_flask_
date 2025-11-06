@@ -17,6 +17,7 @@
 
     let loanItemCounter = 0;
     let memoDebounceTimeout;
+    let meritzRegion = '1gun'; // 메리츠 지역 선택 (1gun = 1군, 2gun = 2군)
 
     // ========================================================
     // 1. Helper 함수 - 안전한 요소 접근
@@ -788,6 +789,8 @@ function collectAllData() {
             share_rate1: document.getElementById('share-customer-birth-1').value,
             share_rate2: document.getElementById('share-customer-birth-2').value,
             hope_collateral_checked: document.getElementById('hope-collateral-loan').checked,
+            meritz_collateral_checked: document.getElementById('meritz-collateral-loan').checked,
+            meritz_region: meritzRegion,
             ownership_transfer_date: document.getElementById('ownership_transfer_date').value,
             unit_count: document.getElementById('unit_count').value,
         },
@@ -953,6 +956,40 @@ async function loadCustomerData() {
         }
         if (data.share_rate2) {
             safeSetValue('share-customer-birth-2', data.share_rate2);
+        }
+
+        // 아이엠질권 및 메리츠질권 체크박스 복원
+        const hopeCheckbox = document.getElementById('hope-collateral-loan');
+        const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+
+        if (hopeCheckbox && data.hope_collateral_checked) {
+            hopeCheckbox.checked = true;
+            hopeCheckbox.dispatchEvent(new Event('change'));
+        }
+
+        if (meritzCheckbox && data.meritz_collateral_checked) {
+            meritzCheckbox.checked = true;
+            meritzCheckbox.dispatchEvent(new Event('change'));
+
+            // 메리츠 지역 복원
+            if (data.meritz_region) {
+                meritzRegion = data.meritz_region;
+                console.log(`🌍 메리츠 지역 복원: ${meritzRegion === '1gun' ? '1군(일반)' : '2군'}`);
+
+                // 버튼 스타일 업데이트
+                document.querySelectorAll('.meritz-loan-region-btn').forEach(btn => {
+                    const btnRegion = btn.getAttribute('data-region');
+                    if (btnRegion === meritzRegion) {
+                        btn.style.backgroundColor = '#9CC3D5';
+                        btn.style.color = '#0063B2';
+                        btn.style.borderColor = '#9CC3D5';
+                    } else {
+                        btn.style.backgroundColor = '';
+                        btn.style.color = '';
+                        btn.style.borderColor = '';
+                    }
+                });
+            }
         }
 
         triggerMemoGeneration();
@@ -1693,6 +1730,13 @@ function attachAllEventListeners() {
             const ltv1Field = document.getElementById('ltv1');
 
             if (e.target.checked) {
+                // 아이엠 체크 시, 메리츠 체크 해제
+                const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+                if (meritzCheckbox && meritzCheckbox.checked) {
+                    meritzCheckbox.checked = false;
+                    // 메리츠 해제 이벤트 트리거
+                    meritzCheckbox.dispatchEvent(new Event('change'));
+                }
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
                 // --- ▼▼▼ 방공제 없음으로 자동 선택 및 방공제(만) 금액 삭제 ▼▼▼ ---
@@ -1773,6 +1817,68 @@ function attachAllEventListeners() {
 
             // LTV 변경으로 인한 계산 트리거
             calculateIndividualShare();
+            triggerMemoGeneration();
+        });
+    });
+
+    // 메리츠 질권 적용 체크박스 이벤트
+    const meritzCollateralCheckbox = document.getElementById('meritz-collateral-loan');
+
+    if (meritzCollateralCheckbox) {
+        meritzCollateralCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // 메리츠 체크 시, 아이엠 체크 해제
+                const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                if (hopeCheckbox && hopeCheckbox.checked) {
+                    hopeCheckbox.checked = false;
+                    // 아이엠 해제 이벤트 트리거
+                    hopeCheckbox.dispatchEvent(new Event('change'));
+                }
+                console.log('✅ 메리츠질권적용 - 활성화');
+            } else {
+                console.log('❌ 메리츠질권적용 - 비활성화');
+            }
+            // 메리츠 조건 검증
+            validateMeritzLoanConditions();
+            triggerMemoGeneration();
+        });
+    }
+
+    // 면적 입력 시 메리츠 조건 검증
+    const areaField = document.getElementById('area');
+    if (areaField) {
+        areaField.addEventListener('input', validateMeritzLoanConditions);
+        areaField.addEventListener('change', validateMeritzLoanConditions);
+    }
+
+    // KB시세 입력 시 메리츠 조건 검증 (1억 이상 검증)
+    if (kbPriceField) {
+        kbPriceField.addEventListener('input', validateMeritzLoanConditions);
+        kbPriceField.addEventListener('blur', validateMeritzLoanConditions);
+    }
+
+    // 메리츠 지역 선택 버튼 이벤트
+    document.querySelectorAll('.meritz-loan-region-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const region = e.target.getAttribute('data-region');
+            meritzRegion = region;
+
+            console.log(`🌍 메리츠 지역 선택: ${region === '1gun' ? '1군(일반)' : '2군'}`);
+
+            // 모든 버튼 스타일 초기화
+            document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+                b.style.backgroundColor = '';
+                b.style.color = '';
+                b.style.borderColor = '';
+            });
+
+            // 클릭된 버튼에만 스타일 적용
+            e.target.style.backgroundColor = '#9CC3D5';
+            e.target.style.color = '#0063B2';
+            e.target.style.borderColor = '#9CC3D5';
+
+            // 지역 변경으로 인한 LTV 재계산
+            validateMeritzLoanConditions();
             triggerMemoGeneration();
         });
     });
@@ -2011,6 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
    loadCustomerList();
    triggerMemoGeneration();
    validateHopeLoanConditions(); // 페이지 로드 시 희망담보대부 조건 검증
+   validateMeritzLoanConditions(); // 페이지 로드 시 메리츠질권 조건 검증
    initializeResizeBar(); // 리사이즈 바 초기화 추가
    initializeDragAndDrop(); // 드래그앤드롭 초기화 추가
    setPdfColumnCompact(); // 페이지 로드 시 PDF 컬럼 컴팩트
@@ -2246,4 +2353,145 @@ function validateHopeLoanConditions() {
     } else {
         kbPriceField.removeAttribute('style');
     }
+}
+
+// ========================================================
+// 메리츠 질권 적용 조건 검증 함수
+// ========================================================
+function validateMeritzLoanConditions() {
+    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+    const areaField = document.getElementById('area');
+    const kbPriceField = document.getElementById('kb_price');
+    const ltv1Field = document.getElementById('ltv1');
+
+    if (!meritzCheckbox || !areaField || !kbPriceField || !ltv1Field) return;
+
+    // 메리츠 질권이 체크되어 있는지 확인
+    const isMeritzChecked = meritzCheckbox.checked;
+    const regionButtonsDiv = document.getElementById('meritz-loan-region-buttons');
+
+    if (!isMeritzChecked) {
+        // 메리츠 미체크 시 KB시세 스타일 초기화 및 지역 버튼 숨김
+        kbPriceField.style.removeProperty('background-color');
+        kbPriceField.style.removeProperty('border');
+        kbPriceField.style.removeProperty('box-shadow');
+
+        if (regionButtonsDiv) {
+            regionButtonsDiv.style.cssText = 'display: none !important;';
+        }
+
+        // 지역 버튼 스타일 초기화
+        document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+            b.style.backgroundColor = '';
+            b.style.color = '';
+            b.style.borderColor = '';
+        });
+
+        return;
+    }
+
+    // 메리츠 체크 시 지역 버튼 표시
+    if (regionButtonsDiv) {
+        regionButtonsDiv.style.cssText = 'display: flex !important;';
+    }
+
+    // 면적값 가져오기
+    const area = parseFloat(areaField.value.replace(/,/g, '')) || 0;
+    // KB시세값 가져오기 (만 단위)
+    const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
+
+    console.log(`🔍 메리츠 질권 검증 - 면적: ${area}㎡, KB시세: ${kbPrice}만원`);
+
+    // ========================================================
+    // 1. KB시세 1억(10,000만) 미만 시 빨간색 표시
+    // ========================================================
+    const ONE_HUNDRED_MILLION = 10000; // 1억 = 10,000만
+    const isKbPriceTooLow = kbPrice > 0 && kbPrice < ONE_HUNDRED_MILLION;
+
+    if (isKbPriceTooLow) {
+        kbPriceField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        console.log('🔴 경고: KB시세 1억 미만');
+    } else {
+        kbPriceField.style.removeProperty('background-color');
+        kbPriceField.style.removeProperty('border');
+        kbPriceField.style.removeProperty('box-shadow');
+    }
+
+    // ========================================================
+    // 2. 메리츠 면적에 따른 LTV 자동 설정 (지역 고려)
+    // ========================================================
+    if (area > 0) {
+        // 기본 LTV (선순위, 지역 고려)
+        let baseLtv = calculateMeritzLTV(area, 'first', meritzRegion);
+        const regionName = meritzRegion === '1gun' ? '1군(일반)' : '2군';
+
+        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 면적: ${area}㎡, 설정LTV: ${baseLtv}%`);
+
+        // LTV 값 설정
+        ltv1Field.value = baseLtv;
+
+        // ========================================================
+        // 3. 시세 15억(150,000만) 초과 시 LTV -5% 차감
+        // ========================================================
+        const FIFTEEN_HUNDRED_MILLION = 150000; // 15억 = 150,000만
+        if (kbPrice > FIFTEEN_HUNDRED_MILLION) {
+            const deductedLtv = baseLtv - 5;
+            ltv1Field.value = deductedLtv;
+            console.log(`💸 고가물건 조정: 시세 15억 초과 → LTV ${baseLtv}% → ${deductedLtv}%`);
+        }
+
+        triggerMemoGeneration();
+    }
+}
+
+// ========================================================
+// 메리츠 면적에 따른 LTV 계산 함수
+// ========================================================
+function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
+    // priority: 'first' = 선순위, 'second' = 후순위
+    // region: '1gun' = 1군(일반), '2gun' = 2군
+
+    let ltv;
+
+    if (region === '1gun') {
+        /**
+         * 메리츠 질권 LTV 기준 - 1군(일반)
+         * 62.8㎡ 이하:              선순위 80.0%, 후순위 80.0%
+         * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 75.0%, 후순위 80.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 60.0%, 후순위 70.0%
+         * 135㎡ 초과:                선순위 60.0%, 후순위 70.0%
+         */
+        if (area <= 62.8) {
+            ltv = 80.0;
+        } else if (area <= 95.9) {
+            ltv = priority === 'first' ? 75.0 : 80.0;
+        } else if (area <= 135) {
+            ltv = priority === 'first' ? 60.0 : 70.0;
+        } else {
+            ltv = priority === 'first' ? 60.0 : 70.0;
+        }
+    } else if (region === '2gun') {
+        /**
+         * 메리츠 질권 LTV 기준 - 2군
+         * 경기 2군: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
+         * 인천 2군: 남동구, 동구, 서구, 중구
+         *
+         * 면적별 LTV:
+         * 62.8㎡ 이하:              선순위 75.0%, 후순위 80.0%
+         * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 70.0%, 후순위 75.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 55.0%, 후순위 65.0%
+         * 135㎡ 초과:                선순위 70.0%, 후순위 70.0%
+         */
+        if (area <= 62.8) {
+            ltv = priority === 'first' ? 75.0 : 80.0;
+        } else if (area <= 95.9) {
+            ltv = priority === 'first' ? 70.0 : 75.0;
+        } else if (area <= 135) {
+            ltv = priority === 'first' ? 55.0 : 65.0;
+        } else {
+            ltv = 70.0;
+        }
+    }
+
+    return ltv;
 }
