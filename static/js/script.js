@@ -1523,7 +1523,8 @@ async function handleFileUpload(file) {
                     ltv: ltv,
                     loans: loans,
                     owners: owners,
-                    loan_type: loanTypeInfo
+                    loan_type: loanTypeInfo,
+                    address: address  // 지분대출 1군 지역 검증용
                 };
 
                 const res = await fetch("/api/calculate_individual_share", {
