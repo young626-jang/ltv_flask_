@@ -974,7 +974,8 @@ async function loadCustomerData() {
             // 메리츠 지역 복원
             if (data.meritz_region) {
                 meritzRegion = data.meritz_region;
-                console.log(`🌍 메리츠 지역 복원: ${meritzRegion === '1gun' ? '1군(일반)' : '2군'}`);
+                const regionLabel = meritzRegion === '1gun' ? '1군(일반)' : (meritzRegion === '2gun' ? '2군' : '3군');
+                console.log(`🌍 메리츠 지역 복원: ${regionLabel}`);
 
                 // 버튼 스타일 업데이트
                 document.querySelectorAll('.meritz-loan-region-btn').forEach(btn => {
@@ -1398,15 +1399,33 @@ async function handleFileUpload(file) {
     // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     async function calculateIndividualShare() {
         try {
+            // ✅ [신규] 지분대출 조건 확인: 수도권 1군 지역 아파트만 취급
+            const address = document.getElementById('address').value.trim();
+            if (!address) {
+                showCustomAlert('주소를 입력해주세요.');
+                return;
+            }
+
+            // 주소에서 급지 판정
+            const regionGrade = getRegionGradeFromAddress(address);
+            if (regionGrade !== '1군') {
+                showCustomAlert('⚠️ 지분대출은 수도권 1군 지역 아파트만 취급 가능합니다.\n현재 지역: ' + regionGrade);
+                return;
+            }
+
             // 선택된 차주 찾기
             const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
             if (!selectedRadio) return; // 선택된 차주가 없으면 종료
-            
+
             const ownerIdx = selectedRadio.value;
-            
+
             const kbPriceText = document.getElementById("kb_price").value.replace(/,/g,'') || "0";
             const kbPrice = parseInt(kbPriceText);
-            
+
+            // 면적도 함께 가져오기
+            const areaText = document.getElementById('area').value.trim();
+            const area = parseFloat(areaText) || null;
+
             // LTV 비율 수집 (ltv1만 사용)
             const ltvRates = [];
             const ltv1 = document.getElementById("ltv1").value;
@@ -1478,10 +1497,27 @@ async function handleFileUpload(file) {
             
             let individualShareMemo = '\n\n--- 개별 지분 한도 계산 ---';
             let ownerName = '';
-            
+
+            // ✅ [신규] 1군 지역 선순위 기본 LTV 계산 (지분대출 상한선)
+            let baseLTV = 80; // 기본값
+            if (area) {
+                if (area <= 95.9) {
+                    baseLTV = 80;
+                } else if (area <= 135) {
+                    baseLTV = 75;
+                } else {
+                    baseLTV = 60; // 135㎡ 초과
+                }
+            }
+
             // 각 LTV에 대해 계산
             for (let i = 0; i < ltvRates.length; i++) {
-                const ltv = ltvRates[i];
+                let ltv = ltvRates[i];
+
+                // ✅ [신규] 지분대출: LTV = Min(80%, 지역별 기본 LTV)
+                // 예) 135㎡ 초과이므로 기본 LTV 60% → 80% 입력해도 60% 적용
+                ltv = Math.min(ltv, baseLTV);
+
                 const payload = {
                     total_value: kbPrice,
                     ltv: ltv,
@@ -1898,19 +1934,30 @@ function attachAllEventListeners() {
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
 
-                // --- ▼▼▼ 주소 기반 1군/2군 자동 선택 ▼▼▼ ---
+                // --- ▼▼▼ 주소 기반 1군/2군/3군 자동 선택 ▼▼▼ ---
                 const addressField = document.getElementById('address');
                 if (addressField && addressField.value) {
                     const region = determineMeritzRegionFromAddress(addressField.value);
                     if (region) {
                         // 자동으로 해당 버튼 클릭
-                        const btnSelector = region === '1gun' ?
-                            '.meritz-loan-region-btn[data-region="1gun"]' :
-                            '.meritz-loan-region-btn[data-region="2gun"]';
+                        let btnSelector;
+                        let regionLabel;
+
+                        if (region === '1gun') {
+                            btnSelector = '.meritz-loan-region-btn[data-region="1gun"]';
+                            regionLabel = '1군(일반)';
+                        } else if (region === '2gun') {
+                            btnSelector = '.meritz-loan-region-btn[data-region="2gun"]';
+                            regionLabel = '2군';
+                        } else if (region === '3gun') {
+                            btnSelector = '.meritz-loan-region-btn[data-region="3gun"]';
+                            regionLabel = '3군';
+                        }
+
                         const button = document.querySelector(btnSelector);
                         if (button) {
                             button.click();
-                            console.log(`🌍 메리츠 지역 자동 선택: ${region === '1gun' ? '1군(일반)' : '2군'}`);
+                            console.log(`🌍 메리츠 지역 자동 선택: ${regionLabel}`);
                         }
                     }
                 }
@@ -1955,7 +2002,8 @@ function attachAllEventListeners() {
             const region = e.target.getAttribute('data-region');
             meritzRegion = region;
 
-            console.log(`🌍 메리츠 지역 선택: ${region === '1gun' ? '1군(일반)' : '2군'}`);
+            const regionLabel = region === '1gun' ? '1군(일반)' : (region === '2gun' ? '2군' : '3군');
+            console.log(`🌍 메리츠 지역 선택: ${regionLabel}`);
 
             // 모든 버튼 스타일 초기화
             document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
@@ -2515,7 +2563,7 @@ function validateMeritzLoanConditions() {
     if (area > 0) {
         // 기본 LTV (선순위, 지역 고려)
         let baseLtv = calculateMeritzLTV(area, 'first', meritzRegion);
-        const regionName = meritzRegion === '1gun' ? '1군(일반)' : '2군';
+        const regionName = meritzRegion === '1gun' ? '1군(일반)' : (meritzRegion === '2gun' ? '2군' : '3군');
 
         console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 면적: ${area}㎡, 설정LTV: ${baseLtv}%`);
 
@@ -2541,47 +2589,75 @@ function validateMeritzLoanConditions() {
 // ========================================================
 function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
     // priority: 'first' = 선순위, 'second' = 후순위
-    // region: '1gun' = 1군(일반), '2gun' = 2군
+    // region: '1gun' = 1군(일반), '2gun' = 2군, '3gun' = 3군
 
     let ltv;
 
     if (region === '1gun') {
         /**
-         * 메리츠 질권 LTV 기준 - 1군(일반)
-         * 62.8㎡ 이하:              선순위 83.0%, 후순위 80.0%
-         * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 75.0%, 후순위 80.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 60.0%, 후순위 70.0%
-         * 135㎡ 초과:                선순위 75.0%, 후순위 80.0%
+         * 메리츠 질권 LTV 기준 - 1군 (max 80%)
+         * 서울, 경기1군(용인-수지/기흥, 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주), 인천1군(계양, 부평, 연수, 미추홀)
+         *
+         * 선순위:
+         * 95.9㎡ 이하:                80.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
+         * 135㎡ 초과:                 60.0%
+         *
+         * 후순위:
+         * 95.9㎡ 이하:                80.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  80.0%
+         * 135㎡ 초과:                 70.0%
          */
-        if (area <= 62.8) {
-            ltv = priority === 'first' ? 83.0 : 80.0;
-        } else if (area <= 95.9) {
-            ltv = priority === 'first' ? 75.0 : 80.0;
+        if (area <= 95.9) {
+            ltv = priority === 'first' ? 80.0 : 80.0;
         } else if (area <= 135) {
-            ltv = priority === 'first' ? 60.0 : 70.0;
-        } else {
             ltv = priority === 'first' ? 75.0 : 80.0;
+        } else {
+            ltv = priority === 'first' ? 60.0 : 70.0;
         }
     } else if (region === '2gun') {
         /**
          * 메리츠 질권 LTV 기준 - 2군
-         * 경기 2군: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
-         * 인천 2군: 남동구, 동구, 서구, 중구
+         * 경기2군(시흥, 안산, 화성, 용인-처인구, 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주), 인천2군(남동, 서, 동, 중)
          *
-         * 면적별 LTV:
-         * 62.8㎡ 이하:              선순위 75.0%, 후순위 80.0%
-         * 62.8㎡ 초과 ~ 95.9㎡ 이하: 선순위 70.0%, 후순위 75.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  선순위 55.0%, 후순위 65.0%
-         * 135㎡ 초과:                선순위 70.0%, 후순위 75.0%
+         * 선순위:
+         * 95.9㎡ 이하:                75.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
+         * 135㎡ 초과:                 55.0%
+         *
+         * 후순위:
+         * 95.9㎡ 이하:                80.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
+         * 135㎡ 초과:                 65.0%
          */
-        if (area <= 62.8) {
+        if (area <= 95.9) {
             ltv = priority === 'first' ? 75.0 : 80.0;
-        } else if (area <= 95.9) {
+        } else if (area <= 135) {
+            ltv = priority === 'first' ? 70.0 : 75.0;
+        } else {
+            ltv = priority === 'first' ? 55.0 : 65.0;
+        }
+    } else if (region === '3gun') {
+        /**
+         * 메리츠 질권 LTV 기준 - 3군
+         * 경기3군(평택, 안성, 여주, 포천) - 서울/경기/인천 중에서는 경기3군만 해당
+         *
+         * 선순위:
+         * 95.9㎡ 이하:                70.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  65.0%
+         * 135㎡ 초과:                 50.0%
+         *
+         * 후순위:
+         * 95.9㎡ 이하:                75.0%
+         * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
+         * 135㎡ 초과:                 60.0%
+         */
+        if (area <= 95.9) {
             ltv = priority === 'first' ? 70.0 : 75.0;
         } else if (area <= 135) {
-            ltv = priority === 'first' ? 55.0 : 65.0;
+            ltv = priority === 'first' ? 65.0 : 70.0;
         } else {
-            ltv = priority === 'first' ? 70.0 : 75.0;
+            ltv = priority === 'first' ? 50.0 : 60.0;
         }
     }
 
@@ -2593,50 +2669,82 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
 // ========================================================
 function determineMeritzRegionFromAddress(address) {
     /**
-     * 메리츠 지역 판단 기준
+     * 메리츠 지역 판단 기준 (PDF 기준)
      *
-     * 1군 지역:
-     * - 서울: 강남, 서초, 송파, 강동, 마포, 서대문, 종로, 중구, 중랑, 관악, 강북, 성북, 노원, 도봉
-     * - 경기: 용인, 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주
-     * - 인천: 계양구, 부평구, 연수구, 미추홀구
+     * 1군 지역: 서울, 경기1군, 인천1군
+     * - 서울: 강남, 서초, 송파, 강동, 마포, 서대문, 종로, 중구, 용산, 영등포, 동작, 관악, 성동, 광진, 동대문, 중랑, 성북, 강북, 노원, 도봉, 은평, 서북, 양천, 구로
+     * - 경기1군: 용인(수지, 기흥), 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주
+     * - 인천1군: 계양구, 부평구, 연수구, 미추홀구
      *
-     * 2군 지역:
-     * - 경기: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
-     * - 인천: 남동구, 동구, 서구, 중구
+     * 2군 지역: 경기2군, 인천2군
+     * - 경기2군: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
+     * - 인천2군: 남동구, 서구, 동구, 중구
+     *
+     * 3군 지역: 경기3군
+     * - 경기3군: 평택, 안성, 여주, 포천
      */
 
     if (!address) return null;
 
-    // 1군 지역 목록
-    const region1Gun = [
-        // 서울
-        '강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '중랑', '관악', '강북', '성북', '노원', '도봉',
-        // 경기
-        '용인', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주',
-        // 인천
-        '계양구', '부평구', '연수구', '미추홀구'
+    // 3군 지역 목록 (먼저 확인)
+    const region3Gun = [
+        // 경기3군
+        '평택', '안성', '여주', '포천'
     ];
 
     // 2군 지역 목록
     const region2Gun = [
-        // 경기
+        // 경기2군 - 처인구는 용인의 일부이므로 "용인 처인구" 또는 "처인구" 확인
         '시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주',
-        // 인천
-        '남동구', '동구', '서구', '중구'
+        // 인천2군
+        '남동구', '서구', '동구', '중구'
     ];
 
-    // 주소에서 지역명 검색 (2군을 먼저 확인 - 더 구체적)
+    // 1군 지역 목록
+    const region1Gun = [
+        // 서울
+        '강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '용산', '영등포', '동작', '관악', '성동', '광진', '동대문', '중랑', '성북', '강북', '노원', '도봉', '은평', '서북', '양천', '구로',
+        // 경기1군 - 수지구, 기흥구는 용인의 일부
+        '수지', '기흥', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주',
+        // 인천1군
+        '계양', '부평', '연수', '미추홀'
+    ];
+
+    // 주소에서 지역명 검색 (3군 → 2군 → 1군 순서)
+
+    // 3군 우선 확인
+    for (let region of region3Gun) {
+        if (address.includes(region)) {
+            return '3gun';
+        }
+    }
+
+    // 2군 확인 (처인구 특별 처리: 용인이 없을 때만)
     for (let region of region2Gun) {
         if (address.includes(region)) {
+            // 처인구의 경우 특별 처리
+            if (region === '처인구' && address.includes('용인')) {
+                // 용인 처인구 = 경기2군
+                return '2gun';
+            }
             return '2gun';
         }
     }
 
-    // 1군 검색
+    // 1군 확인 (용인 단독 = 경기1군)
     for (let region of region1Gun) {
         if (address.includes(region)) {
+            // 용인이 처인구 없이 단독으로 나타나면 경기1군 (수지/기흥 포함)
+            if (region === '수지' || region === '기흥') {
+                return '1gun';
+            }
             return '1gun';
         }
+    }
+
+    // 용인이 처인구 없이 단독으로 나타나는 경우 (용인 = 기본값 1군)
+    if (address.includes('용인') && !address.includes('처인구')) {
+        return '1gun';
     }
 
     return null;
