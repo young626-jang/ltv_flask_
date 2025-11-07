@@ -490,6 +490,7 @@ def generate_memo(data):
 
         # 자동 LTV 계산 (주소 + 면적 + KB시세 기반)
         if kb_price_val > 0 and address.strip():
+            area = inputs.get('area', '')  # 면적 정보 가져오기
             area_val = parse_korean_number(area) if area else None
             auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val)
 
