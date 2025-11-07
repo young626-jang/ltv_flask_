@@ -17,6 +17,7 @@ import requests
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
 from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
 from ltv_map import region_map
+from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
 # --- ▼▼▼ pdf_parser.py에서 모든 필요한 함수를 가져오도록 수정합니다 ▼▼▼ ---
 from pdf_parser import (
     extract_address,
@@ -28,7 +29,7 @@ from pdf_parser import (
     extract_rights_info  # <-- 핵심! 근저당권 분석 함수
 )
 from history_manager_flask import (
-    fetch_all_customers, 
+    fetch_all_customers,
     fetch_customer_details,
     create_new_customer,
     update_customer,
@@ -181,24 +182,49 @@ def upload_and_parse_pdf():
 
         # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
         viewing_dt = extract_viewing_datetime(full_text)
+        extracted_address = extract_address(full_text)
+        extracted_area = extract_area(full_text)
 
         scraped_data = {
-            'address': extract_address(full_text),
-            'area': extract_area(full_text),
+            'address': extracted_address,
+            'area': extracted_area,
             'customer_name': extract_owner_info(full_text),
             'viewing_datetime': viewing_dt,
             'age_check': check_registration_age(viewing_dt),
             'owner_shares': extract_owner_shares_with_birth(full_text)
         }
-        
+
         # 근저당권 정보도 추출
         rights_info = extract_rights_info(full_text)
 
-        # 3. 추출된 모든 정보를 하나의 JSON으로 묶어서 웹페이지에 전송
+        # ✨ 3. 메리츠캐피탈 급지 자동 판단 (NEW!)
+        region_grade = "미분류"  # 기본값
+        auto_ltv_senior = None
+        auto_ltv_junior = None
+
+        if extracted_address:
+            region_grade = get_region_grade(extracted_address)
+            is_caution = is_caution_region(extracted_address)
+
+            # 선순위 LTV
+            try:
+                area_val = parse_korean_number(extracted_area) if extracted_area else None
+                if area_val and area_val > 0:
+                    auto_ltv_senior = auto_calculate_ltv(extracted_address, area_val, is_senior=True)
+                    auto_ltv_junior = auto_calculate_ltv(extracted_address, area_val, is_senior=False)
+            except Exception as e:
+                logger.warning(f"자동 LTV 계산 실패: {e}")
+
+            logger.info(f"[자동 급지 판단] 주소: {extracted_address} → 급지: {region_grade}, 유의지역: {is_caution}")
+
+        # 4. 추출된 모든 정보를 하나의 JSON으로 묶어서 웹페이지에 전송
         return jsonify({
-            "success": True, 
+            "success": True,
             "scraped_data": scraped_data,  # 기본 정보 + 지분 정보
-            "rights_info": rights_info,    # 모든 근저당권 정보,
+            "rights_info": rights_info,    # 모든 근저당권 정보
+            "auto_region_grade": region_grade,  # ✨ NEW: 자동 판단된 급지
+            "auto_ltv_senior": auto_ltv_senior,  # ✨ NEW: 자동 계산된 선순위 LTV
+            "auto_ltv_junior": auto_ltv_junior,  # ✨ NEW: 자동 계산된 후순위 LTV
             "eligibility_checks": [] # 심사 기준 분석 로직 제거
         })
 
@@ -241,9 +267,50 @@ def get_region_from_address(address):
     return None
 
 
+def auto_calculate_ltv(address, area, is_senior=True, kb_price=None):
+    """
+    메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산
+
+    Args:
+        address (str): 주소
+        area (float): 면적 (㎡ 단위)
+        is_senior (bool): True=선순위, False=후순위
+        kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
+
+    Returns:
+        float: 자동 계산된 LTV (%)
+    """
+    if not address or not area or area <= 0:
+        return None
+
+    try:
+        # 1. 주소에서 급지 자동 판단
+        region_grade = get_region_grade(address)
+
+        if region_grade == "미분류":
+            logger.warning(f"급지 미분류: {address}")
+            return None
+
+        # 2. 급지, 면적, 선후순위에 따른 LTV 기준값 조회
+        ltv_standard = get_ltv_standard(region_grade, float(area), is_senior)
+
+        # 3. 유의지역이면 LTV 80% 제한
+        if is_caution_region(address) and ltv_standard > 80:
+            ltv_standard = 80.0
+
+        # 4. 시세 15억(150000만원) 초과 시 5% 차감
+        if kb_price and kb_price > 150000:
+            ltv_standard = max(0, ltv_standard - 5.0)  # 음수가 되지 않도록 처리
+            logger.info(f"시세 15억 초과 - LTV 5% 차감 적용: {ltv_standard}% (시세: {kb_price}만원)")
+
+        return ltv_standard
+    except Exception as e:
+        logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
+        return None
+
 def get_hope_collateral_interest_rate(region, ltv_rate):
     """
-    희망담보대부 적용 시 지역과 LTV 기준에 따른 금리 구간을 반환합니다.
+    아이엠질권적용 시 지역과 LTV 기준에 따른 금리 구간을 반환합니다.
 
     지역 및 LTV 기준	적용 금리 (연이율)
     A. 서울지역 LTV 75% 미만	10.9% ~ 12.9%
@@ -396,58 +463,70 @@ def generate_memo(data):
                 memo_lines.extend(loan_memo)
                 memo_lines.append("")
 
-        # --- ▼▼▼ LTV 계산 부분 (기본값 삭제, 유효한 값만 처리) ▼▼▼ ---
-        ltv_rates = []
-        # script.js에서 ltv1만 전송합니다.
-        ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
-
-        try:
-            if ltv1_raw is not None and str(ltv1_raw).strip():
-                ltv_rates.append(float(ltv1_raw))  # <-- 유효한 숫자일 때만 LTV 추가
-        except (ValueError, TypeError):
-            pass
-
-        # if not ltv_rates: ltv_rates = [80]  <-- 기본값 설정 라인 삭제됨
-
+        # --- ▼▼▼ 메리츠캐피탈 자동화된 LTV 계산 (주소 + 면적 기반) ▼▼▼ ---
         ltv_results = []
         ltv_lines_exist = False
 
-        if kb_price_val > 0 and ltv_rates:  # <-- ltv_rates에 값이 있을 때만 실행!
-            for ltv_rate in ltv_rates:
-        # --- ▲▲▲ 여기까지가 핵심 수정 부분 ▲▲▲ ---
-                if ltv_rate > 0:
-                    maintain_sum, replace_sum, exit_sum, principal_sum = 0, 0, 0, 0
-                    
-                    for item in valid_loans:
-                        status = item.get('status', '').strip()
-                        principal = parse_korean_number(item.get('principal', '0'))
-                        max_amount = parse_korean_number(item.get('max_amount', '0'))
-                        
-                        if status in ['유지', '동의', '비동의']:
-                            maintain_sum += max_amount if max_amount > 0 else principal
-                        elif status == '대환':
-                            replace_sum += principal
-                        elif status == '선말소':
-                            replace_sum += principal
-                        elif status == '퇴거자금':
-                            exit_sum += principal
-                    
-                    principal_sum = replace_sum + exit_sum
-                    
-                    # 대출 구분 결정
-                    if maintain_sum > 0:
-                        loan_type = "후순위"
-                        limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, ltv_rate, False)
-                    else:
-                        loan_type = "선순위"
-                        limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, ltv_rate, True)
-                    
+        # 대출 상태 분석 (선순위/후순위 판단)
+        maintain_sum, replace_sum, exit_sum, principal_sum = 0, 0, 0, 0
+
+        for item in valid_loans:
+            status = item.get('status', '').strip()
+            principal = parse_korean_number(item.get('principal', '0'))
+            max_amount = parse_korean_number(item.get('max_amount', '0'))
+
+            if status in ['유지', '동의', '비동의']:
+                maintain_sum += max_amount if max_amount > 0 else principal
+            elif status == '대환':
+                replace_sum += principal
+            elif status == '선말소':
+                replace_sum += principal
+            elif status == '퇴거자금':
+                exit_sum += principal
+
+        principal_sum = replace_sum + exit_sum
+        is_senior = maintain_sum == 0  # 유지 채권이 없으면 선순위
+        loan_type = "선순위" if is_senior else "후순위"
+
+        # 자동 LTV 계산 (주소 + 면적 + KB시세 기반)
+        if kb_price_val > 0 and address.strip():
+            area_val = parse_korean_number(area) if area else None
+            auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val)
+
+            if auto_ltv is not None:
+                limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, auto_ltv, is_senior)
+
+                ltv_results.append({
+                    'loan_type': loan_type,
+                    'ltv_rate': auto_ltv,
+                    'limit': limit,
+                    'available': available,
+                    'auto_calculated': True  # 자동 계산 여부 표시
+                })
+
+                # 메모에 급지 정보 추가
+                region_grade = get_region_grade(address)
+                caution_flag = " (유의지역)" if is_caution_region(address) else ""
+                memo_lines.insert(0, f"[자동계산] 급지: {region_grade}{caution_flag} | 선후순위: {loan_type}")
+
+        # 사용자 입력 LTV가 있으면 함께 처리 (비교용)
+        ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
+        if ltv1_raw is not None and str(ltv1_raw).strip():
+            try:
+                user_ltv = float(ltv1_raw)
+                if user_ltv > 0:
+                    limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, user_ltv, is_senior)
+
                     ltv_results.append({
                         'loan_type': loan_type,
-                        'ltv_rate': ltv_rate,
+                        'ltv_rate': user_ltv,
                         'limit': limit,
-                        'available': available
+                        'available': available,
+                        'auto_calculated': False  # 사용자 입력
                     })
+            except (ValueError, TypeError):
+                pass
+        # --- ▲▲▲ 메리츠캐피탈 자동화 완료 ▲▲▲ ---
 
         if ltv_results and isinstance(ltv_results, list):
             ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
@@ -510,10 +589,12 @@ def generate_memo(data):
         except Exception as e:
             logger.warning(f"수수료 계산 중 오류 (무시됨): {e}")
 
-        # ✨ 희망담보대부 적용 로직
+        # ✨ 아이엠질권적용 로직
         hope_collateral_checked = inputs.get('hope_collateral_checked', False)
+        meritz_collateral_checked = inputs.get('meritz_collateral_checked', False)
 
-        if hope_collateral_checked:
+        # 아이엠 또는 메리츠 질권 체크 시 금리 적용
+        if hope_collateral_checked or meritz_collateral_checked:
             # 첫 번째 LTV 결과를 기반으로 금리 계산
             if ltv_results and len(ltv_results) > 0:
                 first_ltv_result = ltv_results[0]
@@ -532,8 +613,8 @@ def generate_memo(data):
                         memo_lines.append("")  # 빈 줄 추가
 
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
-        # ✨ 희망담보대부 적용 시 고정 텍스트 추가 (맨 하단)
-        if hope_collateral_checked:
+        # ✨ 아이엠질권적용 또는 메리츠질권적용 시 고정 텍스트 추가 (맨 하단)
+        if hope_collateral_checked or meritz_collateral_checked:
             memo_lines.append("*본심사시 금액 변동될수 있습니다.")
             memo_lines.append("*사업자 담보대출 (사업자필)")
             memo_lines.append("*계약 2년")
@@ -607,6 +688,67 @@ def convert_loan_amount_route():
     except Exception as e:
         logger.error(f"대출 금액 변환 중 오류: {e}")
         return jsonify({"error": "금액 변환 중 오류가 발생했습니다."}), 500
+
+@app.route('/api/auto_calculate_ltv', methods=['POST'])
+def auto_calculate_ltv_route():
+    """
+    메리츠캐피탈 기준으로 주소와 면적에서 자동 LTV 계산
+    (선순위/후순위는 메모 생성 시 근저당권 정보로 자동 판단)
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "잘못된 요청 데이터"}), 400
+
+        address = data.get('address', '').strip()
+        area = data.get('area', None)
+        is_senior = data.get('is_senior', True)  # 클라이언트에서 전달받은 선순위/후순위 정보
+        kb_price_raw = data.get('kb_price', '')  # 클라이언트에서 전달받은 KB 시세
+
+        if not address or not area:
+            return jsonify({"error": "주소와 면적이 필요합니다."}), 400
+
+        try:
+            area_val = float(area) if area else None
+        except (ValueError, TypeError):
+            area_val = parse_korean_number(area)
+
+        # KB 시세 변환
+        kb_price_val = None
+        if kb_price_raw:
+            try:
+                kb_price_val = int(float(kb_price_raw)) if isinstance(kb_price_raw, str) else int(kb_price_raw)
+            except (ValueError, TypeError):
+                kb_price_val = parse_korean_number(kb_price_raw)
+
+        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior 사용, KB 시세 포함)
+        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val)
+
+        if auto_ltv is None:
+            return jsonify({
+                "success": False,
+                "error": "급지를 판단할 수 없습니다.",
+                "address": address,
+                "area": area_val
+            }), 400
+
+        # 추가 정보
+        region_grade = get_region_grade(address)
+        is_caution = is_caution_region(address)
+
+        return jsonify({
+            "success": True,
+            "auto_ltv": auto_ltv,
+            "region_grade": region_grade,
+            "is_caution_region": is_caution,
+            "is_senior": is_senior,
+            "address": address,
+            "area": area_val
+        })
+
+    except Exception as e:
+        logger.error(f"자동 LTV 계산 중 오류: {e}")
+        return jsonify({"error": f"계산 중 오류가 발생했습니다: {str(e)}"}), 500
 
 @app.route('/api/calculate_principal', methods=['POST'])
 def calculate_principal_route():
@@ -727,6 +869,17 @@ def calculate_individual_share():
         ltv = float(data.get("ltv", 70))
         loans = data.get("loans", [])
         owners = data.get("owners", [])
+
+        # ✅ [신규] 지분대출 조건 확인: 수도권 1군 지역만 취급
+        address = data.get("address", "")
+        if address:
+            region_grade = get_region_grade(address)
+            if region_grade != "1군":
+                return jsonify({
+                    "success": False,
+                    "error": f"지분대출은 수도권 1군 지역 아파트만 취급 가능합니다. (현재: {region_grade})"
+                }), 400
+
         maintain_maxamt_sum = 0
         existing_principal = 0
         subordinate_statuses = ["유지", "동의", "비동의"]
