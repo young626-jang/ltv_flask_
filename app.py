@@ -508,7 +508,8 @@ def generate_memo(data):
                 # 메모에 급지 정보 추가
                 region_grade = get_region_grade(address)
                 caution_flag = " (유의지역)" if is_caution_region(address) else ""
-                memo_lines.insert(0, f"[자동계산] 급지: {region_grade}{caution_flag} | 선후순위: {loan_type}")
+                memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
+                memo_lines.insert(1, "")  # 급지 다음에 빈 줄
 
         # 사용자 입력 LTV가 있으면 함께 처리 (비교용)
         ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
