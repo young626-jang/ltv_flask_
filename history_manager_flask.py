@@ -14,6 +14,7 @@ NOTION_TOKEN = os.getenv('NOTION_TOKEN')
 CUSTOMER_DB_ID = os.getenv('CUSTOMER_DB_ID')
 LOAN_DB_ID = os.getenv('LOAN_DB_ID')
 
+
 # Notion DB 속성 이름
 CUSTOMER_DB_TITLE_PROPERTY = "고객명"
 LOAN_DB_RELATION_PROPERTY = "고객명"
@@ -566,14 +567,3 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
-
-
-
-
-
-
-
-
-
-
-
