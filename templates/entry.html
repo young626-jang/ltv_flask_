@@ -329,6 +329,7 @@ async function updateAutoLTV() {
     const address = document.getElementById('address').value.trim();
     const area = document.getElementById('area').value.trim();
     const kb_price = document.getElementById('kb_price').value.trim();
+    const displayEl = document.getElementById('auto-ltv-display'); // ✅ displayEl 정의 추가
 
     if (!address || !area) {
         return;
@@ -369,16 +370,25 @@ async function updateAutoLTV() {
             const regionGrade = data.region_grade;
             const caution = data.is_caution_region ? ' (유의)' : '';
             const loanTypeLabel = is_senior ? '선순위' : '후순위';
-            displayEl.textContent = `자동LTV: ${ltv}% [${regionGrade}${caution}] (${loanTypeLabel})`;
-            displayEl.style.color = '#198754';  // 녹색
+            if (displayEl) {
+                displayEl.textContent = `자동LTV: ${ltv}% [${regionGrade}${caution}] (${loanTypeLabel})`;
+                displayEl.style.color = '#198754';  // 녹색
+            }
+
+            // ✅ [신규] LTV 입력필드에 자동 계산값 자동으로 설정
+            document.getElementById("ltv1").value = ltv;
         } else {
-            displayEl.textContent = '자동LTV: 계산실패';
-            displayEl.style.color = '#dc3545';  // 빨강
+            if (displayEl) {
+                displayEl.textContent = '자동LTV: 계산실패';
+                displayEl.style.color = '#dc3545';  // 빨강
+            }
         }
     } catch (error) {
         console.error('LTV 자동 계산 오류:', error);
-        displayEl.textContent = '자동LTV: 오류';
-        displayEl.style.color = '#dc3545';
+        if (displayEl) {
+            displayEl.textContent = '자동LTV: 오류';
+            displayEl.style.color = '#dc3545';
+        }
     }
 }
 
@@ -456,6 +466,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updateAutoLTV();
         }
     });
+
+    // ✅ [신규] 메리츠/아이엠 체크박스 변경 시 자동 LTV 재계산
+    document.getElementById('meritz-collateral-loan').addEventListener('change', updateAutoLTV);
+    document.getElementById('hope-collateral-loan').addEventListener('change', updateAutoLTV);
 
     // 메리츠 급지 호버 효과 초기화
     initMeritzRegionTooltips();
