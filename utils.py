@@ -173,26 +173,75 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
     return limit, available
 
 
-def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False):
+def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False, address="", area=None):
+    """
+    개인별 지분 LTV 한도 계산 (메리츠 기준 적용)
+
+    Args:
+        total_value (int): 담보평가액 (만원)
+        owners (list): 소유자 정보 리스트
+        ltv (float): 사용자 입력 LTV (%)
+        maintain_maxamt_sum (int): 유지되는 채권최고액 합계 (후순위)
+        existing_principal (int): 갚아야 할 원금 (선순위)
+        is_senior (bool): 선순위 여부
+        address (str): 주소 (메리츠 기준 조회용)
+        area (float): 면적 (메리츠 기준 조회용)
+
+    Returns:
+        list: 개인별 LTV 한도 결과
+    """
+    from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
+
     results = []
     for owner in owners:
-        # ... (지분 가치 계산은 동일) ...
         share_percent = float(owner["지분율"].replace("%", ""))
         share_ratio = share_percent / 100
         equity_value = int(total_value * share_ratio)
 
+        # ═══════════════════════════════════════════════════════════════
+        # 【핵심 로직】: 지분대출 LTV = Min(80%, Min(메리츠기준, 사용자입력))
+        # ═══════════════════════════════════════════════════════════════
+        final_ltv = ltv  # 기본값: 사용자 입력 LTV
+        meritz_ltv = None
+
+        # 메리츠 기준이 있으면 그것과 사용자 입력의 최소값 사용
+        if address and area and area > 0:
+            try:
+                # 1. 주소에서 급지 자동 판단
+                region_grade = get_region_grade(address)
+
+                if region_grade != "미분류":
+                    # 2. 급지, 면적, 선후순위에 따른 LTV 기준값 조회
+                    meritz_ltv = get_ltv_standard(region_grade, float(area), is_senior)
+
+                    # 3. 유의지역이면 LTV 80% 제한
+                    if is_caution_region(address) and meritz_ltv > 80:
+                        meritz_ltv = 80.0
+
+                    # 4. 시세 15억(150000만원) 초과 시 5% 차감
+                    if total_value and total_value > 150000:
+                        meritz_ltv = max(0, meritz_ltv - 5.0)
+                        logger.info(f"시세 15억 초과 - LTV 5% 차감 적용: {meritz_ltv}% (시세: {total_value}만원)")
+
+                    # Min(메리츠기준, 사용자입력) 적용
+                    final_ltv = min(meritz_ltv, ltv)
+            except Exception as e:
+                logger.warning(f"메리츠 기준 LTV 조회 실패 (주소: {address}, 면적: {area}): {e}, 사용자 입력값 사용")
+                meritz_ltv = None
+
+        # 최종 LTV는 최대 80% 제한
+        final_ltv = min(final_ltv, 80.0)
+
+        # LTV 계산 및 한도 산출
         if is_senior:
-            ltv_limit = int(equity_value * (ltv / 100))
+            ltv_limit = int(equity_value * (final_ltv / 100))
             available = ltv_limit - existing_principal
         else:
             # 후순위 한도 계산
-            ltv_limit = int((equity_value * (ltv / 100)) - maintain_maxamt_sum)
-            
-            # <--- [핵심 수정] --- >
-            # 가용 금액 계산 시, 한도에서 갚아야 할 원금(existing_principal)을 차감합니다.
+            ltv_limit = int((equity_value * (final_ltv / 100)) - maintain_maxamt_sum)
             available = ltv_limit - existing_principal
 
-        # 절사 로직 (음수 값도 올바르게 처리하기 위해 math.floor 사용을 권장하지만, 기존 로직 유지)
+        # 절사 로직 (100원 단위)
         ltv_limit = (ltv_limit // 100) * 100
         available = (available // 100) * 100
 
@@ -200,6 +249,9 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
             "이름": owner["이름"],
             "지분율": owner["지분율"],
             "지분가치(만원)": equity_value,
+            "적용LTV(%)": final_ltv,  # 【신규】 실제 적용된 LTV
+            "메리츠기준LTV(%)": meritz_ltv,  # 【신규】 메리츠 기준값 (참고용)
+            "사용자입력LTV(%)": ltv,  # 【신규】 사용자 입력값 (참고용)
             "지분LTV한도(만원)": ltv_limit,
             "가용자금(만원)": available,
             "대출구분": "선순위" if is_senior else "후순위"
