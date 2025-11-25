@@ -326,20 +326,20 @@ def get_hope_collateral_interest_rate(region, ltv_rate):
     except (ValueError, TypeError):
         return None
 
-    # 예외상품: 서울 LTV 70% 미만
-    if region == '서울' and ltv <= 70:
+    # 예외상품: 서울 LTV 70% 미만 (70% 미포함)
+    if region == '서울' and ltv < 70:
         return "9.9% ~ 10.9%"
 
-    # A: 서울 LTV 75% 미만 -> 75% 이하로 수정
-    if region == '서울' and ltv <= 75:
+    # A: 서울 LTV 75% 미만 (75% 미포함)
+    if region == '서울' and ltv < 75:
         return "10.9% ~ 12.9%"
 
     # B: 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만
-    if (region == '서울' and ltv <= 80) or (region in ['경기', '인천'] and ltv <= 75):
+    if (region == '서울' and ltv < 80) or (region in ['경기', '인천'] and ltv < 75):
         return "11.9% ~ 13.9%"
 
-    # C: 경기/인천 LTV 80% 미만 -> 80% 이하로 수정
-    if region in ['경기', '인천'] and ltv <= 80:
+    # C: 경기/인천 LTV 80% 미만 (80% 미포함)
+    if region in ['경기', '인천'] and ltv < 80:
         return "12.9% ~ 14.9%"
 
     # 조건을 만족하지 않으면 None 반환
@@ -570,6 +570,7 @@ def generate_memo(data):
             ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
+                memo_lines.append("")  # ✅ LTV 한도 뒤에 빈 줄 추가
                 ltv_lines_exist = True
         
         # 상태별 합계 계산
@@ -627,16 +628,16 @@ def generate_memo(data):
         except Exception as e:
             logger.warning(f"수수료 계산 중 오류 (무시됨): {e}")
 
-        # ✨ 아이엠질권적용 로직
+        # ✨ 아이엠/메리츠 질권적용 로직 (둘 다 금리 적용)
         hope_collateral_checked = inputs.get('hope_collateral_checked', False)
         meritz_collateral_checked = inputs.get('meritz_collateral_checked', False)
 
-        # 아이엠 또는 메리츠 질권 체크 시 금리 적용
+        # ✅ 아이엠 또는 메리츠 질권 체크 시 금리 적용
         if hope_collateral_checked or meritz_collateral_checked:
-            # 첫 번째 LTV 결과를 기반으로 금리 계산
+            # ltv_results에서 가장 높은 LTV (사용자 입력값 우선) 선택
             if ltv_results and len(ltv_results) > 0:
-                first_ltv_result = ltv_results[0]
-                ltv_rate = first_ltv_result.get('ltv_rate')
+                # 사용자 입력 LTV가 있으면 그걸 사용, 없으면 자동값 사용
+                ltv_rate = ltv_results[-1].get('ltv_rate')  # 마지막 항목 (사용자입력이 있으면 그것)
 
                 # 주소에서 지역 추출
                 address = inputs.get('address', '')
@@ -646,7 +647,6 @@ def generate_memo(data):
                 if region and ltv_rate:
                     interest_rate = get_hope_collateral_interest_rate(region, ltv_rate)
                     if interest_rate:
-                        memo_lines.append("")  # 빈 줄 추가
                         memo_lines.append(f"적용 금리 (연이율) {interest_rate}")
                         memo_lines.append("")  # 빈 줄 추가
 
