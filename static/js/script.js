@@ -739,6 +739,8 @@
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
+                        // ✅ [신규] 근저당권 상태 변경 시 자동 LTV도 함께 갱신
+                        updateAutoLTV();
                     }
                     // 기존의 메모 생성 함수를 호출합니다.
                     triggerMemoGeneration();
@@ -1498,15 +1500,27 @@ async function handleFileUpload(file) {
             let individualShareMemo = '\n\n--- 개별 지분 한도 계산 ---';
             let ownerName = '';
 
-            // ✅ [신규] 1군 지역 선순위 기본 LTV 계산 (지분대출 상한선)
+            // ✅ [신규] 1군 지역 선순위/후순위 기본 LTV 계산 (지분대출 상한선)
             let baseLTV = 80; // 기본값
             if (area) {
-                if (area <= 95.9) {
-                    baseLTV = 80;
-                } else if (area <= 135) {
-                    baseLTV = 75;
+                if (loanTypeInfo === "후순위") {
+                    // 후순위 기준
+                    if (area <= 95.9) {
+                        baseLTV = 80;
+                    } else if (area <= 135) {
+                        baseLTV = 80;
+                    } else {
+                        baseLTV = 70; // 135㎡ 초과
+                    }
                 } else {
-                    baseLTV = 60; // 135㎡ 초과
+                    // 선순위 기준
+                    if (area <= 95.9) {
+                        baseLTV = 80;
+                    } else if (area <= 135) {
+                        baseLTV = 75;
+                    } else {
+                        baseLTV = 60; // 135㎡ 초과
+                    }
                 }
             }
 
@@ -1524,7 +1538,8 @@ async function handleFileUpload(file) {
                     loans: loans,
                     owners: owners,
                     loan_type: loanTypeInfo,
-                    address: address  // 지분대출 1군 지역 검증용
+                    address: address,  // 지분대출 1군 지역 검증용
+                    area: area  // 메리츠 LTV 기준 계산용 (추가)
                 };
 
                 const res = await fetch("/api/calculate_individual_share", {
