@@ -463,7 +463,7 @@ def generate_memo(data):
                 memo_lines.extend(loan_memo)
                 memo_lines.append("")
 
-        # --- ▼▼▼ 메리츠캐피탈 자동화된 LTV 계산 (주소 + 면적 기반) ▼▼▼ ---
+        # --- ▼▼▼ LTV 계산 로직 (메리츠/아이엠/기본값) ▼▼▼ ---
         ltv_results = []
         ltv_lines_exist = False
 
@@ -488,47 +488,83 @@ def generate_memo(data):
         is_senior = maintain_sum == 0  # 유지 채권이 없으면 선순위
         loan_type = "선순위" if is_senior else "후순위"
 
-        # 자동 LTV 계산 (주소 + 면적 + KB시세 기반)
-        if kb_price_val > 0 and address.strip():
-            area = inputs.get('area', '')  # 면적 정보 가져오기
-            area_val = parse_korean_number(area) if area else None
-            auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val)
+        # 체크박스 상태 확인
+        hope_collateral_checked = inputs.get('hope_collateral_checked', False)
+        meritz_collateral_checked = inputs.get('meritz_collateral_checked', False)
 
-            if auto_ltv is not None:
-                limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, auto_ltv, is_senior)
+        # 자동 LTV 계산 (메리츠 또는 아이엠 기준)
+        auto_ltv = None
+        auto_source = None
 
-                ltv_results.append({
-                    'loan_type': loan_type,
-                    'ltv_rate': auto_ltv,
-                    'limit': limit,
-                    'available': available,
-                    'auto_calculated': True  # 자동 계산 여부 표시
-                })
+        if kb_price_val > 0:
+            # ✅ 케이스 1: 메리츠 체크 → 메리츠 기준 (주소+면적 기반)
+            if meritz_collateral_checked:
+                area = inputs.get('area', '')
+                # 면적은 소수점을 포함한 float로 파싱
+                try:
+                    area_val = float(str(area).replace(",", "").strip()) if area else None
+                except (ValueError, TypeError):
+                    area_val = None
+                auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val)
+                auto_source = "메리츠 기준"
 
-                # 메모에 급지 정보 추가
-                region_grade = get_region_grade(address)
-                caution_flag = " (유의지역)" if is_caution_region(address) else ""
-                memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
-                memo_lines.insert(1, "")  # 급지 다음에 빈 줄
+                if auto_ltv is not None:
+                    # 메모에 급지 정보 추가 (메리츠일 때만)
+                    region_grade = get_region_grade(address)
+                    caution_flag = " (유의지역)" if is_caution_region(address) else ""
+                    memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
+                    memo_lines.insert(1, "")
+
+            # ✅ 케이스 2: 아이엠 체크 → 아이엠 기준 (지역 기반)
+            elif hope_collateral_checked:
+                region = get_region_from_address(address)
+                if region == '서울':
+                    auto_ltv = 80  # 서울: 80%
+                elif region in ['경기', '인천']:
+                    auto_ltv = 75  # 경기/인천: 75%
+                else:
+                    auto_ltv = 75  # 기본값: 75%
+                auto_source = "아이엠 기준"
+
+            # ✅ 케이스 3: 둘 다 체크 안 함 → 기본값 80%
+            else:
+                auto_ltv = 80  # 기본값: 80%
+                auto_source = "기본값"
+
+        # 자동 계산된 LTV 추가
+        if auto_ltv is not None:
+            limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, auto_ltv, is_senior)
+            ltv_results.append({
+                'loan_type': loan_type,
+                'ltv_rate': auto_ltv,
+                'limit': limit,
+                'available': available,
+                'auto_calculated': True,
+                'source': auto_source
+            })
 
         # 사용자 입력 LTV가 있으면 함께 처리 (비교용)
         ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
-        if ltv1_raw is not None and str(ltv1_raw).strip():
-            try:
-                user_ltv = float(ltv1_raw)
-                if user_ltv > 0:
-                    limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, user_ltv, is_senior)
 
-                    ltv_results.append({
-                        'loan_type': loan_type,
-                        'ltv_rate': user_ltv,
-                        'limit': limit,
-                        'available': available,
-                        'auto_calculated': False  # 사용자 입력
-                    })
-            except (ValueError, TypeError):
-                pass
-        # --- ▲▲▲ 메리츠캐피탈 자동화 완료 ▲▲▲ ---
+        # 명확한 검증: 빈 문자열이나 None 제외
+        if ltv1_raw is not None:
+            ltv_str = str(ltv1_raw).strip()
+            if ltv_str and ltv_str != "":
+                try:
+                    user_ltv = float(ltv_str)
+                    if user_ltv > 0 and user_ltv != auto_ltv:  # 자동값과 다를 때만 추가
+                        limit, available = calculate_ltv_limit(kb_price_val, deduction_amount_val, principal_sum, maintain_sum, user_ltv, is_senior)
+                        ltv_results.append({
+                            'loan_type': loan_type,
+                            'ltv_rate': user_ltv,
+                            'limit': limit,
+                            'available': available,
+                            'auto_calculated': False,
+                            'source': '사용자 입력'
+                        })
+                except (ValueError, TypeError):
+                    pass
+        # --- ▲▲▲ LTV 계산 완료 ▲▲▲ ---
 
         if ltv_results and isinstance(ltv_results, list):
             ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
@@ -617,8 +653,8 @@ def generate_memo(data):
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
         # ✨ 아이엠질권적용 또는 메리츠질권적용 시 고정 텍스트 추가 (맨 하단)
         if hope_collateral_checked or meritz_collateral_checked:
-            memo_lines.append("*본심사시 금액 변동될수 있습니다.")
-            memo_lines.append("*사업자 담보대출 (사업자필)")
+            memo_lines.append("*본심사시 금리 변동될수 있습니다.")
+            memo_lines.append("*사업자 담보대출 (사업자필수)")
             memo_lines.append("*계약 2년")
             memo_lines.append("*중도 3%")
             memo_lines.append("*환수 92일이내 50%")
@@ -874,6 +910,7 @@ def calculate_individual_share():
 
         # ✅ [신규] 지분대출 조건 확인: 수도권 1군 지역만 취급
         address = data.get("address", "")
+        area = data.get("area")  # 면적 정보 추가
         if address:
             region_grade = get_region_grade(address)
             if region_grade != "1군":
@@ -897,9 +934,10 @@ def calculate_individual_share():
             elif status in senior_statuses:
                 existing_principal += principal
         is_senior = not has_subordinate
-        logger.info(f"지분 계산 - 시세: {total_value}만, LTV: {ltv}%, 후순위차감: {maintain_maxamt_sum}만, 갚을원금: {existing_principal}만, 선순위여부: {is_senior}")
+        logger.info(f"지분 계산 - 시세: {total_value}만, 주소: {address}, 면적: {area}㎡, LTV: {ltv}%, 후순위차감: {maintain_maxamt_sum}만, 갚을원금: {existing_principal}만, 선순위여부: {is_senior}")
         logger.info(f"대출 데이터: {loans}")
-        results = calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum, existing_principal, is_senior)
+        # 【수정】 address와 area를 함수에 전달하여 메리츠 기준 LTV 자동 적용
+        results = calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum, existing_principal, is_senior, address=address, area=area)
         return jsonify({"success": True, "results": results})
     except Exception as e:
         logger.error(f"개인별 지분 한도 계산 오류: {e}", exc_info=True)
