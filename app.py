@@ -519,7 +519,7 @@ def generate_memo(data):
             elif hope_collateral_checked:
                 region = get_region_from_address(address)
                 if region == '서울':
-                    auto_ltv = 80  # 서울: 80%
+                    auto_ltv = 79  # 서울: 79%
                 elif region in ['경기', '인천']:
                     auto_ltv = 75  # 경기/인천: 75%
                 else:
