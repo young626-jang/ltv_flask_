@@ -111,7 +111,7 @@
 
                 <!-- 아이엠질권적용 지역 선택 버튼 -->
                 <div id="hope-loan-region-buttons" class="d-flex gap-2 mb-2" style="display: none !important;">
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="서울" data-ltv="80">서울</button>
+                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="서울" data-ltv="79">서울</button>
                     <button type="button" class="btn md-btn hope-loan-region-btn" data-region="경기" data-ltv="75">경기</button>
                     <button type="button" class="btn md-btn hope-loan-region-btn" data-region="인천" data-ltv="70">인천</button>
                 </div>
@@ -306,21 +306,9 @@
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 <script>
-// 대출심사 현황관리로 이동
+// 대출심사 현황관리로 이동 (Notion)
 function goToLoanReview() {
-    const customerInput = document.getElementById('customer_name').value || '신규고객';
-    // 입력값이 "고객명 생년월일" 형식인 경우 분리
-    let customerName = customerInput;
-    let birthDate = '';
-
-    // 공백이나 숫자로 분리 시도
-    const parts = customerInput.trim().split(/\s+/);
-    if (parts.length > 1) {
-        customerName = parts[0];
-        birthDate = parts.slice(1).join('');
-    }
-
-    const url = `/loan-review?name=${encodeURIComponent(customerName)}&birth=${encodeURIComponent(birthDate)}`;
+    const url = 'https://www.notion.so/1f2ebdf111b580cdbefbe40390c5428c?v=2b6ebdf111b58095b3a2000c1c4fbf82&source=copy_link';
     window.open(url, '_blank');
 }
 
