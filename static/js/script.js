@@ -1819,15 +1819,10 @@ function attachAllEventListeners() {
                     deductionAmountField.value = '';  // 방공제(만) 필드의 금액 삭제
                     console.log('💰 방공제(만) - 금액 삭제');
                 }
-                // --- LTV 비율 초기값 없음 (빈 상태) ---
-                if (ltv1Field) {
-                    ltv1Field.value = '';
-                    console.log('📊 LTV 비율 ① - 초기값 없음');
-                }
-                // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
-
                 // --- ▼▼▼ 주소 기반 지역 자동 선택 (서울/경기/인천) ▼▼▼ ---
                 const addressField = document.getElementById('address');
+                let regionFound = false;
+
                 if (addressField && addressField.value) {
                     let regionToSelect = null;
                     const address = addressField.value;
@@ -1847,8 +1842,15 @@ function attachAllEventListeners() {
                         if (button) {
                             button.click();
                             console.log(`🌍 아이엠 지역 자동 선택: ${regionToSelect}`);
+                            regionFound = true;
                         }
                     }
+                }
+
+                // 주소가 없으면 기본값 설정 (경기/인천: 75%, 서울: 80%)
+                if (!regionFound && ltv1Field) {
+                    ltv1Field.value = '75';  // 기본값: 75% (경기/인천 기준)
+                    console.log('📊 아이엠 기본값: 75% (주소 미입력)');
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
 
@@ -1862,12 +1864,12 @@ function attachAllEventListeners() {
                     b.style.color = '';
                     b.style.borderColor = '';
                 });
-                // --- LTV 비율 초기값 80 ---
+                // --- LTV 비율 초기화 (빈 상태) ---
                 if (ltv1Field) {
-                    ltv1Field.value = '80';
-                    console.log('📊 LTV 비율 ① - 초기값 80');
+                    ltv1Field.value = '';
+                    console.log('📊 LTV 비율 ① - 초기화됨');
                 }
-                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김, LTV 초기값 80 설정');
+                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김, LTV 초기값 비움');
             }
             // 희망담보대부 조건 검증
             validateHopeLoanConditions();
