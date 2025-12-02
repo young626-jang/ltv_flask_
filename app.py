@@ -329,23 +329,23 @@ def get_hope_collateral_interest_rate(region, ltv_rate):
 
     # 예외상품: 서울 LTV 70% 미만 (70% 미포함)
     if region == '서울' and ltv < 70:
-        return "9.9% ~ 10.9%"
+        return "9.9% / 10.9%"
 
     # A: 서울 LTV 75% 미만 (75% 미포함)
     if region == '서울' and ltv < 75:
-        return "10.9% ~ 11.9%"
+        return "10.9% / 11.9%"
 
     # B: 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만
     if (region == '서울' and ltv < 80) or (region in ['경기', '인천'] and ltv < 75):
-        return "11.9% ~ 12.9%"
+        return "11.9% / 12.9%"
 
     # C: 경기/인천 LTV 80% 미만 (80% 미포함)
     if region in ['경기', '인천'] and ltv < 80:
-        return "12.9% ~ 13.9%"
+        return "12.9% / 13.9%"
 
-    # D: 서울/경기/인천 LTV 82% 미만 (82% 미포함)
-    if ltv < 82:
-        return "13.9% ~ 14.9%"
+    # D: 서울/경기/인천 LTV 82% 이하 (82% 포함)
+    if ltv <= 82:
+        return "13.9% / 14.9%"
 
     # 조건을 만족하지 않으면 None 반환
     return None
