@@ -22,6 +22,7 @@ from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
 from pdf_parser import (
     extract_address,
     extract_area,
+    extract_property_type,
     extract_owner_info,
     extract_viewing_datetime,
     check_registration_age,
@@ -184,10 +185,13 @@ def upload_and_parse_pdf():
         viewing_dt = extract_viewing_datetime(full_text)
         extracted_address = extract_address(full_text)
         extracted_area = extract_area(full_text)
+        property_type_info = extract_property_type(full_text)
 
         scraped_data = {
             'address': extracted_address,
             'area': extracted_area,
+            'property_type': property_type_info.get('detail', 'Unknown'),
+            'property_category': property_type_info.get('type', 'APT'),
             'customer_name': extract_owner_info(full_text),
             'viewing_datetime': viewing_dt,
             'age_check': check_registration_age(viewing_dt),
@@ -267,7 +271,7 @@ def get_region_from_address(address):
     return None
 
 
-def auto_calculate_ltv(address, area, is_senior=True, kb_price=None):
+def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_type="APT"):
     """
     메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산
 
@@ -276,9 +280,10 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None):
         area (float): 면적 (㎡ 단위)
         is_senior (bool): True=선순위, False=후순위
         kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
+        property_type (str): 'APT' 또는 'Non-APT'
 
     Returns:
-        float: 자동 계산된 LTV (%)
+        float: 자동 계산된 LTV (%), Non-APT 2군/3군 취급불가 시 None
     """
     if not address or not area or area <= 0:
         return None
@@ -291,11 +296,16 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None):
             logger.warning(f"급지 미분류: {address}")
             return None
 
-        # 2. 급지, 면적, 선후순위에 따른 LTV 기준값 조회
-        ltv_standard = get_ltv_standard(region_grade, float(area), is_senior)
+        # 2. 급지, 물건유형, 면적, 선후순위에 따른 LTV 기준값 조회
+        ltv_standard = get_ltv_standard(region_grade, float(area), is_senior, property_type)
 
-        # 3. 유의지역이면 LTV 80% 제한
-        if is_caution_region(address) and ltv_standard > 80:
+        # Non-APT 2군/3군 취급불가
+        if ltv_standard is None:
+            logger.warning(f"Non-APT {region_grade} 취급불가: {address}")
+            return None
+
+        # 3. 유의지역이면 LTV 80% 제한 (APT만)
+        if property_type == "APT" and is_caution_region(address) and ltv_standard > 80:
             ltv_standard = 80.0
 
         # 4. 시세 15억(150000만원) 초과 시 5% 차감
@@ -747,6 +757,7 @@ def auto_calculate_ltv_route():
         area = data.get('area', None)
         is_senior = data.get('is_senior', True)  # 클라이언트에서 전달받은 선순위/후순위 정보
         kb_price_raw = data.get('kb_price', '')  # 클라이언트에서 전달받은 KB 시세
+        property_type = data.get('property_type', 'APT')  # 클라이언트에서 전달받은 물건유형
 
         if not address or not area:
             return jsonify({"error": "주소와 면적이 필요합니다."}), 400
@@ -764,14 +775,25 @@ def auto_calculate_ltv_route():
             except (ValueError, TypeError):
                 kb_price_val = parse_korean_number(kb_price_raw)
 
-        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior 사용, KB 시세 포함)
-        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val)
+        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior, KB 시세, 물건유형 사용)
+        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val, property_type=property_type)
 
+        # Non-APT 2군/3군 취급불가 처리
         if auto_ltv is None:
-            return jsonify({
-                "success": False,
-                "error": "급지를 판단할 수 없습니다.",
-                "address": address,
+            region_grade = get_region_grade(address)
+            if property_type == 'Non-APT' and region_grade in ['2군', '3군']:
+                return jsonify({
+                    "success": False,
+                    "error": f"Non-APT {region_grade} 취급불가",
+                    "address": address,
+                    "region_grade": region_grade,
+                    "property_type": property_type
+                }), 200
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "급지를 판단할 수 없습니다.",
+                    "address": address,
                 "area": area_val
             }), 400
 
