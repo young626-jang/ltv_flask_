@@ -222,6 +222,7 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "bridge_rate": get_number(props, "브릿지수수료율"),
         "ownership_transfer_date": get_rich_text(props, "소유권이전일"),
         "unit_count": get_rich_text(props, "세대수"),
+        "completion_date": get_rich_text(props, "준공일자"),
     }
     
     # 대출 정보 조회
@@ -319,7 +320,12 @@ def format_properties_payload(data: Dict) -> Dict:
         "세대수": {
             "rich_text": [{"text": {"content": inputs.get("unit_count", "").strip()}}]
         },
-    }
+        "준공일자": {
+            "rich_text": [{"text": {"content": inputs.get("completion_date", "").strip()}}]
+        }  # <--- 여기에 닫는 괄호 '}'가 빠져 있었습니다.
+    }      # <--- return 전체 딕셔너리를 닫는 괄호
+
+
 
 @handle_notion_errors
 def archive_existing_loans(customer_page_id: str) -> bool:
@@ -568,4 +574,3 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
-
