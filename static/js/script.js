@@ -795,6 +795,7 @@ function collectAllData() {
             meritz_region: meritzRegion,
             ownership_transfer_date: document.getElementById('ownership_transfer_date').value,
             unit_count: document.getElementById('unit_count').value,
+            completion_date: document.getElementById('completion_date').value,
         },
         fees: {
             // [복구] consult_amt가 컨설팅 금액으로 돌아옵니다.
@@ -1201,15 +1202,8 @@ async function handleFileUpload(file) {
             const areaValue = scraped.area || '';
             safeSetValue('area', areaValue.includes('㎡') ? areaValue : (areaValue ? `${areaValue}㎡` : ''));
 
-            // 소유권이전일 추가
-            const transferDateField = document.getElementById('ownership_transfer_date');
-            if (transferDateField) {
-                transferDateField.value = scraped.transfer_date || '';
-                console.log('✅ ownership_transfer_date 값:', transferDateField.value);
-                checkTransferDateColor(transferDateField.value);
-            } else {
-                console.warn('⚠️ ownership_transfer_date 요소를 찾을 수 없습니다');
-            }
+            // 물건유형 추가 (자동 인식)
+            safeSetValue('property_type', scraped.property_type || 'Unknown');
 
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
@@ -1891,6 +1885,13 @@ function attachAllEventListeners() {
         kbPriceField.addEventListener('blur', validateHopeLoanConditions);
     }
 
+    // 준공일자 입력 시 희망담보대부 조건 검증
+    const completionDateField = document.getElementById('completion_date');
+    if (completionDateField) {
+        completionDateField.addEventListener('input', validateHopeLoanConditions);
+        completionDateField.addEventListener('change', validateHopeLoanConditions);
+    }
+
     // 희망담보대부 지역 선택 버튼 이벤트
     document.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -2012,6 +2013,26 @@ function attachAllEventListeners() {
     if (kbPriceField) {
         kbPriceField.addEventListener('input', validateMeritzLoanConditions);
         kbPriceField.addEventListener('blur', validateMeritzLoanConditions);
+    }
+
+    // 세대수 입력 시 메리츠 조건 검증 (APT 300세대 이하 체크)
+    const meritzUnitCountField = document.getElementById('unit_count');
+    if (meritzUnitCountField) {
+        meritzUnitCountField.addEventListener('input', validateMeritzLoanConditions);
+        meritzUnitCountField.addEventListener('change', validateMeritzLoanConditions);
+    }
+
+    // 물건유형 변경 시 메리츠 조건 검증
+    const propertyTypeField = document.getElementById('property_type');
+    if (propertyTypeField) {
+        propertyTypeField.addEventListener('change', validateMeritzLoanConditions);
+    }
+
+    // 주소 변경 시 메리츠 조건 검증 (군 단위 지역 체크)
+    const meritzAddressField = document.getElementById('address');
+    if (meritzAddressField) {
+        meritzAddressField.addEventListener('input', validateMeritzLoanConditions);
+        meritzAddressField.addEventListener('change', validateMeritzLoanConditions);
     }
 
     // 메리츠 지역 선택 버튼 이벤트
@@ -2493,13 +2514,37 @@ function validateHopeLoanConditions() {
     // 조건 2: 희망담보대부 체크 AND KB시세 < 3억 (30,000만)
     const shouldHighlightKbPrice = isHopeChecked && kbPrice > 0 && kbPrice < THREE_HUNDRED_MILLION;
 
+    // 조건 3: 희망담보대부 체크 AND 준공일자 45년 이상 (2025년 기준 1980년 이전)
+    const completionDateField = document.getElementById('completion_date');
+    let shouldHighlightCompletionDate = false;
+
+    if (completionDateField && isHopeChecked && completionDateField.value.trim()) {
+        try {
+            const completionDateStr = completionDateField.value.trim();
+            // YYYY-MM-DD 또는 YYYY.MM.DD 형식 파싱
+            const dateMatch = completionDateStr.match(/(\d{4})[.-]?(\d{2})?[.-]?(\d{2})?/);
+
+            if (dateMatch) {
+                const year = parseInt(dateMatch[1]);
+                const currentYear = new Date().getFullYear();
+                const buildingAge = currentYear - year;
+
+                // 45년 이상이면 강조 (2025년 기준 1980년 이전)
+                shouldHighlightCompletionDate = buildingAge >= 45;
+                console.log(`🏢 준공연도: ${year}, 경과년수: ${buildingAge}년, 45년 이상: ${shouldHighlightCompletionDate}`);
+            }
+        } catch (e) {
+            console.error('준공일자 파싱 오류:', e);
+        }
+    }
+
     console.log(`🔍 희망담보대부 검증 - 체크: ${isHopeChecked}, 세대수: ${unitCount}, KB시세: ${kbPrice}`);
-    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}`);
+    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}, 준공일자 강조: ${shouldHighlightCompletionDate}`);
 
     // 세대수 필드 스타일 처리
     if (shouldHighlightUnitCount) {
         unitCountField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-        console.log('🔴 경고: 세대수 조건 만족');
+        console.log('🔴 경고: 세대수 100 미만');
     } else {
         unitCountField.removeAttribute('style');
     }
@@ -2507,9 +2552,17 @@ function validateHopeLoanConditions() {
     // KB시세 필드 스타일 처리
     if (shouldHighlightKbPrice) {
         kbPriceField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-        console.log('🔴 경고: KB시세 조건 만족');
+        console.log('🔴 경고: KB시세 3억 미만');
     } else {
         kbPriceField.removeAttribute('style');
+    }
+
+    // 준공일자 필드 스타일 처리
+    if (shouldHighlightCompletionDate && completionDateField) {
+        completionDateField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        console.log('🔴 경고: 준공후 45년 이상');
+    } else if (completionDateField) {
+        completionDateField.removeAttribute('style');
     }
 }
 
@@ -2598,7 +2651,179 @@ function validateMeritzLoanConditions() {
             console.log(`💸 고가물건 조정: 시세 15억 초과 → LTV ${baseLtv}% → ${deductedLtv}%`);
         }
 
+        // ========================================================
+        // 7. 40년 이상 노후주택 LTV 60% 상한 적용
+        // ========================================================
+        const completionField = document.getElementById('completion_date');
+        if (completionField && completionField.value.trim()) {
+            try {
+                const completionDateStr = completionField.value.trim();
+                const dateMatch = completionDateStr.match(/(\d{4})[.-]?(\d{2})?[.-]?(\d{2})?/);
+
+                if (dateMatch) {
+                    const year = parseInt(dateMatch[1]);
+                    const currentYear = new Date().getFullYear();
+                    const buildingAge = currentYear - year;
+
+                    if (buildingAge >= 40) {
+                        const currentLtv = parseFloat(ltv1Field.value) || baseLtv;
+                        if (currentLtv > 60) {
+                            ltv1Field.value = 60;
+                            console.log(`🏚️ 노후주택 조정: ${buildingAge}년 경과 → LTV ${currentLtv}% → 60% (Max 상한)`);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('노후주택 LTV 조정 오류:', e);
+            }
+        }
+
+        // ========================================================
+        // 8. 군 단위 신도시 -5% 차감
+        // ========================================================
+        const addressField = document.getElementById('address');
+        if (addressField && addressField.value.trim()) {
+            const address = addressField.value.trim();
+            const hasGun = /\s군\s|\s군$|^.*군\s/.test(address);
+
+            if (hasGun) {
+                const newTownExceptions = [
+                    '판교', '동탄', '광교', '위례', '평촌', '분당', '일산', '산본',
+                    '중동', '정자', '수지', '죽전', '운정', '양주신도시', '화성동탄',
+                    '김포한강신도시', '고덕', '위례신도시', '남양주왕숙', '하남감일',
+                    '인천검단', '부천대장', '광명시흥', '성남판교', '용인흥덕'
+                ];
+
+                const isNewTown = newTownExceptions.some(town => address.includes(town));
+
+                if (isNewTown) {
+                    const currentLtv = parseFloat(ltv1Field.value) || baseLtv;
+                    const deductedLtv = currentLtv - 5;
+                    ltv1Field.value = deductedLtv;
+                    console.log(`🏘️ 군 단위 신도시 조정: LTV ${currentLtv}% → ${deductedLtv}% (-5%)`);
+                }
+            }
+        }
+
         triggerMemoGeneration();
+    }
+
+    // ========================================================
+    // 4. APT 세대수 300 이하 체크 (Non-APT 기준 적용)
+    // ========================================================
+    const propertyTypeField = document.getElementById('property_type');
+    const unitCountField = document.getElementById('unit_count');
+
+    if (propertyTypeField && unitCountField) {
+        const propertyType = propertyTypeField.value.trim();
+        const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
+
+        // APT이고 세대수가 입력된 경우만 체크
+        if (propertyType.includes('아파트') && unitCount > 0) {
+            if (unitCount <= 100) {
+                // 100세대 이하: 빨간색 강조 (Non-APT 기준 필수 적용)
+                unitCountField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                console.log('🔴 메리츠 경고: APT 100세대 이하 - Non-APT 기준 자동 적용');
+            } else if (unitCount <= 300) {
+                // 101~300세대: 노란색 강조 (Non-APT 기준 권장, 예외 가능)
+                unitCountField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
+                console.log('⚠️ 메리츠 주의: APT 101~300세대 - Non-APT 기준 권장 (예외 가능)');
+            } else {
+                // 300세대 초과: 정상 (APT 기준 적용)
+                // 단, 아이엠 질권 조건과 겹치지 않도록 확인
+                const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+
+                // 아이엠 질권이 체크되어 있지 않으면 스타일 제거
+                if (!isHopeChecked) {
+                    unitCountField.removeAttribute('style');
+                }
+                console.log('✅ 메리츠 정상: APT 300세대 초과 - APT 기준 적용');
+            }
+        } else {
+            // APT가 아니거나 세대수 미입력 시 스타일 제거 (단, 아이엠 조건 확인)
+            const hopeCheckbox = document.getElementById('hope-collateral-loan');
+            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+
+            if (!isHopeChecked) {
+                unitCountField.removeAttribute('style');
+            }
+        }
+    }
+
+    // ========================================================
+    // 5. 40년 이상 노후주택 체크 (LTV Max 60%)
+    // ========================================================
+    const meritzCompletionDateField = document.getElementById('completion_date');
+    let is40YearsOld = false;
+
+    if (meritzCompletionDateField && meritzCompletionDateField.value.trim()) {
+        try {
+            const completionDateStr = meritzCompletionDateField.value.trim();
+            const dateMatch = completionDateStr.match(/(\d{4})[.-]?(\d{2})?[.-]?(\d{2})?/);
+
+            if (dateMatch) {
+                const year = parseInt(dateMatch[1]);
+                const currentYear = new Date().getFullYear();
+                const buildingAge = currentYear - year;
+
+                // 40년 이상이면 경고 (2025년 기준 1985년 이전)
+                is40YearsOld = buildingAge >= 40;
+
+                if (is40YearsOld) {
+                    meritzCompletionDateField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                    console.log(`🏚️ 메리츠 경고: 40년 이상 노후주택 (${buildingAge}년) - LTV Max 60%`);
+                } else {
+                    // 아이엠 질권 조건과 겹치지 않도록 확인
+                    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                    const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+
+                    if (!isHopeChecked) {
+                        meritzCompletionDateField.removeAttribute('style');
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('메리츠 준공일자 파싱 오류:', e);
+        }
+    }
+
+    // ========================================================
+    // 6. 군 단위 지역 체크 (신도시 예외)
+    // ========================================================
+    const addressField = document.getElementById('address');
+
+    if (addressField && addressField.value.trim()) {
+        const address = addressField.value.trim();
+
+        // 신도시/택지개발 예외 목록
+        const newTownExceptions = [
+            '판교', '동탄', '광교', '위례', '평촌', '분당', '일산', '산본',
+            '중동', '정자', '수지', '죽전', '운정', '양주신도시', '화성동탄',
+            '김포한강신도시', '고덕', '위례신도시', '남양주왕숙', '하남감일',
+            '인천검단', '부천대장', '광명시흥', '성남판교', '용인흥덕'
+        ];
+
+        // 주소에 "군" 포함 여부 확인
+        const hasGun = /\s군\s|\s군$|^.*군\s/.test(address);
+
+        if (hasGun) {
+            // 신도시 예외 확인
+            const isNewTown = newTownExceptions.some(town => address.includes(town));
+
+            if (isNewTown) {
+                // 신도시는 노란색 경고 (-5% 차감 후 가능)
+                addressField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
+                console.log(`⚠️ 메리츠 주의: 군 단위 신도시 - LTV -5% 차감 후 가능`);
+            } else {
+                // 일반 군 지역은 빨간색 경고 (취급불가)
+                addressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                console.log(`🔴 메리츠 경고: 군 단위 지역 - 취급불가 (신도시 제외)`);
+            }
+        } else {
+            // 군 단위가 아니면 스타일 제거
+            addressField.removeAttribute('style');
+        }
     }
 }
 
