@@ -88,6 +88,13 @@
 
             <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
+
+                <!-- 물건유형 + 면적 라인 -->
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input fw-bold" id="property_type" placeholder="물건유형" readonly style="background-color: #f0f8ff;"></div>
+                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
+                </div>
+
                 <div class="row g-2 mb-2">
                     <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name" placeholder="공유자 1 고객명 & 생년월일"></div>
                     <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name_2" placeholder="공유자 2 고객명 & 생년월일"></div>
@@ -101,12 +108,13 @@
                     <div class="col-md-6"><label for="price_type_field">시세적용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
                 </div>
 
+                <!-- KB 시세, 방공제, 소유권이전일, 세대수, 준공일자 라인 -->
                 <div class="row g-2 mb-2">
                     <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB 시세(만)"></div>
                     <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공제(만)"></div>
                     <div class="col"><input type="text" class="form-control form-field md-input" id="ownership_transfer_date" placeholder="소유권이전일"></div>
                     <div class="col"><input type="text" class="form-control form-field md-input" id="unit_count" placeholder="세대수"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
+                    <div class="col"><input type="text" class="form-control form-field md-input" id="completion_date" placeholder="준공일자"></div>
                 </div>
 
                 <!-- 아이엠질권적용 지역 선택 버튼 -->
@@ -317,10 +325,37 @@ async function updateAutoLTV() {
     const address = document.getElementById('address').value.trim();
     const area = document.getElementById('area').value.trim();
     const kb_price = document.getElementById('kb_price').value.trim();
+    const property_type_field = document.getElementById('property_type').value.trim();
     const displayEl = document.getElementById('auto-ltv-display'); // ✅ displayEl 정의 추가
 
     if (!address || !area) {
         return;
+    }
+
+    // 물건유형을 APT/Non-APT로 변환
+    let property_type = 'APT'; // 기본값
+    if (property_type_field) {
+        if (property_type_field.includes('아파트')) {
+            property_type = 'APT';
+        } else if (property_type_field.includes('오피스텔') ||
+                   property_type_field.includes('다세대') ||
+                   property_type_field.includes('연립') ||
+                   property_type_field.includes('빌라')) {
+            property_type = 'Non-APT';
+        }
+    }
+
+    // 메리츠 질권: APT이지만 100세대 이하면 Non-APT 기준 자동 적용
+    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+    const unitCountField = document.getElementById('unit_count');
+    const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+    if (isMeritzChecked && property_type === 'APT' && unitCountField) {
+        const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
+        if (unitCount > 0 && unitCount <= 100) {
+            property_type = 'Non-APT';
+            console.log(`🔄 메리츠 APT 100세대 이하 (${unitCount}세대) → Non-APT 기준 자동 적용`);
+        }
     }
 
     // 근저당권 상태에서 선순위/후순위 자동 판단
@@ -347,7 +382,8 @@ async function updateAutoLTV() {
                 address: address,
                 area: parseFloat(area),
                 is_senior: is_senior,
-                kb_price: kb_price  // KB 시세 추가
+                kb_price: kb_price,
+                property_type: property_type  // 물건유형 추가
             })
         });
 
@@ -366,9 +402,18 @@ async function updateAutoLTV() {
             // ✅ [신규] LTV 입력필드에 자동 계산값 자동으로 설정
             document.getElementById("ltv1").value = ltv;
         } else {
-            if (displayEl) {
-                displayEl.textContent = '자동LTV: 계산실패';
-                displayEl.style.color = '#dc3545';  // 빨강
+            // Non-APT 2군/3군 취급불가 경고 메시지
+            if (data.error && data.error.includes('Non-APT') && data.error.includes('취급불가')) {
+                if (displayEl) {
+                    displayEl.textContent = `⚠️ ${data.error}`;
+                    displayEl.style.color = '#dc3545';  // 빨강
+                }
+                alert(`⚠️ 주의사항\n\n${data.error}\n\n메리츠캐피탈은 ${data.region_grade} 지역에서 Non-APT(오피스텔, 다세대, 연립) 물건을 취급하지 않습니다.`);
+            } else {
+                if (displayEl) {
+                    displayEl.textContent = '자동LTV: 계산실패';
+                    displayEl.style.color = '#dc3545';  // 빨강
+                }
             }
         }
     } catch (error) {
@@ -443,9 +488,10 @@ function initMeritzRegionTooltips() {
 
 // 문서 로드 시 이벤트 리스너 추가
 document.addEventListener('DOMContentLoaded', function() {
-    // 주소, 면적, KB시세 입력 시 자동 LTV 재계산
+    // 주소, 면적, 물건유형, KB시세 입력 시 자동 LTV 재계산
     document.getElementById('address').addEventListener('change', updateAutoLTV);
     document.getElementById('area').addEventListener('change', updateAutoLTV);
+    document.getElementById('property_type').addEventListener('change', updateAutoLTV);
     document.getElementById('kb_price').addEventListener('change', updateAutoLTV);
 
     // 근저당권 상태 변경 시 자동 LTV 재계산 (event delegation)
