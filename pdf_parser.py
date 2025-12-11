@@ -17,13 +17,69 @@ def extract_area(text):
     """텍스트에서 전용 면적을 추출합니다."""
     area_section_match = re.search(r"전유부분의 건물의 표시([\s\S]*?)대지권의 표시", text)
     search_text = area_section_match.group(1) if area_section_match else text
-    
+
     # 줄바꿈으로 분리된 면적 처리 (박규생님 등기 등)
     clean_text = re.sub(r'구조(\d+)\s*\n\s*\.', r'구조\1.', search_text)
     clean_text = re.sub(r'\s+', ' ', clean_text)
-    
+
     matches = re.findall(r"(\d+\.\d+)\s*㎡", clean_text)
     return f"{matches[-1]}㎡" if matches else ""
+
+def extract_property_type(text):
+    """
+    텍스트에서 물건유형을 추출합니다. (표제부 전체 및 주소 분석)
+
+    Returns:
+        dict: {
+            'type': 'APT' | 'Non-APT',
+            'detail': '아파트' | '오피스텔' | '다세대주택' | '연립주택' | '도시형생활주택' | 'Unknown'
+        }
+    """
+    # 1. 검색 범위 설정: '표제부' 전체를 가져오기 위해 '갑구' 이전까지의 텍스트를 추출
+    # 갑구가 없는 경우(드물지만) 전체 텍스트 사용
+    header_section_match = re.search(r"([\s\S]*?)(갑\s*구|을\s*구)", text)
+    search_text = header_section_match.group(1) if header_section_match else text
+
+    # 2. 텍스트 정제 (줄바꿈 제거하여 검색 용이하게)
+    clean_text = re.sub(r'\s+', ' ', search_text)
+
+    # 3. 상세 유형 판단 로직 (우선순위 중요)
+
+    # 3-1. 오피스텔 (전유부분이나 1동의 건물 표시에 명시됨)
+    if re.search(r'오피스텔', clean_text, re.IGNORECASE):
+        return {'type': 'Non-APT', 'detail': '오피스텔'}
+
+    # 3-2. 도시형생활주택 (요즘 많이 등장, 아파트/다세대와 혼용되므로 우선 체크)
+    if re.search(r'도시형\s*생활\s*주택', clean_text, re.IGNORECASE):
+        # 도시형생활주택은 아파트형과 원룸형이 섞여있으나 보통 Non-APT로 분류하거나 별도 관리
+        return {'type': 'Non-APT', 'detail': '도시형생활주택'}
+
+    # 3-3. 아파트
+    # 건물 내역에 '아파트'가 있거나, 주소/건물명에 '아파트'가 포함된 경우
+    # 단, '빌라'인데 이름만 'XX아파트'인 경우를 배제하기 위해 건물내역(구조) 키워드를 우선 봄
+    if re.search(r'건물\s*내역.*?아파트', clean_text) or re.search(r'[\d\s]아파트', clean_text):
+        return {'type': 'APT', 'detail': '아파트'}
+
+    # 3-4. 연립/다세대
+    if re.search(r'연립\s*주택', clean_text, re.IGNORECASE):
+        return {'type': 'Non-APT', 'detail': '연립주택'}
+
+    if re.search(r'다세대\s*주택', clean_text, re.IGNORECASE):
+        return {'type': 'Non-APT', 'detail': '다세대주택'}
+
+    # 4. 보조 수단: 건물 명칭(주소)에서 키워드 검색
+    # 위 구조 내역에서 못 찾았을 경우 주소 텍스트를 분석
+    address_match = extract_address(text) # 기존에 정의된 함수 활용
+    if address_match:
+        if '아파트' in address_match:
+            return {'type': 'APT', 'detail': '아파트'}
+        if '오피스텔' in address_match:
+            return {'type': 'Non-APT', 'detail': '오피스텔'}
+        if '빌라' in address_match or '맨션' in address_match:
+            return {'type': 'Non-APT', 'detail': '다세대주택'}
+
+    # 5. 기본값
+    return {'type': 'APT', 'detail': 'Unknown'}
 
 def extract_owner_info(text):
 
