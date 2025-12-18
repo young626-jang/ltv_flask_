@@ -31,46 +31,68 @@ REGION_CLASSIFICATION = {
 CAUTION_REGIONS = {
     "서울": ["중랑구", "관악구", "강북구", "성북구", "노원구", "도봉구"],
     "경기": ["구리", "남양주"],
-    "인천": ["계양구", "부평구", "연수구", "미추홀구"]
+    "인천": ["계양구", "부평구", "연수구", "미추홀구"],
 }
 
-# 2. LTV 기준 테이블 (급지별, 면적별, 선후순위별)
+# 2. LTV 기준 테이블 (급지별, 물건유형별, 면적별, 선후순위별)
 LTV_STANDARDS = {
     "1군": {
-        "선순위": {
-            "95.9": 80.0,      # 95.9㎡ 이하
-            "135": 75.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
-            "135+": 60.0       # 135㎡ 초과
+        "APT": {
+            "선순위": {
+                "95.9": 83.0,      # 95.9㎡ 이하
+                "135": 75.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
+                "135+": 60.0       # 135㎡ 초과
+            },
+            "후순위": {
+                "95.9": 85.0,      # 95.9㎡ 이하
+                "135": 80.0,
+                "135+": 70.0
+            }
         },
-        "후순위": {
-            "95.9": 80.0,      # 95.9㎡ 이하
-            "135": 80.0,
-            "135+": 70.0
+        "Non-APT": {
+            "선순위": {
+                "62.8": 75.0,      # 62.8㎡ 이하
+                "95.9": 70.0,      # 62.8㎡ 초과 ~ 95.9㎡ 이하
+                "135": 60.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
+                "135+": 50.0       # 135㎡ 초과
+            },
+            "후순위": {
+                "62.8": 75.0,      # 62.8㎡ 이하
+                "95.9": 70.0,      # 62.8㎡ 초과 ~ 95.9㎡ 이하
+                "135": 60.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
+                "135+": 50.0       # 135㎡ 초과
+            }
         }
     },
     "2군": {
-        "선순위": {
-            "95.9": 75.0,
-            "135": 70.0,
-            "135+": 55.0
+        "APT": {
+            "선순위": {
+                "95.9": 75.0,
+                "135": 70.0,
+                "135+": 55.0
+            },
+            "후순위": {
+                "95.9": 80.0,
+                "135": 75.0,
+                "135+": 65.0
+            }
         },
-        "후순위": {
-            "95.9": 80.0,
-            "135": 75.0,
-            "135+": 65.0
-        }
+        "Non-APT": None  # 2군 Non-APT 취급불가
     },
     "3군": {
-        "선순위": {
-            "95.9": 70.0,
-            "135": 65.0,
-            "135+": 50.0
+        "APT": {
+            "선순위": {
+                "95.9": 70.0,
+                "135": 65.0,
+                "135+": 50.0
+            },
+            "후순위": {
+                "95.9": 75.0,
+                "135": 70.0,
+                "135+": 60.0
+            }
         },
-        "후순위": {
-            "95.9": 75.0,
-            "135": 70.0,
-            "135+": 60.0
-        }
+        "Non-APT": None  # 3군 Non-APT 취급불가
     }
 }
 
@@ -131,32 +153,52 @@ def is_caution_region(address):
                     return True
     return False
 
-def get_ltv_standard(region_grade, area, is_senior):
+def get_ltv_standard(region_grade, area, is_senior, property_type="APT"):
     """
-    급지, 면적, 선후순위에 따른 LTV 기준값 반환
+    급지, 물건유형, 면적, 선후순위에 따른 LTV 기준값 반환
 
     Args:
         region_grade (str): '1군', '2군', '3군'
         area (float): 면적 (㎡ 단위)
         is_senior (bool): True=선순위, False=후순위
+        property_type (str): 'APT' 또는 'Non-APT'
 
     Returns:
-        float: LTV 기준값 (%)
+        float: LTV 기준값 (%), 취급불가 시 None
     """
     if region_grade not in LTV_STANDARDS:
         return 60.0  # 기본값
 
+    # 물건유형별 기준 확인
+    property_standards = LTV_STANDARDS[region_grade].get(property_type)
+
+    # 2군/3군 Non-APT 취급불가
+    if property_standards is None:
+        return None
+
     position = "선순위" if is_senior else "후순위"
-    area_standards = LTV_STANDARDS[region_grade][position]
+    area_standards = property_standards[position]
 
     if area is None or area <= 0:
         area = 95.9
 
     # 면적에 따른 기준값 선택
-    if area <= 95.9:
-        return area_standards["95.9"]
-    elif area <= 135:
-        return area_standards["135"]
+    if property_type == "Non-APT":
+        # Non-APT는 62.8㎡ 기준 추가
+        if area <= 62.8:
+            return area_standards.get("62.8", 75.0)
+        elif area <= 95.9:
+            return area_standards.get("95.9", 70.0)
+        elif area <= 135:
+            return area_standards.get("135", 60.0)
+        else:
+            return area_standards.get("135+", 50.0)
     else:
-        return area_standards["135+"]
+        # APT
+        if area <= 95.9:
+            return area_standards["95.9"]
+        elif area <= 135:
+            return area_standards["135"]
+        else:
+            return area_standards["135+"]
 
