@@ -353,12 +353,8 @@ def get_hope_collateral_interest_rate(region, ltv_rate):
     if region in ['경기', '인천'] and ltv < 80:
         return "12.9% / 13.9%"
 
-    # D: 서울/경기/인천 LTV 83% 미만 (83% 미포함)
-    if ltv < 83:
-        return "13.9% / 14.9%"
-
-    # 조건을 만족하지 않으면 None 반환
-    return None
+    # D: 서울/경기/인천 LTV 83% 이상 포함 (나머지 모든 경우)
+    return "13.9% / 14.9%"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
