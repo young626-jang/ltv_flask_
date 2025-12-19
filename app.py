@@ -526,21 +526,17 @@ def generate_memo(data):
                     memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
                     memo_lines.insert(1, "")
 
-            # ✅ 케이스 2: 아이엠 체크 → 아이엠 기준 (지역 기반)
+            # ✅ 케이스 2: 아이엠 체크 → 아이엠 기준 (서울/경기/인천만 진행, 선후순위 구분)
             elif hope_collateral_checked:
                 region = get_region_from_address(address)
-                if region == '서울':
-                    auto_ltv = 79  # 서울: 79%
-                elif region in ['경기', '인천']:
-                    auto_ltv = 75  # 경기/인천: 75%
+                if region in ['서울', '경기', '인천']:
+                    # 선순위: 70%, 후순위: 80%
+                    auto_ltv = 70 if is_senior else 80
+                    auto_source = "아이엠 기준"
                 else:
-                    auto_ltv = 75  # 기본값: 75%
-                auto_source = "아이엠 기준"
-
-            # ✅ 케이스 3: 둘 다 체크 안 함 → 기본값 80%
-            else:
-                auto_ltv = 80  # 기본값: 80%
-                auto_source = "기본값"
+                    # 서울/경기/인천 외 지역은 아이엠 질권 취급 안함
+                    auto_ltv = None
+                    auto_source = None
 
         # 자동 계산된 LTV 추가
         if auto_ltv is not None:
