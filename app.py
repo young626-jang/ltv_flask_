@@ -31,15 +31,6 @@ from pdf_parser import (
     extract_construction_date,  # [신규] 준공일자 추출
     extract_last_transfer_info  # [신규] 최근 소유권 이전 정보
 )
-# --- KB 시세 크롤링 ---
-from kb_scraper import get_kb_price_with_retry
-from history_manager_flask import (
-    fetch_all_customers,
-    fetch_customer_details,
-    create_new_customer,
-    update_customer,
-    delete_customer
-)
 
 # --- 로깅 설정 ---
 logging.basicConfig(level=logging.INFO)
