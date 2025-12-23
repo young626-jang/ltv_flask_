@@ -399,8 +399,20 @@ async function updateAutoLTV() {
                 displayEl.style.color = '#198754';  // 녹색
             }
 
-            // ✅ [신규] LTV 입력필드에 자동 계산값 자동으로 설정
-            document.getElementById("ltv1").value = ltv;
+            // ✅ [수정] 질권이 체크되어 있을 때만 LTV를 자동으로 설정
+            const hopeCheckbox = document.getElementById('hope-collateral-loan');
+            const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+            const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+            // 질권이 하나라도 체크되어 있을 때만 자동으로 LTV 설정
+            if (isHopeChecked || isMeritzChecked) {
+                document.getElementById("ltv1").value = ltv;
+                console.log(`📊 자동LTV 설정: ${ltv}% (질권 활성화)`);
+            } else {
+                // 둘 다 체크 안 되어 있으면 80% 유지 (자동 설정하지 않음)
+                console.log(`📊 자동LTV 표시만: ${ltv}% (질권 없음, 80% 유지)`);
+            }
         } else {
             // Non-APT 2군/3군 취급불가 경고 메시지
             if (data.error && data.error.includes('Non-APT') && data.error.includes('취급불가')) {
