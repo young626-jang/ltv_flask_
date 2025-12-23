@@ -173,9 +173,9 @@ def calculate_ltv_limit(total_value, deduction, principal_sum, maintain_maxamt_s
     return limit, available
 
 
-def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False, address="", area=None):
+def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum=0, existing_principal=0, is_senior=False, address="", area=None, is_collateral_checked=False):
     """
-    개인별 지분 LTV 한도 계산 (메리츠 기준 적용)
+    개인별 지분 LTV 한도 계산 (질권 체크 시 메리츠 기준 적용)
 
     Args:
         total_value (int): 담보평가액 (만원)
@@ -186,6 +186,7 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
         is_senior (bool): 선순위 여부
         address (str): 주소 (메리츠 기준 조회용)
         area (float): 면적 (메리츠 기준 조회용)
+        is_collateral_checked (bool): 질권 체크 여부 (True일 때만 메리츠 기준 적용)
 
     Returns:
         list: 개인별 LTV 한도 결과
@@ -199,13 +200,15 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
         equity_value = int(total_value * share_ratio)
 
         # ═══════════════════════════════════════════════════════════════
-        # 【핵심 로직】: 지분대출 LTV = Min(80%, Min(메리츠기준, 사용자입력))
+        # 【핵심 로직】: 질권 체크 시에만 메리츠 기준 적용
+        # - 질권 체크: LTV = Min(80%, Min(메리츠기준, 사용자입력))
+        # - 질권 미체크: LTV = Min(80%, 사용자입력)
         # ═══════════════════════════════════════════════════════════════
         final_ltv = ltv  # 기본값: 사용자 입력 LTV
         meritz_ltv = None
 
-        # 메리츠 기준이 있으면 그것과 사용자 입력의 최소값 사용
-        if address and area and area > 0:
+        # 질권이 체크된 경우에만 메리츠 기준 적용
+        if is_collateral_checked and address and area and area > 0:
             try:
                 # 1. 주소에서 급지 자동 판단
                 region_grade = get_region_grade(address)
