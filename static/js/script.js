@@ -347,35 +347,44 @@
     function parseKoreanAmountAdvanced(text) {
         let total = 0;
         let remainingText = text;
-        
-        // 억 단위 처리
-        const eokMatch = remainingText.match(/(\d+)억/);
+
+        // 억 단위 처리 (개선: 억 뒤의 숫자도 함께 파싱)
+        // 예: "6억 5,500" → 6억(60000만) + 5500만 = 65500만
+        const eokMatch = remainingText.match(/(\d+)억\s*([,\d]+)?/);
         if (eokMatch) {
             total += parseInt(eokMatch[1]) * 10000;
             remainingText = remainingText.replace(eokMatch[0], '');
+
+            // 억 뒤의 숫자가 있으면 만 단위로 추가
+            if (eokMatch[2]) {
+                const afterEok = parseInt(eokMatch[2].replace(/,/g, ''));
+                if (!isNaN(afterEok)) {
+                    total += afterEok;
+                }
+            }
         }
-        
+
         // 천만 단위 처리 (예: 2천만 = 2000만)
         const cheonmanMatch = remainingText.match(/(\d+)천만/);
         if (cheonmanMatch) {
             total += parseInt(cheonmanMatch[1]) * 1000;
             remainingText = remainingText.replace(cheonmanMatch[0], '');
         }
-        
+
         // 만 단위 처리
         const manMatch = remainingText.match(/(\d+)만/);
         if (manMatch) {
             total += parseInt(manMatch[1]);
             remainingText = remainingText.replace(manMatch[0], '');
         }
-        
+
         // 천 단위 처리 (만원 단위로 변환)
         const cheonMatch = remainingText.match(/(\d+)천/);
         if (cheonMatch) {
             total += parseInt(cheonMatch[1]) / 10; // 천원을 만원으로 변환
             remainingText = remainingText.replace(cheonMatch[0], '');
         }
-        
+
         return Math.floor(total);
     }
 
