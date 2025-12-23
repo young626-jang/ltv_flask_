@@ -1214,6 +1214,15 @@ async function handleFileUpload(file) {
             // 물건유형 추가 (자동 인식)
             safeSetValue('property_type', scraped.property_type || 'Unknown');
 
+            // 소유권이전일 채우기
+            safeSetValue('ownership_transfer_date', scraped.transfer_date || '');
+            if (scraped.transfer_date) {
+                checkTransferDateColor(scraped.transfer_date);
+            }
+
+            // 준공일자 채우기
+            safeSetValue('completion_date', scraped.construction_date || '');
+
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
 
@@ -1867,12 +1876,22 @@ function attachAllEventListeners() {
                     b.style.color = '';
                     b.style.borderColor = '';
                 });
-                // --- LTV 비율 초기화 (빈 상태) ---
+
+                // --- LTV 비율 처리: 메리츠도 체크 안 되어 있으면 80%로 설정 ---
+                const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+                const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
                 if (ltv1Field) {
-                    ltv1Field.value = '';
-                    console.log('📊 LTV 비율 ① - 초기화됨');
+                    if (!isMeritzChecked) {
+                        // 메리츠도 체크 안 되어 있으면 기본 80%로 설정
+                        ltv1Field.value = '80';
+                        console.log('📊 LTV 비율 ① - 기본값 80%로 설정 (질권 없음)');
+                    } else {
+                        // 메리츠가 체크되어 있으면 LTV를 유지
+                        console.log('📊 LTV 비율 ① - 메리츠 질권 유지');
+                    }
                 }
-                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김, LTV 초기값 비움');
+                console.log('❌ 희망담보대부 해제 - 지역 버튼 숨김');
             }
             // 희망담보대부 조건 검증
             validateHopeLoanConditions();
@@ -2003,6 +2022,23 @@ function attachAllEventListeners() {
                     b.style.color = '';
                     b.style.borderColor = '';
                 });
+
+                // --- LTV 비율 처리: 아이엠도 체크 안 되어 있으면 80%로 설정 ---
+                const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+                const ltv1Field = document.getElementById('ltv1');
+
+                if (ltv1Field) {
+                    if (!isHopeChecked) {
+                        // 아이엠도 체크 안 되어 있으면 기본 80%로 설정
+                        ltv1Field.value = '80';
+                        console.log('📊 LTV 비율 ① - 기본값 80%로 설정 (질권 없음)');
+                    } else {
+                        // 아이엠이 체크되어 있으면 LTV를 유지
+                        console.log('📊 LTV 비율 ① - 아이엠 질권 유지');
+                    }
+                }
+
                 console.log('❌ 메리츠질권적용 - 비활성화, 지역 버튼 숨김');
             }
             // 메리츠 조건 검증
@@ -2300,6 +2336,22 @@ function parseCustomerNames() {
 
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', () => {
+   // --- LTV 초기값 설정: 질권이 체크되어 있지 않으면 80%로 ---
+   const ltv1Field = document.getElementById('ltv1');
+   const hopeCheckbox = document.getElementById('hope-collateral-loan');
+   const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+
+   if (ltv1Field && !ltv1Field.value) {
+       const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+       const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+       if (!isHopeChecked && !isMeritzChecked) {
+           ltv1Field.value = '80';
+           console.log('📊 LTV 초기값 설정: 80% (질권 없음)');
+       }
+   }
+   // ---
+
    addLoanItem();
    attachAllEventListeners();
    loadCustomerList();
