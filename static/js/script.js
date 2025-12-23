@@ -1413,18 +1413,26 @@ async function handleFileUpload(file) {
     // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     async function calculateIndividualShare() {
         try {
-            // ✅ [신규] 지분대출 조건 확인: 수도권 1군 지역 아파트만 취급
+            // 질권 체크 상태 확인 (함수 최상단에서 선언)
+            const hopeCheckbox = document.getElementById('hope-collateral-loan');
+            const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+            const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+            // 주소 확인
             const address = document.getElementById('address').value.trim();
             if (!address) {
                 showCustomAlert('주소를 입력해주세요.');
                 return;
             }
 
-            // 주소에서 급지 판정
-            const regionGrade = getRegionGradeFromAddress(address);
-            if (regionGrade !== '1군') {
-                showCustomAlert('⚠️ 지분대출은 수도권 1군 지역 아파트만 취급 가능합니다.\n현재 지역: ' + regionGrade);
-                return;
+            // ✅ 질권이 체크된 경우에만 급지 제한 적용
+            if (isHopeChecked || isMeritzChecked) {
+                const regionGrade = getRegionGradeFromAddress(address);
+                if (regionGrade !== '1군') {
+                    showCustomAlert('⚠️ 질권 적용 시 지분대출은 수도권 1군 지역 아파트만 취급 가능합니다.\n현재 지역: ' + regionGrade);
+                    return;
+                }
             }
 
             // 선택된 차주 찾기
@@ -1512,37 +1520,9 @@ async function handleFileUpload(file) {
             let individualShareMemo = '\n\n--- 개별 지분 한도 계산 ---';
             let ownerName = '';
 
-            // ✅ [신규] 1군 지역 선순위/후순위 기본 LTV 계산 (지분대출 상한선)
-            let baseLTV = 80; // 기본값
-            if (area) {
-                if (loanTypeInfo === "후순위") {
-                    // 후순위 기준
-                    if (area <= 95.9) {
-                        baseLTV = 80;
-                    } else if (area <= 135) {
-                        baseLTV = 80;
-                    } else {
-                        baseLTV = 70; // 135㎡ 초과
-                    }
-                } else {
-                    // 선순위 기준
-                    if (area <= 95.9) {
-                        baseLTV = 80;
-                    } else if (area <= 135) {
-                        baseLTV = 75;
-                    } else {
-                        baseLTV = 60; // 135㎡ 초과
-                    }
-                }
-            }
-
             // 각 LTV에 대해 계산
             for (let i = 0; i < ltvRates.length; i++) {
                 let ltv = ltvRates[i];
-
-                // ✅ [신규] 지분대출: LTV = Min(80%, 지역별 기본 LTV)
-                // 예) 135㎡ 초과이므로 기본 LTV 60% → 80% 입력해도 60% 적용
-                ltv = Math.min(ltv, baseLTV);
 
                 const payload = {
                     total_value: kbPrice,
@@ -1551,7 +1531,8 @@ async function handleFileUpload(file) {
                     owners: owners,
                     loan_type: loanTypeInfo,
                     address: address,  // 지분대출 1군 지역 검증용
-                    area: area  // 메리츠 LTV 기준 계산용 (추가)
+                    area: area,  // 메리츠 LTV 기준 계산용
+                    is_collateral_checked: isHopeChecked || isMeritzChecked  // 질권 체크 여부
                 };
 
                 const res = await fetch("/api/calculate_individual_share", {
@@ -1606,13 +1587,7 @@ async function handleFileUpload(file) {
                 }
             }
 
-            // 아이엠질권적용 또는 메리츠질권적용 체크 여부 확인
-            const hopeCheckbox = document.getElementById('hope-collateral-loan');
-            const meritzCheckbox = document.getElementById('meritz-collateral-loan');
-            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
-            const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
-
-            // 아이엠 또는 메리츠가 체크된 경우, 고정 텍스트 섹션 추가
+            // 아이엠 또는 메리츠가 체크된 경우, 고정 텍스트 섹션 추가 (변수는 함수 최상단에서 이미 선언됨)
             if (isHopeChecked || isMeritzChecked) {
                 individualShareMemo += '\n';
                 individualShareMemo += '\n*본심사시 금액 변동될수 있습니다.';
@@ -3052,4 +3027,74 @@ function determineMeritzRegionFromAddress(address) {
     }
 
     return null;
+}
+
+// ========================================================
+// 주소 기반 급지 판단 함수 (지분대출용)
+// ========================================================
+function getRegionGradeFromAddress(address) {
+    /**
+     * 주소에서 급지(1군, 2군, 3군) 자동 판단
+     *
+     * @param {string} address - 주소 문자열
+     * @returns {string} - '1군', '2군', '3군', 또는 '미분류'
+     */
+    if (!address) return "미분류";
+
+    const upperAddress = address.toUpperCase();
+
+    // 급지 분류 데이터
+    const REGION_CLASSIFICATION = {
+        "3군": {
+            "경기": ["평택", "안성", "여주", "포천"]
+        },
+        "2군": {
+            "인천": ["남동구", "서구", "동구", "중구"],
+            "경기": ["시흥", "안산", "화성", "의정부", "양주", "고양", "광주", "동두천", "오산", "이천", "파주"]
+        },
+        "1군": {
+            "서울": [
+                "강남구", "서초구", "송파구", "강동구", "마포구", "서대문구",
+                "종로구", "중구", "용산구", "영등포구", "동작구", "관악구",
+                "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구",
+                "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구"
+            ],
+            "인천": ["계양구", "부평구", "연수구", "미추홀구"],
+            "경기": [
+                "용인", "과천", "광명", "구리", "군포", "부천", "성남",
+                "수원", "안양", "의왕", "하남", "김포", "남양주"
+            ]
+        }
+    };
+
+    // 3군 확인
+    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["3군"])) {
+        for (const district of districts) {
+            if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
+                return "3군";
+            }
+        }
+    }
+
+    // 2군 확인
+    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["2군"])) {
+        for (const district of districts) {
+            if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
+                return "2군";
+            }
+        }
+    }
+
+    // 1군 확인
+    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["1군"])) {
+        if (upperAddress.includes(city.toUpperCase()) || address.includes(city)) {
+            for (const district of districts) {
+                if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
+                    return "1군";
+                }
+            }
+        }
+    }
+
+    return "미분류";
 }
