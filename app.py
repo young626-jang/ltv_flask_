@@ -14,7 +14,9 @@ import subprocess
 import threading
 import requests
 
+
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
+from history_manager_flask import
 from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
 from ltv_map import region_map
 from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
