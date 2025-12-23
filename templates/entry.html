@@ -322,6 +322,21 @@ function goToLoanReview() {
 
 // ✨ 자동 LTV 계산 (선순위/후순위 자동 판단)
 async function updateAutoLTV() {
+    // ✅ [최우선] 질권이 체크되지 않으면 자동LTV 계산 자체를 실행하지 않음
+    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+    const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+    const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+    if (!isHopeChecked && !isMeritzChecked) {
+        // 질권이 체크되지 않으면 자동LTV 표시 숨김
+        const displayEl = document.getElementById('auto-ltv-display');
+        if (displayEl) {
+            displayEl.textContent = '';
+        }
+        return; // 함수 종료
+    }
+
     const address = document.getElementById('address').value.trim();
     const area = document.getElementById('area').value.trim();
     const kb_price = document.getElementById('kb_price').value.trim();
