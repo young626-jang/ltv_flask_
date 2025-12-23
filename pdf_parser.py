@@ -57,7 +57,8 @@ def extract_property_type(text):
     # 3-3. 아파트
     # 건물 내역에 '아파트'가 있거나, 주소/건물명에 '아파트'가 포함된 경우
     # 단, '빌라'인데 이름만 'XX아파트'인 경우를 배제하기 위해 건물내역(구조) 키워드를 우선 봄
-    if re.search(r'건물\s*내역.*?아파트', clean_text) or re.search(r'[\d\s]아파트', clean_text):
+    # [수정] '(아파트)' 형태를 인식하기 위해 패턴에 '[\(\[]' 추가
+    if re.search(r'건물\s*내역.*?아파트', clean_text) or re.search(r'[\d\s\(\[]아파트', clean_text):
         return {'type': 'APT', 'detail': '아파트'}
 
     # 3-4. 연립/다세대
@@ -381,4 +382,5 @@ def extract_rights_info(full_text):
     sorted_final_list = sorted(list(final_mortgages.values()), key=lambda x: int(x['main_key']))
 
     return {"근저당권": sorted_final_list}
+
 
