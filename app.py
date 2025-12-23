@@ -27,8 +27,12 @@ from pdf_parser import (
     extract_viewing_datetime,
     check_registration_age,
     extract_owner_shares_with_birth,
-    extract_rights_info  # <-- 핵심! 근저당권 분석 함수
+    extract_rights_info,  # 근저당권 분석 함수
+    extract_construction_date,  # [신규] 준공일자 추출
+    extract_last_transfer_info  # [신규] 최근 소유권 이전 정보
 )
+# --- KB 시세 크롤링 ---
+from kb_scraper import get_kb_price_with_retry
 from history_manager_flask import (
     fetch_all_customers,
     fetch_customer_details,
@@ -160,85 +164,60 @@ def loan_review_page():
 # --- ▼▼▼ PDF 업로드 API를 대폭 업그레이드합니다 ▼▼▼ ---
 @app.route('/api/upload', methods=['POST'])
 def upload_and_parse_pdf():
-    logger.info("PDF 업로드 및 전체 분석 요청 수신")
-    if 'pdf_file' not in request.files: return jsonify({"success": False, "error": "요청에 파일이 없습니다."}), 400
+    if 'pdf_file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
     file = request.files['pdf_file']
-    if not file.filename: return jsonify({"success": False, "error": "선택된 파일이 없습니다."}), 400
-    if not allowed_file(file.filename): return jsonify({"success": False, "error": "PDF 파일만 업로드 가능합니다."}), 400
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
 
-    filepath = None  # finally 블록에서 사용하기 위해 미리 선언
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+
+    # 1. PDF 텍스트 추출
     try:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        logger.info(f"파일 저장 경로: {filepath}")
-        file.save(filepath)
-        logger.info(f"파일 저장 완료: {filepath}")
-
-        # 1. PDF에서 텍스트를 한번만 추출하여 변수에 저장
-        logger.info("PDF 텍스트 추출 시작")
         doc = fitz.open(filepath)
         full_text = "".join(page.get_text("text") for page in doc)
         doc.close()
-        logger.info(f"PDF 텍스트 추출 완료: {len(full_text)} 글자")
-
-        # 2. pdf_parser의 전문가 함수들을 순서대로 호출하여 모든 정보를 추출
-        viewing_dt = extract_viewing_datetime(full_text)
-        extracted_address = extract_address(full_text)
-        extracted_area = extract_area(full_text)
-        property_type_info = extract_property_type(full_text)
-
-        scraped_data = {
-            'address': extracted_address,
-            'area': extracted_area,
-            'property_type': property_type_info.get('detail', 'Unknown'),
-            'property_category': property_type_info.get('type', 'APT'),
-            'customer_name': extract_owner_info(full_text),
-            'viewing_datetime': viewing_dt,
-            'age_check': check_registration_age(viewing_dt),
-            'owner_shares': extract_owner_shares_with_birth(full_text)
-        }
-
-        # 근저당권 정보도 추출
-        rights_info = extract_rights_info(full_text)
-
-        # ✨ 3. 메리츠캐피탈 급지 자동 판단 (NEW!)
-        region_grade = "미분류"  # 기본값
-        auto_ltv_senior = None
-        auto_ltv_junior = None
-
-        if extracted_address:
-            region_grade = get_region_grade(extracted_address)
-            is_caution = is_caution_region(extracted_address)
-
-            # 선순위 LTV
-            try:
-                area_val = parse_korean_number(extracted_area) if extracted_area else None
-                if area_val and area_val > 0:
-                    auto_ltv_senior = auto_calculate_ltv(extracted_address, area_val, is_senior=True)
-                    auto_ltv_junior = auto_calculate_ltv(extracted_address, area_val, is_senior=False)
-            except Exception as e:
-                logger.warning(f"자동 LTV 계산 실패: {e}")
-
-            logger.info(f"[자동 급지 판단] 주소: {extracted_address} → 급지: {region_grade}, 유의지역: {is_caution}")
-
-        # 4. 추출된 모든 정보를 하나의 JSON으로 묶어서 웹페이지에 전송
-        return jsonify({
-            "success": True,
-            "scraped_data": scraped_data,  # 기본 정보 + 지분 정보
-            "rights_info": rights_info,    # 모든 근저당권 정보
-            "auto_region_grade": region_grade,  # ✨ NEW: 자동 판단된 급지
-            "auto_ltv_senior": auto_ltv_senior,  # ✨ NEW: 자동 계산된 선순위 LTV
-            "auto_ltv_junior": auto_ltv_junior,  # ✨ NEW: 자동 계산된 후순위 LTV
-            "eligibility_checks": [] # 심사 기준 분석 로직 제거
-        })
-
     except Exception as e:
-        logger.error(f"PDF 업로드 처리 중 오류: {e}", exc_info=True)
-        return jsonify({"success": False, "error": f"서버 처리 중 오류 발생: {str(e)}"}), 500
-    finally:
-        # 작업이 끝나면 (성공하든 실패하든) 임시 파일을 항상 삭제
-        if filepath and os.path.exists(filepath):
-            os.remove(filepath)
+        return jsonify({'error': f'PDF Parsing failed: {str(e)}'}), 500
+
+    # 2. PDF 내부 데이터 파싱 (순수 텍스트 분석)
+    viewing_dt = extract_viewing_datetime(full_text)
+    extracted_address = extract_address(full_text)
+    extracted_area = extract_area(full_text)
+    property_type_info = extract_property_type(full_text)
+    rights_info = extract_rights_info(full_text)
+    owner_info = extract_owner_info(full_text)
+
+    # [확인] 준공일 & 소유권 이전일 함수 호출
+    construction_date = extract_construction_date(full_text) # 준공일
+    transfer_info = extract_last_transfer_info(full_text)    # 소유권 이전 내역 (날짜, 원인, 가액)
+
+    # 3. 결과 정리 및 반환 (KB 크롤링 제거 - 별도 API 사용)
+    scraped_data = {
+        'address': extracted_address,
+        'area': extracted_area,
+        'property_type': property_type_info.get('detail', 'Unknown'),
+        'property_category': property_type_info.get('type', 'Unknown'),
+        'customer_name': owner_info,
+        'viewing_datetime': viewing_dt,
+        'age_check': check_registration_age(viewing_dt),
+
+        # [추가됨] 준공일 및 소유권 정보
+        'construction_date': construction_date,          # 준공일
+        'transfer_date': transfer_info.get('date', ''),  # 소유권 이전일
+        'transfer_reason': transfer_info.get('reason', ''),  # 이전 원인 (매매/상속 등)
+        'transfer_price': transfer_info.get('price', ''),  # 거래가액
+
+        'owner_shares': extract_owner_shares_with_birth(full_text)
+    }
+
+    return jsonify({
+        "success": True,
+        "scraped_data": scraped_data,
+        "rights_info": rights_info
+    })
 
 # --- (이하 나머지 모든 API 라우트 및 앱 실행 코드는 기존과 완벽하게 동일합니다) ---
 
@@ -594,13 +573,13 @@ def generate_memo(data):
                     has_status_sum = True
         
         if has_status_sum:
-            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 앞)
+            memo_lines.append("-----------------------")  # 구분선 (상태별 합계 앞)
             for status in order:
                 if status in status_sums:
                     data = status_sums[status]
                     if data['principal']['sum'] > 0:
                         memo_lines.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
-            memo_lines.append("--------------------------------------------------")  # 구분선 (상태별 합계 뒤)
+            memo_lines.append("-----------------------")  # 구분선 (상태별 합계 뒤)
         
         # 수수료 계산
         try:
@@ -616,7 +595,7 @@ def generate_memo(data):
                 
                 # 수수료 정보 전에 구분선 추가 (상태별 합계가 없는 경우)
                 if not has_status_sum:
-                    memo_lines.append("--------------------------------------------------")
+                    memo_lines.append("-----------------------")
                 
                 # 수수료 정보 추가
                 if consult_amt > 0: 
@@ -927,15 +906,17 @@ def calculate_individual_share():
         loans = data.get("loans", [])
         owners = data.get("owners", [])
 
-        # ✅ [신규] 지분대출 조건 확인: 수도권 1군 지역만 취급
+        # ✅ 지분대출 조건 확인: 질권이 체크된 경우에만 수도권 1군 지역 제한
         address = data.get("address", "")
         area = data.get("area")  # 면적 정보 추가
-        if address:
+        is_collateral_checked = data.get("is_collateral_checked", False)  # 질권 체크 여부
+
+        if is_collateral_checked and address:
             region_grade = get_region_grade(address)
             if region_grade != "1군":
                 return jsonify({
                     "success": False,
-                    "error": f"지분대출은 수도권 1군 지역 아파트만 취급 가능합니다. (현재: {region_grade})"
+                    "error": f"질권 적용 시 지분대출은 수도권 1군 지역 아파트만 취급 가능합니다. (현재: {region_grade})"
                 }), 400
 
         maintain_maxamt_sum = 0
@@ -953,10 +934,10 @@ def calculate_individual_share():
             elif status in senior_statuses:
                 existing_principal += principal
         is_senior = not has_subordinate
-        logger.info(f"지분 계산 - 시세: {total_value}만, 주소: {address}, 면적: {area}㎡, LTV: {ltv}%, 후순위차감: {maintain_maxamt_sum}만, 갚을원금: {existing_principal}만, 선순위여부: {is_senior}")
+        logger.info(f"지분 계산 - 시세: {total_value}만, 주소: {address}, 면적: {area}㎡, LTV: {ltv}%, 후순위차감: {maintain_maxamt_sum}만, 갚을원금: {existing_principal}만, 선순위여부: {is_senior}, 질권체크: {is_collateral_checked}")
         logger.info(f"대출 데이터: {loans}")
-        # 【수정】 address와 area를 함수에 전달하여 메리츠 기준 LTV 자동 적용
-        results = calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum, existing_principal, is_senior, address=address, area=area)
+        # 질권 체크 시에만 메리츠 기준 적용
+        results = calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_sum, existing_principal, is_senior, address=address, area=area, is_collateral_checked=is_collateral_checked)
         return jsonify({"success": True, "results": results})
     except Exception as e:
         logger.error(f"개인별 지분 한도 계산 오류: {e}", exc_info=True)
@@ -1209,6 +1190,58 @@ def sync_all_to_notion():
     except Exception as e:
         logger.error(f"전체 Notion 동기화 오류: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
+
+# ==================== KB 시세 조회 API ====================
+@app.route('/get_kb_price', methods=['POST'])
+def get_kb_price():
+    """
+    KB부동산 시세 크롤링 API
+
+    Request JSON:
+        {
+            "address": "서울특별시 강남구 역삼동",
+            "area": 84.95
+        }
+
+    Response JSON:
+        {
+            "success": true,
+            "kb_price": 53000,  # 만원 단위
+            "msg": "성공"
+        }
+    """
+    try:
+        data = request.get_json()
+        address = data.get('address', '').strip()
+        area = data.get('area', 0)
+
+        if not address:
+            return jsonify({
+                "success": False,
+                "kb_price": 0,
+                "msg": "주소가 필요합니다"
+            }), 400
+
+        logger.info(f"[KB 시세 조회 요청] 주소: {address}, 면적: {area}㎡")
+
+        # KB 크롤링 실행 (재시도 로직 포함)
+        result = get_kb_price_with_retry(address, area, max_retries=2)
+
+        logger.info(f"[KB 시세 조회 결과] {result}")
+
+        return jsonify({
+            "success": result['kb_price'] > 0,
+            "kb_price": result['kb_price'],
+            "msg": result['msg']
+        }), 200
+
+    except Exception as e:
+        logger.error(f"KB 시세 조회 오류: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "kb_price": 0,
+            "msg": f"오류 발생: {str(e)}"
+        }), 500
 
 # 데이터베이스 초기화 함수
 def init_db():
