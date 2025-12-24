@@ -750,11 +750,16 @@
                         checkTenantDeductionWarning();
                         // ✅ [신규] 근저당권 상태 변경 시 자동 LTV도 함께 갱신
                         updateAutoLTV();
+                        // ✅ [수정] 상태 변경 시 디바운스 없이 즉시 메모 생성
+                        generateMemo();
+                        // 지분 계산도 자동 업데이트
+                        calculateIndividualShare();
+                    } else {
+                        // 다른 필드는 디바운스 적용
+                        triggerMemoGeneration();
+                        // 지분 계산도 자동 업데이트
+                        calculateIndividualShare();
                     }
-                    // 기존의 메모 생성 함수를 호출합니다.
-                    triggerMemoGeneration();
-                    // 지분 계산도 자동 업데이트
-                    calculateIndividualShare();
                 });
             });
         });
