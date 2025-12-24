@@ -885,6 +885,8 @@ function collectAllData() {
             });
         } catch (error) {
             console.error("❌ 고객 목록 로딩 실패:", error);
+            alert("고객 목록을 불러올 수 없습니다.
+" + error.message);
         }
     }
 
@@ -1094,19 +1096,34 @@ async function loadCustomerData() {
     
     // ✨ 누락되었던 함수들
     async function saveNewCustomer() {
-        const data = collectAllData();
-        if (!data.inputs.customer_name) { 
-            alert('고객명을 입력해주세요.'); 
-            return; 
-        }
-        if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
-        const response = await fetch('/api/customer/new', { 
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        alert(result.message);
-        if (result.success) { 
-            loadCustomerList(); 
+        try {
+            const data = collectAllData();
+            if (!data.inputs.customer_name) {
+                alert('고객명을 입력해주세요.');
+                return;
+            }
+            if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
+
+            const response = await fetch('/api/customer/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`서버 오류: ${response.status}`);
+            }
+
+            const result = await response.json();
+            alert(result.message || '저장 완료');
+
+            if (result.success) {
+                loadCustomerList();
+            }
+        } catch (error) {
+            console.error('고객 저장 실패:', error);
+            alert('고객 저장 중 오류가 발생했습니다.
+' + error.message);
         }
     }
 
