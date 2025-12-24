@@ -1,5 +1,4 @@
 import os
-import re 
 import requests
 import logging
 from typing import Dict, List, Optional, Any
@@ -14,7 +13,6 @@ logger = logging.getLogger(__name__)
 NOTION_TOKEN = os.getenv('NOTION_TOKEN') 
 CUSTOMER_DB_ID = os.getenv('CUSTOMER_DB_ID')
 LOAN_DB_ID = os.getenv('LOAN_DB_ID')
-
 
 # Notion DB 속성 이름
 CUSTOMER_DB_TITLE_PROPERTY = "고객명"
@@ -75,28 +73,29 @@ def get_share_rate(props: Dict, name: str) -> Optional[float]:
     number_val = props.get(name, {}).get("number")
     if number_val is not None:
         return number_val
-
+    
     # Number 타입이 없으면 Rich Text 타입에서 파싱 시도
     text_val = get_rich_text(props, name)
     if text_val:
         # '지분율 8/10 (80.0%)' 형식 파싱
+        import re
         # 괄호 안의 퍼센트 값 추출
         percent_match = re.search(r'\((\d+\.?\d*)\s*%\)', text_val)
         if percent_match:
             return float(percent_match.group(1))
-
+        
         # 분수 형식 추출 (예: 8/10)
         fraction_match = re.search(r'(\d+)/(\d+)', text_val)
         if fraction_match:
             numerator = float(fraction_match.group(1))
             denominator = float(fraction_match.group(2))
             return (numerator / denominator) * 100
-
+        
         # 단순 퍼센트 값 추출 (예: 80.0%)
         simple_percent = re.search(r'(\d+\.?\d*)\s*%', text_val)
         if simple_percent:
             return float(simple_percent.group(1))
-
+    
     return None
 
 def safe_number_conversion(value: Any) -> int:
@@ -112,41 +111,42 @@ def parse_share_rate_for_save(value: Any) -> float:
     """저장용 지분율 파싱 - 다양한 형식의 지분율을 숫자로 변환"""
     if value is None:
         return 0.0
-
+    
     # 이미 숫자인 경우
     if isinstance(value, (int, float)):
         return float(value)
-
+    
     # 문자열인 경우 파싱 시도
     if isinstance(value, str):
         value = value.strip()
         if not value:
             return 0.0
-
+        
         # 단순 숫자인 경우
         try:
             return float(value)
         except ValueError:
             pass
-
+        
         # '지분율 8/10 (80.0%)' 형식 파싱
+        import re
         # 괄호 안의 퍼센트 값 추출
         percent_match = re.search(r'\((\d+\.?\d*)\s*%\)', value)
         if percent_match:
             return float(percent_match.group(1))
-
+        
         # 분수 형식 추출 (예: 8/10)
         fraction_match = re.search(r'(\d+)/(\d+)', value)
         if fraction_match:
             numerator = float(fraction_match.group(1))
             denominator = float(fraction_match.group(2))
             return (numerator / denominator) * 100
-
+        
         # 단순 퍼센트 값 추출 (예: 80.0%)
         simple_percent = re.search(r'(\d+\.?\d*)\s*%', value)
         if simple_percent:
             return float(simple_percent.group(1))
-
+    
     return 0.0
 
 # --- Notion DB 조회 함수 ---
@@ -220,9 +220,6 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "consult_rate": get_number(props, "컨설팅수수료율"),
         "bridge_amt": get_number(props, "브릿지금액"),
         "bridge_rate": get_number(props, "브릿지수수료율"),
-        "ownership_transfer_date": get_rich_text(props, "소유권이전일"),
-        "unit_count": get_rich_text(props, "세대수"),
-        "completion_date": get_rich_text(props, "준공일자"),
     }
     
     # 대출 정보 조회
@@ -266,14 +263,15 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
 
 # --- 데이터 포맷팅 함수 ---
 def format_properties_payload(data: Dict) -> Dict:
-    """고객 데이터를 Notion 속성 형식으로 변환 (실제 Notion DB 속성과 매핑)"""
+    """고객 데이터를 Notion 속성 형식으로 변환"""
     inputs = data.get('inputs', {})
     fees = data.get('fees', {})
-    ltv_rates = inputs.get("ltv_rates", [""])
-
-    # LTV 비율1만 저장 (Notion DB에는 LTV비율1만 존재)
+    ltv_rates = inputs.get("ltv_rates", ["", ""])
+    
+    # LTV 비율 안전 처리
     ltv1 = ltv_rates[0] if len(ltv_rates) > 0 else ""
-
+    ltv2 = ltv_rates[1] if len(ltv_rates) > 1 else ""
+    
     return {
         CUSTOMER_DB_TITLE_PROPERTY: {
             "title": [{"text": {"content": inputs.get("customer_name", "").strip()}}]
@@ -290,11 +288,11 @@ def format_properties_payload(data: Dict) -> Dict:
         "방공제지역": {
             "rich_text": [{"text": {"content": inputs.get("deduction_region_text", "").strip()}}]
         },
-        "방공제 금액(만)": {
-            "rich_text": [{"text": {"content": str(parse_korean_number(inputs.get("deduction_amount", "0")))}}]
-        },
         "LTV비율1": {
             "rich_text": [{"text": {"content": str(ltv1).strip()}}]
+        },
+        "LTV비율2": {
+            "rich_text": [{"text": {"content": str(ltv2).strip()}}]
         },
         "공유자 1 지분율": {
             "rich_text": [{"text": {"content": str(inputs.get("share_rate1", "")).strip()}}]
@@ -314,18 +312,7 @@ def format_properties_payload(data: Dict) -> Dict:
         "브릿지수수료율": {
             "number": float(fees.get("bridge_rate", "0") or 0)
         },
-        "소유권이전일": {
-            "rich_text": [{"text": {"content": inputs.get("ownership_transfer_date", "").strip()}}]
-        },
-        "세대수": {
-            "rich_text": [{"text": {"content": inputs.get("unit_count", "").strip()}}]
-        },
-        "준공일자": {
-            "rich_text": [{"text": {"content": inputs.get("completion_date", "").strip()}}]
-        }  # <--- 여기에 닫는 괄호 '}'가 빠져 있었습니다.
-    }      # <--- return 전체 딕셔너리를 닫는 괄호
-
-
+    }
 
 @handle_notion_errors
 def archive_existing_loans(customer_page_id: str) -> bool:
@@ -420,108 +407,75 @@ def save_loan_items(customer_page_id: str, loans_data: List[Dict]) -> bool:
 def create_new_customer(data: Dict) -> Dict:
     """새 고객 생성"""
     customer_name = data.get("inputs", {}).get("customer_name", "").strip()
-
+    
     if not customer_name:
         return {"success": False, "message": "고객명이 입력되지 않았습니다."}
-
+    
     try:
         # 중복 고객명 확인
         existing_customers = fetch_all_customers()
         if existing_customers and any(c['name'] == customer_name for c in existing_customers):
             return {"success": False, "message": f"'{customer_name}' 이름의 고객이 이미 존재합니다."}
-
+        
         # 고객 정보 생성
         properties = format_properties_payload(data)
         payload = {
-            "parent": {"database_id": CUSTOMER_DB_ID},
+            "parent": {"database_id": CUSTOMER_DB_ID}, 
             "properties": properties
         }
-
-        # 디버그: payload 로깅
-        logger.info(f"고객 저장 payload: {payload}")
-
+        
         response = requests.post(
-            "https://api.notion.com/v1/pages",
-            headers=NOTION_HEADERS,
+            "https://api.notion.com/v1/pages", 
+            headers=NOTION_HEADERS, 
             json=payload,
             timeout=REQUEST_TIMEOUT
         )
-
-        if not response.ok:
-            # 에러 응답의 상세 정보 로깅
-            error_detail = response.json() if response.text else response.reason
-            logger.error(f"Notion API 에러 응답: {error_detail}")
-            return {
-                "success": False,
-                "message": f"신규 저장 실패 (상태: {response.status_code}): {str(error_detail)}"
-            }
-
         response.raise_for_status()
-
+        
         new_page_id = response.json().get("id")
         if new_page_id:
             # 대출 정보 저장
             loans_data = data.get("loans", [])
             if loans_data:
                 save_loan_items(new_page_id, loans_data)
-
+        
         logger.info(f"새 고객 '{customer_name}' 생성 완료")
         return {"success": True, "message": f"'{customer_name}' 고객 정보가 새로 저장되었습니다."}
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"신규 고객 생성 (HTTP 오류): {e}")
-        return {"success": False, "message": f"신규 저장 실패: {str(e)}"}
+        
     except Exception as e:
-        logger.error(f"신규 고객 생성 (예상치 못한 오류): {e}", exc_info=True)
+        logger.error(f"신규 고객 생성 실패: {e}")
         return {"success": False, "message": f"신규 저장 실패: {str(e)}"}
 
 def update_customer(page_id: str, data: Dict) -> Dict:
     """고객 정보 업데이트"""
     customer_name = data.get("inputs", {}).get("customer_name", "").strip()
-
+    
     if not customer_name:
         return {"success": False, "message": "고객명이 입력되지 않았습니다."}
-
+    
     if not page_id:
         return {"success": False, "message": "유효하지 않은 고객 ID입니다."}
-
+    
     try:
         # 고객 기본 정보 업데이트
         properties = format_properties_payload(data)
-
-        # 디버그: payload 로깅
-        logger.info(f"고객 업데이트 payload (ID: {page_id}): {properties}")
-
         response = requests.patch(
-            f"https://api.notion.com/v1/pages/{page_id}",
-            headers=NOTION_HEADERS,
+            f"https://api.notion.com/v1/pages/{page_id}", 
+            headers=NOTION_HEADERS, 
             json={"properties": properties},
             timeout=REQUEST_TIMEOUT
         )
-
-        if not response.ok:
-            # 에러 응답의 상세 정보 로깅
-            error_detail = response.json() if response.text else response.reason
-            logger.error(f"Notion API 에러 응답: {error_detail}")
-            return {
-                "success": False,
-                "message": f"수정 실패 (상태: {response.status_code}): {str(error_detail)}"
-            }
-
         response.raise_for_status()
-
+        
         # 대출 정보 업데이트
         loans_data = data.get("loans", [])
         save_loan_items(page_id, loans_data)
-
+        
         logger.info(f"고객 '{customer_name}' 정보 업데이트 완료")
         return {"success": True, "message": f"'{customer_name}' 고객 정보가 수정되었습니다."}
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"고객 정보 업데이트 (HTTP 오류): {e}")
-        return {"success": False, "message": f"수정 실패: {str(e)}"}
+        
     except Exception as e:
-        logger.error(f"고객 정보 업데이트 (예상치 못한 오류): {e}", exc_info=True)
+        logger.error(f"고객 정보 업데이트 실패: {e}")
         return {"success": False, "message": f"수정 실패: {str(e)}"}
 
 def delete_customer(page_id: str) -> Dict:
@@ -574,3 +528,7 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
+
+
