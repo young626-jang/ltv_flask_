@@ -748,8 +748,6 @@
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
-                        // ✅ [신규] 근저당권 상태 변경 시 자동 LTV도 함께 갱신
-                        updateAutoLTV();
                         // ✅ [수정] 상태 변경 시 디바운스 타이머 클리어 후 즉시 메모 생성
                         clearTimeout(memoDebounceTimeout);
                         // ✅ [핵심수정] generateMemo 완료 후 calculateIndividualShare 호출 (race condition 방지)
