@@ -744,15 +744,17 @@
             // 모든 항목의 값이 변경되면 메모 업데이트
             item.querySelectorAll('.loan-input').forEach(input => {
                 // ✨ [수정] 'change' 이벤트에 경고 확인 로직 추가
-                input.addEventListener('change', async (e) => {
+                input.addEventListener('change', (e) => {
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
+                        // ✅ [신규] 근저당권 상태 변경 시 자동 LTV도 함께 갱신
+                        updateAutoLTV();
                         // ✅ [수정] 상태 변경 시 디바운스 타이머 클리어 후 즉시 메모 생성
                         clearTimeout(memoDebounceTimeout);
-                        // ✅ [핵심수정] generateMemo 완료 후 calculateIndividualShare 호출 (race condition 방지)
-                        await generateMemo();
-                        await calculateIndividualShare();
+                        generateMemo();
+                        // 지분 계산도 자동 업데이트
+                        calculateIndividualShare();
                     } else {
                         // 다른 필드는 디바운스 적용
                         triggerMemoGeneration();
@@ -885,8 +887,6 @@ function collectAllData() {
             });
         } catch (error) {
             console.error("❌ 고객 목록 로딩 실패:", error);
-            alert("고객 목록을 불러올 수 없습니다.
-" + error.message);
         }
     }
 
@@ -1096,34 +1096,19 @@ async function loadCustomerData() {
     
     // ✨ 누락되었던 함수들
     async function saveNewCustomer() {
-        try {
-            const data = collectAllData();
-            if (!data.inputs.customer_name) {
-                alert('고객명을 입력해주세요.');
-                return;
-            }
-            if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
-
-            const response = await fetch('/api/customer/new', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                throw new Error(`서버 오류: ${response.status}`);
-            }
-
-            const result = await response.json();
-            alert(result.message || '저장 완료');
-
-            if (result.success) {
-                loadCustomerList();
-            }
-        } catch (error) {
-            console.error('고객 저장 실패:', error);
-            alert('고객 저장 중 오류가 발생했습니다.
-' + error.message);
+        const data = collectAllData();
+        if (!data.inputs.customer_name) { 
+            alert('고객명을 입력해주세요.'); 
+            return; 
+        }
+        if (!confirm(`'${data.inputs.customer_name}' 이름으로 신규 저장하시겠습니까?`)) return;
+        const response = await fetch('/api/customer/new', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) { 
+            loadCustomerList(); 
         }
     }
 
