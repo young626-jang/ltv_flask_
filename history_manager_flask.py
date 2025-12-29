@@ -266,11 +266,10 @@ def format_properties_payload(data: Dict) -> Dict:
     """고객 데이터를 Notion 속성 형식으로 변환"""
     inputs = data.get('inputs', {})
     fees = data.get('fees', {})
-    ltv_rates = inputs.get("ltv_rates", ["", ""])
-    
+    ltv_rates = inputs.get("ltv_rates", [""])
+
     # LTV 비율 안전 처리
     ltv1 = ltv_rates[0] if len(ltv_rates) > 0 else ""
-    ltv2 = ltv_rates[1] if len(ltv_rates) > 1 else ""
     
     return {
         CUSTOMER_DB_TITLE_PROPERTY: {
@@ -290,9 +289,6 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "LTV비율1": {
             "rich_text": [{"text": {"content": str(ltv1).strip()}}]
-        },
-        "LTV비율2": {
-            "rich_text": [{"text": {"content": str(ltv2).strip()}}]
         },
         "공유자 1 지분율": {
             "rich_text": [{"text": {"content": str(inputs.get("share_rate1", "")).strip()}}]
@@ -425,11 +421,17 @@ def create_new_customer(data: Dict) -> Dict:
         }
         
         response = requests.post(
-            "https://api.notion.com/v1/pages", 
-            headers=NOTION_HEADERS, 
+            "https://api.notion.com/v1/pages",
+            headers=NOTION_HEADERS,
             json=payload,
             timeout=REQUEST_TIMEOUT
         )
+
+        # 에러 응답 로깅
+        if response.status_code != 200:
+            logger.error(f"Notion API 에러 응답: {response.status_code}")
+            logger.error(f"에러 내용: {response.text}")
+
         response.raise_for_status()
         
         new_page_id = response.json().get("id")
@@ -528,6 +530,9 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
+
 
 
 
