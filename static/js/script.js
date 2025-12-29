@@ -744,22 +744,20 @@
             // 모든 항목의 값이 변경되면 메모 업데이트
             item.querySelectorAll('.loan-input').forEach(input => {
                 // ✨ [수정] 'change' 이벤트에 경고 확인 로직 추가
-                input.addEventListener('change', (e) => {
+                input.addEventListener('change', async (e) => {
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
-                        // ✅ [신규] 근저당권 상태 변경 시 자동 LTV도 함께 갱신
-                        updateAutoLTV();
                         // ✅ [수정] 상태 변경 시 디바운스 타이머 클리어 후 즉시 메모 생성
                         clearTimeout(memoDebounceTimeout);
-                        generateMemo();
+                        await generateMemo();
                         // 지분 계산도 자동 업데이트
-                        calculateIndividualShare();
+                        await calculateIndividualShare();
                     } else {
                         // 다른 필드는 디바운스 적용
                         triggerMemoGeneration();
                         // 지분 계산도 자동 업데이트
-                        calculateIndividualShare();
+                        await calculateIndividualShare();
                     }
                 });
             });
