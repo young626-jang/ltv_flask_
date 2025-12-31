@@ -748,6 +748,8 @@
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
+                        // 메리츠 질권 LTV 재계산 (선순위/후순위 자동 반영)
+                        validateMeritzLoanConditions();
                         // ✅ [수정] 상태 변경 시 디바운스 타이머 클리어 후 즉시 메모 생성
                         clearTimeout(memoDebounceTimeout);
                         generateMemo();
@@ -2043,10 +2045,11 @@ function attachAllEventListeners() {
         meritzUnitCountField.addEventListener('change', validateMeritzLoanConditions);
     }
 
-    // 물건유형 변경 시 메리츠 조건 검증
+    // 물건유형 변경 시 메리츠 조건 검증 및 희망담보대부 조건 검증
     const propertyTypeField = document.getElementById('property_type');
     if (propertyTypeField) {
         propertyTypeField.addEventListener('change', validateMeritzLoanConditions);
+        propertyTypeField.addEventListener('change', validateHopeLoanConditions);
     }
 
     // 주소 변경 시 메리츠 조건 검증 (군 단위 지역 체크)
@@ -2530,6 +2533,8 @@ function validateHopeLoanConditions() {
     const hopeCheckbox = document.getElementById('hope-collateral-loan');
     const unitCountField = document.getElementById('unit_count');
     const kbPriceField = document.getElementById('kb_price');
+    const propertyTypeField = document.getElementById('property_type');
+    const addressField = document.getElementById('address');
 
     if (!hopeCheckbox || !unitCountField || !kbPriceField) return;
 
@@ -2575,8 +2580,31 @@ function validateHopeLoanConditions() {
         }
     }
 
+    // 조건 4: 희망담보대부 체크 AND NON-APT (아파트, 주상복합 외)
+    let shouldHighlightPropertyType = false;
+    if (propertyTypeField && isHopeChecked && propertyTypeField.value.trim()) {
+        const propertyType = propertyTypeField.value.trim();
+        // 아파트 또는 주상복합이 아니면 NON-APT (취급불가)
+        const isNonApt = !propertyType.includes('아파트') && !propertyType.includes('주상복합');
+        shouldHighlightPropertyType = isNonApt;
+        if (isNonApt) {
+            console.log(`🔴 경고: 아이엠질권 NON-APT 취급불가 - ${propertyType}`);
+        }
+    }
+
+    // 조건 5: 희망담보대부 체크 AND 서울/경기/인천 외 지역
+    let shouldHighlightAddress = false;
+    if (addressField && isHopeChecked && addressField.value.trim()) {
+        const address = addressField.value.trim();
+        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천');
+        shouldHighlightAddress = !isValidRegion;
+        if (!isValidRegion) {
+            console.log(`🔴 경고: 아이엠질권 취급불가 지역 - ${address}`);
+        }
+    }
+
     console.log(`🔍 희망담보대부 검증 - 체크: ${isHopeChecked}, 세대수: ${unitCount}, KB시세: ${kbPrice}`);
-    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}, 준공일자 강조: ${shouldHighlightCompletionDate}`);
+    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}, 준공일자 강조: ${shouldHighlightCompletionDate}, 물건종류 강조: ${shouldHighlightPropertyType}, 주소 강조: ${shouldHighlightAddress}`);
 
     // 세대수 필드 스타일 처리
     if (shouldHighlightUnitCount) {
@@ -2600,6 +2628,21 @@ function validateHopeLoanConditions() {
         console.log('🔴 경고: 준공후 45년 이상');
     } else if (completionDateField) {
         completionDateField.removeAttribute('style');
+    }
+
+    // 물건종류 필드 스타일 처리 (NON-APT 취급불가)
+    if (shouldHighlightPropertyType && propertyTypeField) {
+        propertyTypeField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+    } else if (propertyTypeField) {
+        propertyTypeField.removeAttribute('style');
+    }
+
+    // 주소 필드 스타일 처리 (서울/경기/인천 외 지역 취급불가)
+    if (shouldHighlightAddress && addressField) {
+        addressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+    } else if (addressField && isHopeChecked) {
+        // 아이엠 체크 시 정상 지역이면 스타일 제거 (메리츠 경고와 충돌 방지)
+        addressField.removeAttribute('style');
     }
 }
 
@@ -2650,8 +2693,33 @@ function validateMeritzLoanConditions() {
     // 물건유형 가져오기
     const propertyTypeField = document.getElementById('property_type');
     const propertyType = propertyTypeField ? propertyTypeField.value.trim() : 'APT';
+    // 주소 가져오기
+    const meritzAddressField = document.getElementById('address');
+    const address = meritzAddressField ? meritzAddressField.value.trim() : '';
 
-    console.log(`🔍 메리츠 질권 검증 - 면적: ${area}㎡, KB시세: ${kbPrice}만원, 물건유형: ${propertyType}`);
+    // 선순위/후순위 판단 (유지/동의/비동의가 있으면 후순위, 없으면 선순위)
+    const maintainStatus = ['유지', '동의', '비동의'];
+    let hasSubordinate = false;
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const status = item.querySelector('[name="status"]')?.value || '-';
+        if (maintainStatus.includes(status)) {
+            hasSubordinate = true;
+        }
+    });
+    const priority = hasSubordinate ? 'second' : 'first';
+    const priorityLabel = hasSubordinate ? '후순위' : '선순위';
+
+    // 서울/경기/인천 외 지역 검증
+    let isInvalidRegion = false;
+    if (address) {
+        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천');
+        isInvalidRegion = !isValidRegion;
+        if (isInvalidRegion) {
+            console.log(`🔴 메리츠 경고: 취급불가 지역 - ${address}`);
+        }
+    }
+
+    console.log(`🔍 메리츠 질권 검증 - 면적: ${area}㎡, KB시세: ${kbPrice}만원, 물건유형: ${propertyType}, 순위: ${priorityLabel}`);
 
     // ========================================================
     // 1. KB시세 1억(10,000만) 미만 시 빨간색 표시
@@ -2686,11 +2754,11 @@ function validateMeritzLoanConditions() {
     }
 
     if (area > 0) {
-        // 기본 LTV (선순위, 지역 고려, 물건유형 고려)
-        let baseLtv = calculateMeritzLTV(area, 'first', meritzRegion, propertyType);
+        // 기본 LTV (선순위/후순위, 지역 고려, 물건유형 고려)
+        let baseLtv = calculateMeritzLTV(area, priority, meritzRegion, propertyType);
         const regionName = meritzRegion === '1gun' ? '1군(일반)' : (meritzRegion === '2gun' ? '2군' : '3군');
 
-        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 면적: ${area}㎡, 물건유형: ${propertyType}, 설정LTV: ${baseLtv}%`);
+        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 순위: ${priorityLabel}, 면적: ${area}㎡, 물건유형: ${propertyType}, 설정LTV: ${baseLtv}%`);
 
         // LTV 값 설정 (0이면 취급불가를 의미)
         ltv1Field.value = baseLtv;
@@ -2849,12 +2917,14 @@ function validateMeritzLoanConditions() {
     }
 
     // ========================================================
-    // 6. 군 단위 지역 체크 (신도시 예외)
+    // 6. 지역 검증: 서울/경기/인천 외 지역 체크 및 군 단위 지역 체크 (신도시 예외)
     // ========================================================
-    const addressField = document.getElementById('address');
-
-    if (addressField && addressField.value.trim()) {
-        const address = addressField.value.trim();
+    if (meritzAddressField && address) {
+        // 서울/경기/인천 외 지역이면 빨간색 경고 (우선순위 높음)
+        if (isInvalidRegion) {
+            meritzAddressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+            return; // 취급불가 지역이면 더 이상 검증 안 함
+        }
 
         // 신도시/택지개발 예외 목록
         const newTownExceptions = [
@@ -2873,16 +2943,16 @@ function validateMeritzLoanConditions() {
 
             if (isNewTown) {
                 // 신도시는 노란색 경고 (-5% 차감 후 가능)
-                addressField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
+                meritzAddressField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
                 console.log(`⚠️ 메리츠 주의: 군 단위 신도시 - LTV -5% 차감 후 가능`);
             } else {
                 // 일반 군 지역은 빨간색 경고 (취급불가)
-                addressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                meritzAddressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
                 console.log(`🔴 메리츠 경고: 군 단위 지역 - 취급불가 (신도시 제외)`);
             }
         } else {
-            // 군 단위가 아니면 스타일 제거
-            addressField.removeAttribute('style');
+            // 군 단위가 아니고 유효한 지역이면 스타일 제거
+            meritzAddressField.removeAttribute('style');
         }
     }
 }
@@ -2999,68 +3069,6 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun', propertyT
     }
 
     return ltv;
-}
-
-// ========================================================
-// 희망담보대부 급지 및 금리 계산 함수
-// ========================================================
-function calculateHopeGradeAndRate(region, ltv) {
-    /**
-     * 희망담보대부 급지 기준
-     * region: 'seoul' = 서울, 'gyeonggi' = 경기, 'incheon' = 인천
-     * ltv: LTV 비율 (%)
-     *
-     * 예외급지: 서울 LTV 70% 미만 → 9.9% / 10.9%
-     * A급지: 서울 LTV 75% 미만 → 10.9% / 11.9%
-     * B급지: 서울 LTV 80% 미만 OR 경기/인천 LTV 75% 미만 → 11.9% / 12.9%
-     * C급지: 경기/인천 LTV 80% 미만 → 12.9% / 13.9%
-     * D급지: 서울/경기/인천 LTV 83% 미만 → 13.9% / 14.9%
-     *
-     * 반환값: { grade: '급지명', rate1: 첫번째금리, rate2: 두번째금리 }
-     */
-
-    let grade = null;
-    let rate1 = null;
-    let rate2 = null;
-
-    // 예외급지 체크 (서울 70% 미만)
-    if (region === 'seoul' && ltv < 70) {
-        grade = '예외';
-        rate1 = 9.9;
-        rate2 = 10.9;
-    }
-    // A급지 (서울 75% 미만)
-    else if (region === 'seoul' && ltv < 75) {
-        grade = 'A';
-        rate1 = 10.9;
-        rate2 = 11.9;
-    }
-    // B급지 (서울 80% 미만 OR 경기/인천 75% 미만)
-    else if ((region === 'seoul' && ltv < 80) || ((region === 'gyeonggi' || region === 'incheon') && ltv < 75)) {
-        grade = 'B';
-        rate1 = 11.9;
-        rate2 = 12.9;
-    }
-    // C급지 (경기/인천 80% 미만)
-    else if ((region === 'gyeonggi' || region === 'incheon') && ltv < 80) {
-        grade = 'C';
-        rate1 = 12.9;
-        rate2 = 13.9;
-    }
-    // D급지 (서울/경기/인천 83% 미만)
-    else if ((region === 'seoul' || region === 'gyeonggi' || region === 'incheon') && ltv < 83) {
-        grade = 'D';
-        rate1 = 13.9;
-        rate2 = 14.9;
-    }
-    // 취급불가 (LTV 83% 이상)
-    else {
-        grade = '취급불가';
-        rate1 = 0;
-        rate2 = 0;
-    }
-
-    return { grade, rate1, rate2 };
 }
 
 // ========================================================
