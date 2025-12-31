@@ -401,14 +401,20 @@ def generate_memo(data):
         if customer_name.strip():
             memo_lines.append(f"소유자: {customer_name}")
         
-        # 주소와 면적을 한 줄에 표시
+        # 주소, 물건유형, 면적을 한 줄에 표시
         address = inputs.get('address', '')
         address_area_parts = []
         if address.strip():
             address_area_parts.append(f"주소: {address}")
+
+        # 물건유형 추가
+        property_type = inputs.get('property_type', '')
+        if property_type and property_type.strip():
+            address_area_parts.append(property_type)
+
         if area_str:
             address_area_parts.append(area_str)
-        
+
         if address_area_parts:
             memo_lines.append(" | ".join(address_area_parts))
         
