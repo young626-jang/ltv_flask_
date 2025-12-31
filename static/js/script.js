@@ -786,6 +786,7 @@ function collectAllData() {
             // 위에서 만든 변수를 여기서 사용합니다.
             customer_name: combinedCustomerName,
             address: document.getElementById('address').value,
+            property_type: document.getElementById('property_type').value,
             kb_price: document.getElementById('kb_price').value,
             area: document.getElementById('area').value,
             deduction_region_text: selectedRegionText,
