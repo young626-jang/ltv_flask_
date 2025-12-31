@@ -1668,9 +1668,15 @@ function attachAllEventListeners() {
     document.getElementById('required_amount')?.addEventListener('change', calculateLTVFromRequiredAmount);
     document.getElementById('required_amount')?.addEventListener('blur', calculateLTVFromRequiredAmount);
     
-    // 3. LTV1 변경 시 (수동 입력 또는 +/- 버튼): 메모/지분 계산만 실행
-    document.getElementById('ltv1')?.addEventListener('change', calculateIndividualShare);
-    document.getElementById('ltv1')?.addEventListener('blur', calculateIndividualShare);
+    // 3. LTV1 변경 시 (수동 입력 또는 +/- 버튼): 메모/지분 계산 및 희망담보대부 검증
+    document.getElementById('ltv1')?.addEventListener('change', function() {
+        calculateIndividualShare();
+        validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
+    });
+    document.getElementById('ltv1')?.addEventListener('blur', function() {
+        calculateIndividualShare();
+        validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
+    });
 
     // 4. 지분율 변경 시: 지분 개별 계산 (기존 로직 유지)
     document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
@@ -1837,10 +1843,32 @@ function attachAllEventListeners() {
                     }
                 }
 
-                // 주소가 없으면 기본값 설정 (경기/인천: 75%, 서울: 80%)
-                if (!regionFound && ltv1Field) {
-                    ltv1Field.value = '75';  // 기본값: 75% (경기/인천 기준)
-                    console.log('📊 아이엠 기본값: 75% (주소 미입력)');
+                // --- ▼▼▼ 선순위/후순위 판단 및 LTV 자동 설정 ▼▼▼ ---
+                // 유지/동의/비동의가 있으면 후순위, 없으면 선순위
+                const maintainStatus = ['유지', '동의', '비동의'];
+                let hasSubordinate = false;
+                document.querySelectorAll('.loan-item').forEach(item => {
+                    const status = item.querySelector('[name="status"]')?.value || '-';
+                    if (maintainStatus.includes(status)) {
+                        hasSubordinate = true;
+                    }
+                });
+
+                if (ltv1Field) {
+                    if (!hasSubordinate) {
+                        // 선순위: LTV 70%로 자동 설정
+                        ltv1Field.value = '70';
+                        console.log('📊 아이엠 선순위 - LTV 70%로 자동 설정');
+                    } else {
+                        // 후순위: LTV 자동 설정 없음 (사용자가 수동 조정)
+                        // 주소가 없고 지역 선택도 안 된 경우에만 기본값 설정
+                        if (!regionFound && (!ltv1Field.value || ltv1Field.value === '0')) {
+                            ltv1Field.value = '75';  // 기본값: 75% (경기/인천 기준)
+                            console.log('📊 아이엠 후순위 기본값: 75% (주소 미입력)');
+                        } else {
+                            console.log('📊 아이엠 후순위 - LTV 수동 조정 가능');
+                        }
+                    }
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
 
@@ -2603,8 +2631,32 @@ function validateHopeLoanConditions() {
         }
     }
 
+    // 조건 6: 희망담보대부 체크 AND 선순위 AND LTV >70%
+    const ltv1Field = document.getElementById('ltv1');
+    let shouldHighlightLTV = false;
+    if (ltv1Field && isHopeChecked) {
+        // 선순위/후순위 판단 (유지/동의/비동의가 있으면 후순위, 없으면 선순위)
+        const maintainStatus = ['유지', '동의', '비동의'];
+        let hasSubordinate = false;
+        document.querySelectorAll('.loan-item').forEach(item => {
+            const status = item.querySelector('[name="status"]')?.value || '-';
+            if (maintainStatus.includes(status)) {
+                hasSubordinate = true;
+            }
+        });
+
+        // 선순위인 경우에만 LTV 70% 이하 검증
+        if (!hasSubordinate) {
+            const ltv = parseFloat(ltv1Field.value) || 0;
+            shouldHighlightLTV = ltv > 70;
+            if (shouldHighlightLTV) {
+                console.log(`🔴 경고: 아이엠질권 선순위는 LTV 70% 이하만 가능 - 현재: ${ltv}%`);
+            }
+        }
+    }
+
     console.log(`🔍 희망담보대부 검증 - 체크: ${isHopeChecked}, 세대수: ${unitCount}, KB시세: ${kbPrice}`);
-    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}, 준공일자 강조: ${shouldHighlightCompletionDate}, 물건종류 강조: ${shouldHighlightPropertyType}, 주소 강조: ${shouldHighlightAddress}`);
+    console.log(`   세대수 강조: ${shouldHighlightUnitCount}, KB시세 강조: ${shouldHighlightKbPrice}, 준공일자 강조: ${shouldHighlightCompletionDate}, 물건종류 강조: ${shouldHighlightPropertyType}, 주소 강조: ${shouldHighlightAddress}, LTV 강조: ${shouldHighlightLTV}`);
 
     // 세대수 필드 스타일 처리
     if (shouldHighlightUnitCount) {
@@ -2643,6 +2695,16 @@ function validateHopeLoanConditions() {
     } else if (addressField && isHopeChecked) {
         // 아이엠 체크 시 정상 지역이면 스타일 제거 (메리츠 경고와 충돌 방지)
         addressField.removeAttribute('style');
+    }
+
+    // LTV 필드 스타일 처리 (아이엠 선순위 70% 초과 경고)
+    if (shouldHighlightLTV && ltv1Field) {
+        ltv1Field.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        // 경고 메시지 표시 (콘솔에만)
+        console.log('⚠️ 아이엠질권적용시 선순위는 70%이하만 적용 가능합니다');
+    } else if (ltv1Field && isHopeChecked) {
+        // 아이엠 체크 시 LTV가 정상이면 스타일 제거
+        ltv1Field.removeAttribute('style');
     }
 }
 
