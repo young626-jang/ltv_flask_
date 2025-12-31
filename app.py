@@ -532,9 +532,15 @@ def generate_memo(data):
             elif hope_collateral_checked:
                 region = get_region_from_address(address)
                 if region in ['서울', '경기', '인천']:
-                    # 선순위: 70%, 후순위: 80%
-                    auto_ltv = 70 if is_senior else 80
-                    auto_source = "아이엠 기준"
+                    # 선순위: 70% 자동 설정
+                    # 후순위: 자동값 없음 (사용자가 수동으로 70%, 75%, 80% 조정)
+                    if is_senior:
+                        auto_ltv = 70
+                        auto_source = "아이엠 기준 (선순위)"
+                    else:
+                        # 후순위는 자동 LTV 없음 - 사용자 입력만 사용
+                        auto_ltv = None
+                        auto_source = None
                 else:
                     # 서울/경기/인천 외 지역은 아이엠 질권 취급 안함
                     auto_ltv = None
