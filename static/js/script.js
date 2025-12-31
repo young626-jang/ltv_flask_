@@ -748,8 +748,35 @@
                     // 만약 변경된 필드가 'status'라면, 임차인/방공제 경고를 확인합니다.
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
+
+                        // ✅ [신규] 아이엠 질권 체크 시 LTV 재계산 (선순위/후순위 자동 반영)
+                        const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                        const ltv1Field = document.getElementById('ltv1');
+
+                        if (hopeCheckbox && hopeCheckbox.checked && ltv1Field) {
+                            // 선순위/후순위 판단
+                            const maintainStatus = ['유지', '동의', '비동의'];
+                            let hasSubordinate = false;
+                            document.querySelectorAll('.loan-item').forEach(loanItem => {
+                                const status = loanItem.querySelector('[name="status"]')?.value || '-';
+                                if (maintainStatus.includes(status)) {
+                                    hasSubordinate = true;
+                                }
+                            });
+
+                            if (!hasSubordinate) {
+                                // 선순위: LTV 70%로 자동 설정
+                                ltv1Field.value = '70';
+                                console.log('📊 상태 변경 → 아이엠 선순위: LTV 70%로 자동 설정');
+                            } else {
+                                // 후순위: LTV 유지 (사용자 수동 조정)
+                                console.log('📊 상태 변경 → 아이엠 후순위: LTV 수동 조정');
+                            }
+                        }
+
                         // 메리츠 질권 LTV 재계산 (선순위/후순위 자동 반영)
                         validateMeritzLoanConditions();
+
                         // ✅ [수정] 상태 변경 시 디바운스 타이머 클리어 후 즉시 메모 생성
                         clearTimeout(memoDebounceTimeout);
                         generateMemo();
@@ -1416,7 +1443,11 @@ async function handleFileUpload(file) {
     // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     async function calculateIndividualShare() {
         try {
-            // 질권 체크 상태 확인 (함수 최상단에서 선언)
+            // ✅ [수정] 먼저 차주 선택 여부를 확인 (라디오 버튼 체크)
+            const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
+            if (!selectedRadio) return; // 선택된 차주가 없으면 조용히 종료 (경고 없음)
+
+            // 질권 체크 상태 확인
             const hopeCheckbox = document.getElementById('hope-collateral-loan');
             const meritzCheckbox = document.getElementById('meritz-collateral-loan');
             const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
@@ -1433,14 +1464,10 @@ async function handleFileUpload(file) {
             if (isHopeChecked || isMeritzChecked) {
                 const regionGrade = getRegionGradeFromAddress(address);
                 if (regionGrade !== '1군') {
-                    showCustomAlert('⚠️ 질권 적용 시 지분대출은 수도권 1군 지역 아파트만 취급 가능합니다.\n현재 지역: ' + regionGrade);
+                    showCustomAlert('⚠️ 질권이 체크된 경우 지분한도 계산은 1군 지역만 가능합니다.\n현재 지역: ' + regionGrade);
                     return;
                 }
             }
-
-            // 선택된 차주 찾기
-            const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
-            if (!selectedRadio) return; // 선택된 차주가 없으면 종료
 
             const ownerIdx = selectedRadio.value;
 
@@ -1799,8 +1826,10 @@ function attachAllEventListeners() {
                 const meritzCheckbox = document.getElementById('meritz-collateral-loan');
                 if (meritzCheckbox && meritzCheckbox.checked) {
                     meritzCheckbox.checked = false;
-                    // 메리츠 해제 이벤트 트리거
-                    meritzCheckbox.dispatchEvent(new Event('change'));
+                    // ✅ [수정] 메리츠 해제 이벤트를 비동기로 실행 (아이엠 체크 완료 후 실행)
+                    setTimeout(() => {
+                        meritzCheckbox.dispatchEvent(new Event('change'));
+                    }, 0);
                 }
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
@@ -1861,13 +1890,7 @@ function attachAllEventListeners() {
                         console.log('📊 아이엠 선순위 - LTV 70%로 자동 설정');
                     } else {
                         // 후순위: LTV 자동 설정 없음 (사용자가 수동 조정)
-                        // 주소가 없고 지역 선택도 안 된 경우에만 기본값 설정
-                        if (!regionFound && (!ltv1Field.value || ltv1Field.value === '0')) {
-                            ltv1Field.value = '75';  // 기본값: 75% (경기/인천 기준)
-                            console.log('📊 아이엠 후순위 기본값: 75% (주소 미입력)');
-                        } else {
-                            console.log('📊 아이엠 후순위 - LTV 수동 조정 가능');
-                        }
+                        console.log('📊 아이엠 후순위 - LTV 수동 조정 (70%, 75%, 80%)');
                     }
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
@@ -1929,12 +1952,10 @@ function attachAllEventListeners() {
     // 희망담보대부 지역 선택 버튼 이벤트
     document.querySelectorAll('.hope-loan-region-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const ltv = e.target.getAttribute('data-ltv');
             const region = e.target.getAttribute('data-region');
 
-            // LTV 값 변경
-            document.getElementById('ltv1').value = ltv;
-            console.log(`🌍 지역 선택: ${region} (LTV: ${ltv}%)`);
+            // ✅ [수정] 지역 버튼은 금리 계산용 지역 정보만 제공, LTV는 변경하지 않음
+            console.log(`🌍 아이엠 지역 선택: ${region} (금리 계산용)`);
 
             // 모든 버튼 스타일 초기화
             document.querySelectorAll('.hope-loan-region-btn').forEach(b => {
@@ -1948,8 +1969,7 @@ function attachAllEventListeners() {
             e.target.style.color = '#0063B2';
             e.target.style.borderColor = '#9CC3D5';
 
-            // LTV 변경으로 인한 계산 트리거
-            calculateIndividualShare();
+            // 금리 계산을 위한 메모 업데이트
             triggerMemoGeneration();
         });
     });
@@ -1965,8 +1985,10 @@ function attachAllEventListeners() {
                 const hopeCheckbox = document.getElementById('hope-collateral-loan');
                 if (hopeCheckbox && hopeCheckbox.checked) {
                     hopeCheckbox.checked = false;
-                    // 아이엠 해제 이벤트 트리거
-                    hopeCheckbox.dispatchEvent(new Event('change'));
+                    // ✅ [수정] 아이엠 해제 이벤트를 비동기로 실행 (메리츠 체크 완료 후 실행)
+                    setTimeout(() => {
+                        hopeCheckbox.dispatchEvent(new Event('change'));
+                    }, 0);
                 }
 
                 // 체크 되면 메리츠 지역 버튼 표시
