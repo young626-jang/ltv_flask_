@@ -2647,8 +2647,11 @@ function validateMeritzLoanConditions() {
     const area = parseFloat(areaField.value.replace(/,/g, '')) || 0;
     // KB시세값 가져오기 (만 단위)
     const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
+    // 물건유형 가져오기
+    const propertyTypeField = document.getElementById('property_type');
+    const propertyType = propertyTypeField ? propertyTypeField.value.trim() : 'APT';
 
-    console.log(`🔍 메리츠 질권 검증 - 면적: ${area}㎡, KB시세: ${kbPrice}만원`);
+    console.log(`🔍 메리츠 질권 검증 - 면적: ${area}㎡, KB시세: ${kbPrice}만원, 물건유형: ${propertyType}`);
 
     // ========================================================
     // 1. KB시세 1억(10,000만) 미만 시 빨간색 표시
@@ -2668,15 +2671,37 @@ function validateMeritzLoanConditions() {
     // ========================================================
     // 2. 메리츠 면적에 따른 LTV 자동 설정 (지역 고려)
     // ========================================================
+
+    // Non-APT 2군/3군 취급불가 검증
+    const isNonApt = propertyType && !propertyType.includes('아파트');
+    const isNonAptRestricted = isNonApt && (meritzRegion === '2gun' || meritzRegion === '3gun');
+
+    if (isNonAptRestricted && propertyTypeField) {
+        // Non-APT이면서 2군 또는 3군인 경우 빨간색 경고
+        propertyTypeField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+        console.log(`🔴 메리츠 경고: Non-APT는 ${meritzRegion === '2gun' ? '2군' : '3군'} 취급불가`);
+    } else if (propertyTypeField) {
+        // 정상 조건이면 스타일 제거
+        propertyTypeField.removeAttribute('style');
+    }
+
     if (area > 0) {
-        // 기본 LTV (선순위, 지역 고려)
-        let baseLtv = calculateMeritzLTV(area, 'first', meritzRegion);
+        // 기본 LTV (선순위, 지역 고려, 물건유형 고려)
+        let baseLtv = calculateMeritzLTV(area, 'first', meritzRegion, propertyType);
         const regionName = meritzRegion === '1gun' ? '1군(일반)' : (meritzRegion === '2gun' ? '2군' : '3군');
 
-        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 면적: ${area}㎡, 설정LTV: ${baseLtv}%`);
+        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 면적: ${area}㎡, 물건유형: ${propertyType}, 설정LTV: ${baseLtv}%`);
 
-        // LTV 값 설정
+        // LTV 값 설정 (0이면 취급불가를 의미)
         ltv1Field.value = baseLtv;
+
+        // LTV가 0이면 LTV 필드도 빨간색 표시
+        if (baseLtv === 0) {
+            ltv1Field.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+            console.log('🔴 메리츠 경고: 취급불가 (LTV 0%)');
+        } else {
+            ltv1Field.removeAttribute('style');
+        }
 
         // ========================================================
         // 3. 시세 15억(150,000만) 초과 시 LTV -5% 차감
@@ -2748,11 +2773,9 @@ function validateMeritzLoanConditions() {
     // ========================================================
     // 4. APT 세대수 300 이하 체크 (Non-APT 기준 적용)
     // ========================================================
-    const propertyTypeField = document.getElementById('property_type');
     const unitCountField = document.getElementById('unit_count');
 
     if (propertyTypeField && unitCountField) {
-        const propertyType = propertyTypeField.value.trim();
         const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
 
         // APT이고 세대수가 입력된 경우만 체크
@@ -2867,81 +2890,177 @@ function validateMeritzLoanConditions() {
 // ========================================================
 // 메리츠 면적에 따른 LTV 계산 함수
 // ========================================================
-function calculateMeritzLTV(area, priority = 'first', region = '1gun') {
+function calculateMeritzLTV(area, priority = 'first', region = '1gun', propertyType = 'APT') {
     // priority: 'first' = 선순위, 'second' = 후순위
     // region: '1gun' = 1군(일반), '2gun' = 2군, '3gun' = 3군
+    // propertyType: 'APT' = 아파트, 'Non-APT' = 오피스텔 등
 
     let ltv;
 
+    // Non-APT 물건 타입 확인 (오피스텔, 상가, 빌라 등)
+    const isNonApt = propertyType && !propertyType.includes('아파트');
+
     if (region === '1gun') {
-        /**
-         * 메리츠 질권 LTV 기준 - 1군 (max 80%)
-         * 서울, 경기1군(용인-수지/기흥, 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주), 인천1군(계양, 부평, 연수, 미추홀)
-         *
-         * 선순위:
-         * 95.9㎡ 이하:                80.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
-         * 135㎡ 초과:                 60.0%
-         *
-         * 후순위:
-         * 95.9㎡ 이하:                80.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  80.0%
-         * 135㎡ 초과:                 70.0%
-         */
-        if (area <= 95.9) {
-            ltv = priority === 'first' ? 80.0 : 80.0;
-        } else if (area <= 135) {
-            ltv = priority === 'first' ? 75.0 : 80.0;
+        if (isNonApt) {
+            /**
+             * 메리츠 질권 LTV 기준 - 1군 Non-APT (오피스텔 등)
+             * 선/후순위 구분 없음
+             * 62.8㎡ 이하:                75%
+             * 62.8㎡ 초과 ~ 95.9㎡ 이하: 70%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  60%
+             * 135㎡ 초과:                 50%
+             */
+            if (area <= 62.8) {
+                ltv = 75.0;
+            } else if (area <= 95.9) {
+                ltv = 70.0;
+            } else if (area <= 135) {
+                ltv = 60.0;
+            } else {
+                ltv = 50.0;
+            }
         } else {
-            ltv = priority === 'first' ? 60.0 : 70.0;
+            /**
+             * 메리츠 질권 LTV 기준 - 1군 APT (max 85%)
+             * 서울, 경기1군(용인-수지/기흥, 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주), 인천1군(계양, 부평, 연수, 미추홀)
+             *
+             * APT 선순위:
+             * 95.9㎡ 이하:                83.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
+             * 135㎡ 초과:                 60.0%
+             *
+             * APT 후순위:
+             * 95.9㎡ 이하:                85.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  80.0%
+             * 135㎡ 초과:                 70.0%
+             */
+            if (area <= 95.9) {
+                ltv = priority === 'first' ? 83.0 : 85.0;
+            } else if (area <= 135) {
+                ltv = priority === 'first' ? 75.0 : 80.0;
+            } else {
+                ltv = priority === 'first' ? 60.0 : 70.0;
+            }
         }
     } else if (region === '2gun') {
-        /**
-         * 메리츠 질권 LTV 기준 - 2군
-         * 경기2군(시흥, 안산, 화성, 용인-처인구, 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주), 인천2군(남동, 서, 동, 중)
-         *
-         * 선순위:
-         * 95.9㎡ 이하:                75.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
-         * 135㎡ 초과:                 55.0%
-         *
-         * 후순위:
-         * 95.9㎡ 이하:                80.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
-         * 135㎡ 초과:                 65.0%
-         */
-        if (area <= 95.9) {
-            ltv = priority === 'first' ? 75.0 : 80.0;
-        } else if (area <= 135) {
-            ltv = priority === 'first' ? 70.0 : 75.0;
+        if (isNonApt) {
+            // 2군 Non-APT 취급불가
+            ltv = 0;
         } else {
-            ltv = priority === 'first' ? 55.0 : 65.0;
+            /**
+             * 메리츠 질권 LTV 기준 - 2군 APT
+             * 경기2군(시흥, 안산, 화성, 용인-처인구, 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주), 인천2군(남동, 서, 동, 중)
+             *
+             * 선순위:
+             * 95.9㎡ 이하:                75.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
+             * 135㎡ 초과:                 55.0%
+             *
+             * 후순위:
+             * 95.9㎡ 이하:                80.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  75.0%
+             * 135㎡ 초과:                 65.0%
+             */
+            if (area <= 95.9) {
+                ltv = priority === 'first' ? 75.0 : 80.0;
+            } else if (area <= 135) {
+                ltv = priority === 'first' ? 70.0 : 75.0;
+            } else {
+                ltv = priority === 'first' ? 55.0 : 65.0;
+            }
         }
     } else if (region === '3gun') {
-        /**
-         * 메리츠 질권 LTV 기준 - 3군
-         * 경기3군(평택, 안성, 여주, 포천) - 서울/경기/인천 중에서는 경기3군만 해당
-         *
-         * 선순위:
-         * 95.9㎡ 이하:                70.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  65.0%
-         * 135㎡ 초과:                 50.0%
-         *
-         * 후순위:
-         * 95.9㎡ 이하:                75.0%
-         * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
-         * 135㎡ 초과:                 60.0%
-         */
-        if (area <= 95.9) {
-            ltv = priority === 'first' ? 70.0 : 75.0;
-        } else if (area <= 135) {
-            ltv = priority === 'first' ? 65.0 : 70.0;
+        if (isNonApt) {
+            // 3군 Non-APT 취급불가
+            ltv = 0;
         } else {
-            ltv = priority === 'first' ? 50.0 : 60.0;
+            /**
+             * 메리츠 질권 LTV 기준 - 3군 APT
+             * 경기3군(평택, 안성, 여주, 포천) - 서울/경기/인천 중에서는 경기3군만 해당
+             *
+             * 선순위:
+             * 95.9㎡ 이하:                70.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  65.0%
+             * 135㎡ 초과:                 50.0%
+             *
+             * 후순위:
+             * 95.9㎡ 이하:                75.0%
+             * 95.9㎡ 초과 ~ 135㎡ 이하:  70.0%
+             * 135㎡ 초과:                 60.0%
+             */
+            if (area <= 95.9) {
+                ltv = priority === 'first' ? 70.0 : 75.0;
+            } else if (area <= 135) {
+                ltv = priority === 'first' ? 65.0 : 70.0;
+            } else {
+                ltv = priority === 'first' ? 50.0 : 60.0;
+            }
         }
     }
 
     return ltv;
+}
+
+// ========================================================
+// 희망담보대부 급지 및 금리 계산 함수
+// ========================================================
+function calculateHopeGradeAndRate(region, ltv) {
+    /**
+     * 희망담보대부 급지 기준
+     * region: 'seoul' = 서울, 'gyeonggi' = 경기, 'incheon' = 인천
+     * ltv: LTV 비율 (%)
+     *
+     * 예외급지: 서울 LTV 70% 미만 → 9.9% / 10.9%
+     * A급지: 서울 LTV 75% 미만 → 10.9% / 11.9%
+     * B급지: 서울 LTV 80% 미만 OR 경기/인천 LTV 75% 미만 → 11.9% / 12.9%
+     * C급지: 경기/인천 LTV 80% 미만 → 12.9% / 13.9%
+     * D급지: 서울/경기/인천 LTV 83% 미만 → 13.9% / 14.9%
+     *
+     * 반환값: { grade: '급지명', rate1: 첫번째금리, rate2: 두번째금리 }
+     */
+
+    let grade = null;
+    let rate1 = null;
+    let rate2 = null;
+
+    // 예외급지 체크 (서울 70% 미만)
+    if (region === 'seoul' && ltv < 70) {
+        grade = '예외';
+        rate1 = 9.9;
+        rate2 = 10.9;
+    }
+    // A급지 (서울 75% 미만)
+    else if (region === 'seoul' && ltv < 75) {
+        grade = 'A';
+        rate1 = 10.9;
+        rate2 = 11.9;
+    }
+    // B급지 (서울 80% 미만 OR 경기/인천 75% 미만)
+    else if ((region === 'seoul' && ltv < 80) || ((region === 'gyeonggi' || region === 'incheon') && ltv < 75)) {
+        grade = 'B';
+        rate1 = 11.9;
+        rate2 = 12.9;
+    }
+    // C급지 (경기/인천 80% 미만)
+    else if ((region === 'gyeonggi' || region === 'incheon') && ltv < 80) {
+        grade = 'C';
+        rate1 = 12.9;
+        rate2 = 13.9;
+    }
+    // D급지 (서울/경기/인천 83% 미만)
+    else if ((region === 'seoul' || region === 'gyeonggi' || region === 'incheon') && ltv < 83) {
+        grade = 'D';
+        rate1 = 13.9;
+        rate2 = 14.9;
+    }
+    // 취급불가 (LTV 83% 이상)
+    else {
+        grade = '취급불가';
+        rate1 = 0;
+        rate2 = 0;
+    }
+
+    return { grade, rate1, rate2 };
 }
 
 // ========================================================
