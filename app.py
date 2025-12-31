@@ -290,7 +290,7 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return None
 
-def get_hope_collateral_interest_rate(region, ltv_rate):
+def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type=''):
     """
     희망담보상품(아이엠질권) 금리 기준 (KB시세 아파트)
 
@@ -300,6 +300,8 @@ def get_hope_collateral_interest_rate(region, ltv_rate):
     B. 서울 LTV 80% 미만 OR 경기/인천 LTV 75% 미만          11.9% / 12.9%
     C. 경기/인천 LTV 80% 미만                               12.9% / 13.9%
     D. 서울/경기/인천 LTV 83% 미만                          13.9% / 14.9%
+
+    메리츠 NON-APT: 가산금리 +2%
     """
     if not region or not ltv_rate:
         return None
@@ -309,24 +311,46 @@ def get_hope_collateral_interest_rate(region, ltv_rate):
     except (ValueError, TypeError):
         return None
 
+    grade = None
+    rate1 = 0
+    rate2 = 0
+
     # 예외상품: 서울 LTV 70% 미만 (70% 미포함)
     if region == '서울' and ltv < 70:
-        return "9.9% / 10.9%"
-
+        grade = '예외'
+        rate1 = 9.9
+        rate2 = 10.9
     # A: 서울 LTV 75% 미만 (75% 미포함)
-    if region == '서울' and ltv < 75:
-        return "10.9% / 11.9%"
-
+    elif region == '서울' and ltv < 75:
+        grade = 'A'
+        rate1 = 10.9
+        rate2 = 11.9
     # B: 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만
-    if (region == '서울' and ltv < 80) or (region in ['경기', '인천'] and ltv < 75):
-        return "11.9% / 12.9%"
-
+    elif (region == '서울' and ltv < 80) or (region in ['경기', '인천'] and ltv < 75):
+        grade = 'B'
+        rate1 = 11.9
+        rate2 = 12.9
     # C: 경기/인천 LTV 80% 미만 (80% 미포함)
-    if region in ['경기', '인천'] and ltv < 80:
-        return "12.9% / 13.9%"
-
+    elif region in ['경기', '인천'] and ltv < 80:
+        grade = 'C'
+        rate1 = 12.9
+        rate2 = 13.9
     # D: 서울/경기/인천 LTV 83% 이상 포함 (나머지 모든 경우)
-    return "13.9% / 14.9%"
+    else:
+        grade = 'D'
+        rate1 = 13.9
+        rate2 = 14.9
+
+    # 메리츠 질권 + NON-APT (아파트, 주상복합 외) → 가산금리 +2%
+    if is_meritz and property_type:
+        is_non_apt = '아파트' not in property_type and '주상복합' not in property_type
+        if is_non_apt:
+            rate1 += 2.0
+            rate2 += 2.0
+            logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
+
+    # 기존 포맷으로 반환 (급지 포함)
+    return f"{grade}급지 / {rate1}% / {rate2}%"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
@@ -628,9 +652,17 @@ def generate_memo(data):
                 address = inputs.get('address', '')
                 region = get_region_from_address(address)
 
+                # 물건종류 가져오기
+                property_type = inputs.get('property_type', '')
+
                 # 지역과 LTV에 따른 금리 구간 조회
                 if region and ltv_rate:
-                    interest_rate = get_hope_collateral_interest_rate(region, ltv_rate)
+                    interest_rate = get_hope_collateral_interest_rate(
+                        region,
+                        ltv_rate,
+                        is_meritz=meritz_collateral_checked,
+                        property_type=property_type
+                    )
                     if interest_rate:
                         memo_lines.append(f"적용 금리 (연이율) {interest_rate}")
                         memo_lines.append("")  # 빈 줄 추가
