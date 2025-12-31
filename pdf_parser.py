@@ -414,108 +414,60 @@ def extract_construction_date(text):
 
 def extract_last_transfer_info(text):
     """
-    [신규] 갑구에서 최근 소유권 이전 내역(일자, 원인, 가액) 추출
-
-    Args:
-        text (str): PDF 전체 텍스트
-
-    Returns:
-        dict: {
-            'date': '2024-01-15',
-            'reason': '매매',
-            'price': '53000'  # 만원 단위
-        }
+    [최종본] 갑구에서 가장 높은 순위번호를 가진 소유권 이전 내역을 추출합니다.
     """
-    print("\n" + "="*80)
-    print("[DEBUG] extract_last_transfer_info 함수 시작")
-    print(f"[DEBUG] 입력 텍스트 길이: {len(text)} 글자")
-    print(f"[DEBUG] 텍스트 샘플 (처음 500자):\n{text[:500]}")
-    print("="*80 + "\n")
-
     result = {"date": "", "reason": "", "price": ""}
     try:
-        # 먼저 "갑구" 키워드가 텍스트에 있는지 확인
-        if "갑구" in text or "갑 구" in text:
-            print("[DEBUG] '갑구' 키워드가 텍스트에 존재합니다")
-            # 갑구가 나타나는 위치 확인
-            gap_pos = text.find("갑구") if "갑구" in text else text.find("갑 구")
-            print(f"[DEBUG] '갑구' 위치: {gap_pos}")
-            print(f"[DEBUG] '갑구' 주변 텍스트:\n{text[max(0, gap_pos-100):min(len(text), gap_pos+300)]}")
-        else:
-            print("[DEBUG] ⚠️ '갑구' 키워드가 텍스트에 없습니다!")
-
-        # 갑구 영역 추출 (더 유연한 패턴)
-        gap_gu_match = re.search(r"갑\s*구.*?\(소유권.*?사항\)([\s\S]*?)(?:을\s*구|주요\s*등기사항|$)", text, re.IGNORECASE)
-
+        # 1. 갑구 영역 추출 (소유권에 관한 사항)
+        gap_gu_match = re.search(r"【\s*갑\s*구\s*】([\s\S]*?)(?:【\s*을\s*구\s*】|주요\s*등기사항|$)", text)
         if not gap_gu_match:
-            print("[DEBUG] ❌ 갑구 영역 정규식 매칭 실패")
-            # 더 단순한 패턴으로 재시도
-            simple_match = re.search(r"갑\s*구([\s\S]*?)을\s*구", text, re.IGNORECASE)
-            if simple_match:
-                print("[DEBUG] ✓ 단순 패턴으로 갑구 영역 찾음")
-                gap_gu_text = simple_match.group(1)
-            else:
-                print("[DEBUG] ❌ 단순 패턴으로도 갑구 영역을 찾을 수 없습니다")
-                return result
-        else:
-            gap_gu_text = gap_gu_match.group(1)
-            print("[DEBUG] ✓ 갑구 영역 정규식 매칭 성공")
+            return result
+        
+        gap_gu_text = gap_gu_match.group(1)
 
-        print(f"[DEBUG] 갑구 영역 길이: {len(gap_gu_text)} 글자")
+        # 2. 모든 소유권 이전 내역 찾기 (순위번호와 날짜 매칭)
+        # 의 형식인 "4","소유권이전","2021년5월12일" 패턴을 탐색
+        pattern = r'"(\d+)"\s*,\s*"소유권\s*이전"\s*,\s*"(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+        all_transfers = re.findall(pattern, gap_gu_text)
 
-        # '소유권이전' 또는 '소유권 이전' 키워드 모두 찾기 (더 유연한 패턴)
-        print("[DEBUG] 갑구 영역에서 '소유권이전' 키워드 검색 중...")
-        matches = list(re.finditer(r"소유권.*?이전", gap_gu_text, re.IGNORECASE))
-
-        if not matches:
-            print("[DEBUG] ❌ '소유권이전' 키워드를 찾을 수 없습니다")
-            # 갑구 텍스트 샘플 출력
-            print(f"[DEBUG] 갑구 텍스트 샘플 (처음 500자):\n{gap_gu_text[:500]}")
+        if not all_transfers:
             return result
 
-        print(f"[DEBUG] ✓ 소유권이전 {len(matches)}개 발견")
+        # 3. 순위번호가 가장 큰(최신) 항목 선택 
+        # 예: ('2', '...'), ('3', '...'), ('4', '...') 중 ('4', '...') 선택
+        latest_entry = max(all_transfers, key=lambda x: int(x[0]))
+        target_rank = latest_entry[0]  # "4"
+        raw_date = latest_entry[1]    # "2021년5월12일"
 
-        last_match = matches[-1]  # 가장 마지막 기록이 최신
-        # 앞뒤 문맥 텍스트 가져오기 (범위 확대)
-        context = gap_gu_text[max(0, last_match.start()-200):min(len(gap_gu_text), last_match.end()+400)]
+        # 날짜 포맷팅 (YYYY-MM-DD)
+        date_nums = re.findall(r'\d+', raw_date)
+        if len(date_nums) >= 3:
+            result["date"] = f"{date_nums[0]}-{date_nums[1].zfill(2)}-{date_nums[2].zfill(2)}"
 
-        print(f"[DEBUG] 추출된 컨텍스트 (전체):\n{context}")
-        print("-" * 80)
+        # 4. 해당 순위번호("4") 주변에서 거래가액과 원인 추출
+        # 순위번호가 시작되는 지점부터 다음 순위번호 전까지를 컨텍스트로 설정
+        rank_pattern = rf'"{target_rank}"'
+        rank_start_pos = gap_gu_text.find(rank_pattern)
+        
+        # 해당 순위번호 이후 약 500자 정도를 탐색 범위로 지정
+        context = gap_gu_text[rank_start_pos : rank_start_pos + 500]
 
-        # 날짜 추출 (여러 형식 지원)
-        print("[DEBUG] 날짜 추출 시도 중...")
-        d_match = re.search(r"(\d{4})[년\-\./](\d{1,2})[월\-\./](\d{1,2})[일\s]", context)
-        if d_match:
-            y, m, d = d_match.groups()
-            result["date"] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
-            print(f"[DEBUG] ✓ 추출된 날짜: {result['date']}")
-        else:
-            print("[DEBUG] ❌ 날짜를 찾을 수 없습니다")
-            print(f"[DEBUG] 컨텍스트에서 숫자 찾기: {re.findall(r'\\d+', context[:200])}")
-
-        # 원인 및 가격 추출
+        # 원인 판별
         if "매매" in context:
             result["reason"] = "매매"
-            # 거래가액 패턴 개선
-            p_match = re.search(r"거래가액.*?금\s*([\d,]+)\s*원", context, re.IGNORECASE)
+            # 거래가액 추출 
+            p_match = re.search(r"거래가액\s*금\s*([\d,]+)\s*원", context)
             if p_match:
                 price_won = int(p_match.group(1).replace(',', ''))
-                result["price"] = str(price_won // 10000)
-                print(f"[DEBUG] 거래가액: {result['price']}만원")
+                result["price"] = str(price_won // 10000) # 만원 단위 (27000)
+        elif "보존" in context:
+            result["reason"] = "소유권보존"
         elif "상속" in context:
             result["reason"] = "상속"
-        elif "증여" in context:
-            result["reason"] = "증여"
-        elif "보존" in context:
-            result["reason"] = "보존"
 
-        print(f"[DEBUG] 최종 결과: {result}")
+        print(f"[DEBUG] 최종 추출 성공: {result}")
 
     except Exception as e:
-        print(f"소유권 이전 정보 추출 오류: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"소유권 이전 정보 추출 중 오류 발생: {e}")
+        
     return result
-
-
-
