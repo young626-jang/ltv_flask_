@@ -2922,49 +2922,9 @@ function validateMeritzLoanConditions() {
         triggerMemoGeneration();
     }
 
-    // ========================================================
-    // 4. APT 세대수 300 이하 체크 (Non-APT 기준 적용)
-    // ========================================================
-    const unitCountField = document.getElementById('unit_count');
-
-    if (propertyTypeField && unitCountField) {
-        const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
-
-        // APT이고 세대수가 입력된 경우만 체크
-        if (propertyType.includes('아파트') && unitCount > 0) {
-            if (unitCount <= 100) {
-                // 100세대 이하: 빨간색 강조 (Non-APT 기준 필수 적용)
-                unitCountField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-                console.log('🔴 메리츠 경고: APT 100세대 이하 - Non-APT 기준 자동 적용');
-            } else if (unitCount <= 300) {
-                // 101~300세대: 노란색 강조 (Non-APT 기준 권장, 예외 가능)
-                unitCountField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
-                console.log('⚠️ 메리츠 주의: APT 101~300세대 - Non-APT 기준 권장 (예외 가능)');
-            } else {
-                // 300세대 초과: 정상 (APT 기준 적용)
-                // 단, 아이엠 질권 조건과 겹치지 않도록 확인
-                const hopeCheckbox = document.getElementById('hope-collateral-loan');
-                const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
-
-                // 아이엠 질권이 체크되어 있지 않으면 스타일 제거
-                if (!isHopeChecked) {
-                    unitCountField.removeAttribute('style');
-                }
-                console.log('✅ 메리츠 정상: APT 300세대 초과 - APT 기준 적용');
-            }
-        } else {
-            // APT가 아니거나 세대수 미입력 시 스타일 제거 (단, 아이엠 조건 확인)
-            const hopeCheckbox = document.getElementById('hope-collateral-loan');
-            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
-
-            if (!isHopeChecked) {
-                unitCountField.removeAttribute('style');
-            }
-        }
-    }
 
     // ========================================================
-    // 5. 40년 이상 노후주택 체크 (LTV Max 60%)
+    // 4. 40년 이상 노후주택 체크 (LTV Max 60%)
     // ========================================================
     const meritzCompletionDateField = document.getElementById('completion_date');
     let is40YearsOld = false;
@@ -3001,7 +2961,7 @@ function validateMeritzLoanConditions() {
     }
 
     // ========================================================
-    // 6. 지역 검증: 서울/경기/인천 외 지역 체크 및 군 단위 지역 체크 (신도시 예외)
+    // 5. 지역 검증: 서울/경기/인천 외 지역 체크 및 군 단위 지역 체크 (신도시 예외)
     // ========================================================
     if (meritzAddressField && address) {
         // 서울/경기/인천 외 지역이면 빨간색 경고 (우선순위 높음)
