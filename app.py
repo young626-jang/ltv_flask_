@@ -349,8 +349,8 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
             rate2 += 2.0
             logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
 
-    # 기존 포맷으로 반환 (급지 포함)
-    return f"{grade}급지 / {rate1}% / {rate2}%"
+    # 금리만 반환 (급지 제외)
+    return f"{rate1}% / {rate2}%"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
@@ -670,7 +670,7 @@ def generate_memo(data):
                         property_type=property_type
                     )
                     if interest_rate:
-                        memo_lines.append(f"적용 금리 (연이율) {interest_rate}")
+                        memo_lines.append(f"적용 금리 / {interest_rate}")
                         memo_lines.append("")  # 빈 줄 추가
 
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
