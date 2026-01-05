@@ -678,7 +678,6 @@ def generate_memo(data):
         if hope_collateral_checked or meritz_collateral_checked:
             memo_lines.append("*본심사시 한도, 금리 변동될수 있습니다.")
             memo_lines.append("*사업자 담보대출 (사업자필수)")
-            memo_lines.append("*계약 2년")
             memo_lines.append("*중도 3%")
             memo_lines.append("*연체이력 및 권리침해사항 1% 할증")
 
