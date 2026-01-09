@@ -210,6 +210,24 @@
                     </div>
                 </div>
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="interestCalcMethod" id="interest-monthly-method" value="monthly" checked>
+                                    <label class="form-check-label" for="interest-monthly-method">
+                                        월할계산 (금융사)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="interestCalcMethod" id="interest-daily-method" value="daily">
+                                    <label class="form-check-label" for="interest-daily-method">
+                                        일할계산 (대부업)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="대출금액 (만원)">
@@ -227,6 +245,11 @@
                         </div>
                         <div class="col-md-4">
                             <input type="text" class="form-control md-input" id="interest-yearly-result" placeholder="1년 이자 (원)" readonly>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <small class="text-muted" id="interest-calc-explanation" style="display: block;"></small>
                         </div>
                     </div>
                     <hr class="my-4">
