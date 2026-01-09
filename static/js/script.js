@@ -540,22 +540,46 @@
         const dailyResultEl = document.getElementById('interest-daily-result');
         const monthlyResultEl = document.getElementById('interest-monthly-result');
         const yearlyResultEl = document.getElementById('interest-yearly-result');
+        const explanationEl = document.getElementById('interest-calc-explanation');
 
         // 입력값이 유효할 때만 계산
         if (principal > 0 && annualRate > 0) {
             const yearlyInterest = Math.floor(principal * (annualRate / 100));
-            const monthlyInterest = Math.floor(yearlyInterest / 12);
             const dailyInterest = Math.floor(yearlyInterest / 365);
+
+            // 라디오 버튼에서 선택된 계산 방식 확인
+            const calcMethod = document.querySelector('input[name="interestCalcMethod"]:checked')?.value || 'monthly';
+
+            let monthlyInterest;
+            let explanation = '';
+
+            if (calcMethod === 'monthly') {
+                // 월할계산: 연 이자 ÷ 12
+                monthlyInterest = Math.floor(yearlyInterest / 12);
+                explanation = `예) 1년 이자 ${yearlyInterest.toLocaleString()}원 ÷ 12개월 = ${monthlyInterest.toLocaleString()}원`;
+            } else {
+                // 일할계산: 현재 월의 일수로 계산
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = today.getMonth();
+                // 다음 달 1일에서 하루 빼면 이번 달 마지막 날 = 이번 달 일수
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                // 정확한 계산: 연 이자 × (실제일수 ÷ 365)
+                monthlyInterest = Math.floor(yearlyInterest * daysInMonth / 365);
+                explanation = `예) 1년 이자 ${yearlyInterest.toLocaleString()}원 × ${daysInMonth}일 ÷ 365일 = ${monthlyInterest.toLocaleString()}원 (${month + 1}월 기준)`;
+            }
 
             // 계산된 값을 콤마와 함께 '원' 단위로 표시
             yearlyResultEl.value = yearlyInterest.toLocaleString() + '원';
             monthlyResultEl.value = monthlyInterest.toLocaleString() + '원';
             dailyResultEl.value = dailyInterest.toLocaleString() + '원';
+            explanationEl.textContent = explanation;
         } else {
             // 입력값이 없거나 0이면 결과를 ''으로 초기화
             yearlyResultEl.value = '';
             monthlyResultEl.value = '';
             dailyResultEl.value = '';
+            explanationEl.textContent = '';
         }
     }
 
@@ -1744,6 +1768,11 @@ function attachAllEventListeners() {
     }
     loanAmountInput.addEventListener('keyup', updateAllInterestCalculators);
     annualRateInput.addEventListener('keyup', updateAllInterestCalculators);
+
+    // 월할/일할 라디오 버튼 변경 시 재계산
+    document.querySelectorAll('input[name="interestCalcMethod"]').forEach(radio => {
+        radio.addEventListener('change', updateAllInterestCalculators);
+    });
 
     loanAmountInput.addEventListener('blur', (e) => {
         const value = e.target.value.replace(/,/g, '');
