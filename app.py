@@ -463,7 +463,20 @@ def generate_memo(data):
             
         if price_info_parts:
             memo_lines.append(" | ".join(price_info_parts))
-        
+
+        # 즉발사업자 정보 추가
+        instant_business_checked = inputs.get('instant_business_operator', False)
+        if instant_business_checked:
+            business_reg_date = inputs.get('business_registration_date', '')
+            loan_available_date = inputs.get('loan_available_date', '')
+            instant_info_parts = []
+            if business_reg_date:
+                instant_info_parts.append(f"사업자등록일: {business_reg_date}")
+            if loan_available_date:
+                instant_info_parts.append(f"대출가능일: {loan_available_date}")
+            if instant_info_parts:
+                memo_lines.append(" | ".join(instant_info_parts))
+
         # 기본 정보와 대출 정보 사이에 빈 줄 추가
         if memo_lines:
             memo_lines.append("")
