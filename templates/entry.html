@@ -338,8 +338,22 @@
 <script>
 // 대출심사 현황관리로 이동 (Notion)
 function goToLoanReview() {
+    console.log('대출심사 버튼 클릭됨');
     const url = 'https://www.notion.so/1f2ebdf111b580cdbefbe40390c5428c?v=2b6ebdf111b58095b3a2000c1c4fbf82&source=copy_link';
-    window.open(url, '_blank');
+    console.log('Notion URL:', url);
+
+    try {
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            console.error('팝업이 차단되었습니다!');
+            alert('팝업 차단을 해제해주세요.\n\n수동 링크: ' + url);
+        } else {
+            console.log('Notion 페이지 열림 성공');
+        }
+    } catch (error) {
+        console.error('오류 발생:', error);
+        alert('페이지를 열 수 없습니다: ' + error.message);
+    }
 }
 
 // ✨ 자동 LTV 계산 (선순위/후순위 자동 판단)
