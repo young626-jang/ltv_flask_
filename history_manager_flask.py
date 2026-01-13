@@ -214,6 +214,10 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "unit_count": get_rich_text(props, "세대수"),
         "completion_date": get_rich_text(props, "준공일자"),
         "ownership_transfer_date": get_rich_text(props, "소유권이전일"),
+        "instant_business_operator": get_checkbox(props, "즉발사업자"),
+        "business_issue_date": get_rich_text(props, "사업자발급일"),
+        "business_registration_date": get_rich_text(props, "사업자등록일자"),
+        "loan_available_date": get_rich_text(props, "대출가능일자"),
         "deduction_region": get_rich_text(props, "방공제지역"),
         "ltv1": get_rich_text(props, "LTV비율1"),
         "ltv2": get_rich_text(props, "LTV비율2"),
@@ -295,6 +299,18 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "소유권이전일": {
             "rich_text": [{"text": {"content": inputs.get("ownership_transfer_date", "").strip()}}]
+        },
+        "즉발사업자": {
+            "checkbox": inputs.get("instant_business_operator", False)
+        },
+        "사업자발급일": {
+            "rich_text": [{"text": {"content": inputs.get("business_issue_date", "").strip()}}]
+        },
+        "사업자등록일자": {
+            "rich_text": [{"text": {"content": inputs.get("business_registration_date", "").strip()}}]
+        },
+        "대출가능일자": {
+            "rich_text": [{"text": {"content": inputs.get("loan_available_date", "").strip()}}]
         },
         "방공제지역": {
             "rich_text": [{"text": {"content": inputs.get("deduction_region_text", "").strip()}}]
@@ -542,3 +558,7 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
+
+
