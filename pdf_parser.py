@@ -23,7 +23,11 @@ def extract_area(text):
     clean_text = re.sub(r'\s+', ' ', clean_text)
 
     matches = re.findall(r"(\d+\.\d+)\s*㎡", clean_text)
-    return f"{matches[-1]}㎡" if matches else ""
+    # 가장 큰 면적을 선택 (경로당, 경비실 등 작은 면적 제외)
+    if matches:
+        largest_area = max(matches, key=lambda x: float(x))
+        return f"{largest_area}㎡"
+    return ""
 
 def extract_property_type(text):
     """
