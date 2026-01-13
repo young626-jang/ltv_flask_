@@ -582,7 +582,23 @@ def generate_memo(data):
         # --- ▲▲▲ LTV 계산 완료 ▲▲▲ ---
 
         if ltv_results and isinstance(ltv_results, list):
-            ltv_memo = [f"{res.get('loan_type', '기타')} 한도: LTV {int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'}% {format_manwon(res.get('limit', 0))} 가용 {format_manwon(res.get('available', 0))}" for res in ltv_results if isinstance(res, dict)]
+            ltv_memo = []
+            for res in ltv_results:
+                if isinstance(res, dict):
+                    loan_type = res.get('loan_type', '기타')
+                    ltv_rate = int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'
+                    limit = res.get('limit', 0)
+                    available = res.get('available', 0)
+
+                    # 기본 LTV 한도 메시지 생성
+                    ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
+
+                    # 메리츠 질권 체크 + 선순위 + 10억 초과 시 경고 추가
+                    if meritz_collateral_checked and loan_type == "선순위" and limit > 100000:
+                        ltv_line += " 이나 10억 초과 메리츠 질권 진행불가"
+
+                    ltv_memo.append(ltv_line)
+
             if ltv_memo:
                 memo_lines.extend(ltv_memo)
                 memo_lines.append("")  # ✅ LTV 한도 뒤에 빈 줄 추가
