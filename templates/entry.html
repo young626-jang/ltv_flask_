@@ -173,7 +173,7 @@
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="d-flex align-items-center gap-2">
-                            <label for="ltv1" class="mb-0" style="white-space: nowrap;">📊 LTV 비율 ①</label>
+                            <label for="ltv1" class="mb-0" style="white-space: nowrap;">📊 LTV 비율</label>
                             <div class="d-flex gap-1">
                                 <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', -5)">-</button>
                                 <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', 5)">+</button>
@@ -186,6 +186,18 @@
                         <div class="d-flex align-items-center gap-2">
                             <label for="required_amount" class="mb-0" style="white-space: nowrap;">💰 필요금액(만)</label>
                             <input type="text" class="form-control form-field manwon-format md-input" id="required_amount" placeholder="필요금액 입력" style="flex: 1;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LTV 적용 사유 표시 영역 -->
+                <div id="ltv-reasons-container" class="mt-2" style="display: none;">
+                    <div class="card" style="border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC;">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex align-items-start gap-2">
+                                <span style="font-weight: 600; color: #475569; white-space: nowrap; font-size: 13px;">📋 LTV 적용 사유:</span>
+                                <div id="ltv-reasons-list" style="font-size: 12px; color: #64748B; line-height: 1.6;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -398,10 +410,14 @@ async function updateAutoLTV() {
     const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
 
     if (!isHopeChecked && !isMeritzChecked) {
-        // 질권이 체크되지 않으면 자동LTV 표시 숨김
+        // 질권이 체크되지 않으면 자동LTV 표시 및 사유 숨김
         const displayEl = document.getElementById('auto-ltv-display');
         if (displayEl) {
             displayEl.textContent = '';
+        }
+        const reasonsContainer = document.getElementById('ltv-reasons-container');
+        if (reasonsContainer) {
+            reasonsContainer.style.display = 'none';
         }
         return; // 함수 종료
     }
@@ -411,6 +427,52 @@ async function updateAutoLTV() {
     const kb_price = document.getElementById('kb_price').value.trim();
     const property_type_field = document.getElementById('property_type').value.trim();
     const displayEl = document.getElementById('auto-ltv-display'); // ✅ displayEl 정의 추가
+    const completion_date = document.getElementById('completion_date')?.value || '';
+
+    // ✅ 주소/면적이 없어도 준공일자만으로 40년 이상 체크
+    if ((!address || !area) && completion_date) {
+        // 준공일자만 있는 경우: 40년 이상이면 LTV 60%로 설정
+        try {
+            const parts = completion_date.split('-');
+            if (parts.length >= 2) {
+                const completionYear = parseInt(parts[0]);
+                const completionMonth = parseInt(parts[1]);
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth() + 1;
+
+                let yearsElapsed = currentYear - completionYear;
+                if (currentMonth < completionMonth) {
+                    yearsElapsed -= 1;
+                }
+
+                if (yearsElapsed >= 40) {
+                    // 40년 이상이면 LTV 60%로 설정
+                    const ltv1Field = document.getElementById("ltv1");
+                    const currentLTV = parseInt(ltv1Field.value) || 80;
+
+                    if (currentLTV > 60) {
+                        ltv1Field.value = 60;
+
+                        // 사유 표시
+                        const reasonsContainer = document.getElementById('ltv-reasons-container');
+                        const reasonsList = document.getElementById('ltv-reasons-list');
+                        reasonsList.innerHTML = `
+                            <div>준공연도: ${completionYear}년 (경과 ${yearsElapsed}년)</div>
+                            <div style="color: #DC2626; font-weight: 600;">⚠️ 40년 이상 노후주택 → 60% 제한 적용</div>
+                            <div style="color: #059669; font-weight: 600; margin-top: 4px;">✅ 최종 LTV: 60%</div>
+                        `;
+                        reasonsContainer.style.display = '';
+
+                        console.log(`📊 40년 이상 노후주택 - LTV 60% 제한 적용 (경과: ${yearsElapsed}년)`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('준공일자 파싱 오류:', e);
+        }
+        return;
+    }
 
     if (!address || !area) {
         return;
@@ -487,6 +549,28 @@ async function updateAutoLTV() {
                 displayEl.style.color = '#198754';  // 녹색
             }
 
+            // ✅ LTV 적용 사유 표시
+            const reasonsContainer = document.getElementById('ltv-reasons-container');
+            const reasonsList = document.getElementById('ltv-reasons-list');
+            if (data.reasons && data.reasons.length > 0) {
+                // 사유 목록을 HTML로 변환
+                const reasonsHTML = data.reasons.map(reason => {
+                    // ⚠️ 아이콘이 있으면 강조 표시
+                    if (reason.includes('⚠️')) {
+                        return `<div style="color: #DC2626; font-weight: 600;">${reason}</div>`;
+                    } else if (reason.includes('✅')) {
+                        return `<div style="color: #059669; font-weight: 600; margin-top: 4px;">${reason}</div>`;
+                    } else {
+                        return `<div>${reason}</div>`;
+                    }
+                }).join('');
+
+                reasonsList.innerHTML = reasonsHTML;
+                reasonsContainer.style.display = '';  // 표시
+            } else {
+                reasonsContainer.style.display = 'none';  // 숨김
+            }
+
             // ✅ [수정] 질권이 체크되어 있을 때만 LTV를 자동으로 설정
             // const hopeCheckbox = document.getElementById('hope-collateral-loan'); // 이미 위에서 선언됨
             // const meritzCheckbox = document.getElementById('meritz-collateral-loan'); // 이미 위에서 선언됨
@@ -502,6 +586,20 @@ async function updateAutoLTV() {
                 console.log(`📊 자동LTV 표시만: ${ltv}% (질권 없음, 80% 유지)`);
             }
         } else {
+            // 오류 발생 시에도 사유가 있으면 표시
+            const reasonsContainer = document.getElementById('ltv-reasons-container');
+            const reasonsList = document.getElementById('ltv-reasons-list');
+            if (data.reasons && data.reasons.length > 0) {
+                let reasonsHTML = data.reasons.map(reason => {
+                    return `<div style="color: #DC2626;">${reason}</div>`;
+                }).join('');
+                reasonsHTML += `<div style="color: #DC2626; font-weight: 600; margin-top: 4px;">❌ 오류: ${data.error}</div>`;
+                reasonsList.innerHTML = reasonsHTML;
+                reasonsContainer.style.display = '';
+            } else {
+                reasonsContainer.style.display = 'none';
+            }
+
             // Non-APT 2군/3군 취급불가 경고 메시지
             if (data.error && data.error.includes('Non-APT') && data.error.includes('취급불가')) {
                 if (displayEl) {
