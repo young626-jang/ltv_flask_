@@ -243,7 +243,7 @@ def get_region_from_address(address):
     return None
 
 
-def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_type="APT"):
+def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None):
     """
     메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산
 
@@ -253,6 +253,7 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         is_senior (bool): True=선순위, False=후순위
         kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
         property_type (str): 'APT' 또는 'Non-APT'
+        completion_date (str): 준공일자 (YYYY-MM 형식, 예: 1980-01)
 
     Returns:
         float: 자동 계산된 LTV (%), Non-APT 2군/3군 취급불가 시 None
@@ -284,6 +285,34 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         if kb_price and kb_price > 150000:
             ltv_standard = max(0, ltv_standard - 5.0)  # 음수가 되지 않도록 처리
             logger.info(f"시세 15억 초과 - LTV 5% 차감 적용: {ltv_standard}% (시세: {kb_price}만원)")
+
+        # 5. 40년 이상 노후주택 LTV 60% 제한
+        if completion_date and completion_date.strip():
+            try:
+                # 준공일자 파싱 (YYYY-MM 형식)
+                completion_parts = completion_date.strip().split('-')
+                if len(completion_parts) >= 2:
+                    completion_year = int(completion_parts[0])
+                    completion_month = int(completion_parts[1])
+
+                    # 현재 날짜
+                    from datetime import datetime
+                    today = datetime.now()
+                    current_year = today.year
+                    current_month = today.month
+
+                    # 경과 년수 계산 (월 고려)
+                    years_elapsed = current_year - completion_year
+                    if current_month < completion_month:
+                        years_elapsed -= 1  # 아직 준공월이 지나지 않았으면 1년 차감
+
+                    # 40년 이상이면 LTV 60% 제한
+                    if years_elapsed >= 40:
+                        if ltv_standard > 60:
+                            ltv_standard = 60.0
+                            logger.info(f"40년 이상 노후주택 - LTV 60% 제한 적용: {completion_date} (경과: {years_elapsed}년)")
+            except (ValueError, IndexError) as e:
+                logger.warning(f"준공일자 파싱 실패: {completion_date}, 오류: {e}")
 
         return ltv_standard
     except Exception as e:
@@ -464,19 +493,6 @@ def generate_memo(data):
         if price_info_parts:
             memo_lines.append(" | ".join(price_info_parts))
 
-        # 즉발사업자 정보 추가
-        instant_business_checked = inputs.get('instant_business_operator', False)
-        if instant_business_checked:
-            business_reg_date = inputs.get('business_registration_date', '')
-            loan_available_date = inputs.get('loan_available_date', '')
-            instant_info_parts = []
-            if business_reg_date:
-                instant_info_parts.append(f"사업자등록일: {business_reg_date}")
-            if loan_available_date:
-                instant_info_parts.append(f"대출가능일: {loan_available_date}")
-            if instant_info_parts:
-                memo_lines.append(" | ".join(instant_info_parts))
-
         # 기본 정보와 대출 정보 사이에 빈 줄 추가
         if memo_lines:
             memo_lines.append("")
@@ -531,7 +547,11 @@ def generate_memo(data):
                     area_val = float(str(area).replace(",", "").strip()) if area else None
                 except (ValueError, TypeError):
                     area_val = None
-                auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val)
+
+                # 준공일자 가져오기
+                completion_date = inputs.get('completion_date', '')
+
+                auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val, property_type=property_type, completion_date=completion_date)
                 auto_source = "메리츠 기준"
 
                 if auto_ltv is not None:
@@ -710,6 +730,14 @@ def generate_memo(data):
             memo_lines.append("*중도 3%")
             memo_lines.append("*연체이력 및 권리침해사항 1% 할증")
 
+            # 즉발사업자 정보 추가 (질권 체크 시에만)
+            instant_business_checked = inputs.get('instant_business_operator', False)
+            if instant_business_checked:
+                business_reg_date = inputs.get('business_registration_date', '')
+                loan_available_date = inputs.get('loan_available_date', '')
+                if business_reg_date and loan_available_date:
+                    memo_lines.append(f"*즉발 사업자등록일: {business_reg_date} | 대출가능일: {loan_available_date}")
+
         memo_text = "\n".join(memo_lines)
         price_type = ""
         
@@ -810,8 +838,11 @@ def auto_calculate_ltv_route():
             except (ValueError, TypeError):
                 kb_price_val = parse_korean_number(kb_price_raw)
 
-        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior, KB 시세, 물건유형 사용)
-        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val, property_type=property_type)
+        # 준공일자 가져오기
+        completion_date = data.get('completion_date', '')
+
+        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior, KB 시세, 물건유형, 준공일자 사용)
+        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val, property_type=property_type, completion_date=completion_date)
 
         # Non-APT 2군/3군 취급불가 처리
         if auto_ltv is None:
