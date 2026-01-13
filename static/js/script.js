@@ -860,6 +860,7 @@ function collectAllData() {
             unit_count: document.getElementById('unit_count').value,
             completion_date: document.getElementById('completion_date').value,
             instant_business_operator: document.getElementById('instant-business-operator').checked,
+            business_issue_date: document.getElementById('business_issue_date').value,
             business_registration_date: document.getElementById('business_registration_date').value,
             loan_available_date: document.getElementById('loan_available_date').value,
         },
