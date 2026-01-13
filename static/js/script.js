@@ -859,6 +859,9 @@ function collectAllData() {
             ownership_transfer_date: document.getElementById('ownership_transfer_date').value,
             unit_count: document.getElementById('unit_count').value,
             completion_date: document.getElementById('completion_date').value,
+            instant_business_operator: document.getElementById('instant-business-operator').checked,
+            business_registration_date: document.getElementById('business_registration_date').value,
+            loan_available_date: document.getElementById('loan_available_date').value,
         },
         fees: {
             // [복구] consult_amt가 컨설팅 금액으로 돌아옵니다.
