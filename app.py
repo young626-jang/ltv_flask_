@@ -319,6 +319,117 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return None
 
+def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None):
+    """
+    메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산 (적용 사유 포함)
+
+    Args:
+        address (str): 주소
+        area (float): 면적 (㎡ 단위)
+        is_senior (bool): True=선순위, False=후순위
+        kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
+        property_type (str): 'APT' 또는 'Non-APT'
+        completion_date (str): 준공일자 (YYYY-MM 형식, 예: 1980-01)
+
+    Returns:
+        dict: {
+            'ltv': float,  # 최종 LTV (%)
+            'reasons': list[str],  # 적용 사유 리스트
+            'error': str or None  # 오류 메시지
+        }
+    """
+    reasons = []
+
+    if not address or not area or area <= 0:
+        return {'ltv': None, 'reasons': [], 'error': '주소 또는 면적이 유효하지 않습니다'}
+
+    try:
+        # 1. 주소에서 급지 자동 판단
+        region_grade = get_region_grade(address)
+
+        if region_grade == "미분류":
+            return {'ltv': None, 'reasons': [], 'error': '급지를 판단할 수 없습니다'}
+
+        loan_type = "선순위" if is_senior else "후순위"
+        reasons.append(f"급지: {region_grade} | {loan_type}")
+
+        # 2. 급지, 물건유형, 면적, 선후순위에 따른 LTV 기준값 조회
+        ltv_standard = get_ltv_standard(region_grade, float(area), is_senior, property_type)
+
+        # Non-APT 2군/3군 취급불가
+        if ltv_standard is None:
+            return {'ltv': None, 'reasons': reasons, 'error': f'Non-APT {region_grade} 취급불가'}
+
+        # 기본 LTV 표시
+        original_ltv = ltv_standard
+        reasons.append(f"기본 LTV: {original_ltv}%")
+
+        # 면적 정보 추가
+        if float(area) > 135:
+            reasons.append(f"⚠️ 전용면적 135㎡ 초과 ({area}㎡)")
+            if is_senior and ltv_standard > 60:
+                reasons.append("  → 선순위 최대 60% 제한 적용")
+            elif not is_senior and ltv_standard > 70:
+                reasons.append("  → 후순위 최대 70% 제한 적용")
+        else:
+            reasons.append(f"전용면적: {area}㎡")
+
+        # 3. 유의지역이면 LTV 80% 제한 (APT만)
+        if property_type == "APT" and is_caution_region(address):
+            if ltv_standard > 80:
+                reasons.append(f"⚠️ 유의지역 80% 제한 적용 ({ltv_standard}% → 80%)")
+                ltv_standard = 80.0
+            else:
+                reasons.append("유의지역 (현재 LTV는 80% 이하)")
+
+        # 4. 시세 15억(150000만원) 초과 시 5% 차감
+        if kb_price and kb_price > 150000:
+            kb_price_billion = kb_price / 10000  # 만원 → 억원
+            old_ltv = ltv_standard
+            ltv_standard = max(0, ltv_standard - 5.0)
+            reasons.append(f"⚠️ 시세 15억 초과 ({kb_price_billion:.1f}억) → 5% 차감 ({old_ltv}% → {ltv_standard}%)")
+
+        # 5. 40년 이상 노후주택 LTV 60% 제한
+        if completion_date and completion_date.strip():
+            try:
+                # 준공일자 파싱 (YYYY-MM 형식)
+                completion_parts = completion_date.strip().split('-')
+                if len(completion_parts) >= 2:
+                    completion_year = int(completion_parts[0])
+                    completion_month = int(completion_parts[1])
+
+                    # 현재 날짜
+                    from datetime import datetime
+                    today = datetime.now()
+                    current_year = today.year
+                    current_month = today.month
+
+                    # 경과 년수 계산 (월 고려)
+                    years_elapsed = current_year - completion_year
+                    if current_month < completion_month:
+                        years_elapsed -= 1
+
+                    # 40년 이상이면 LTV 60% 제한
+                    if years_elapsed >= 40:
+                        if ltv_standard > 60:
+                            old_ltv = ltv_standard
+                            ltv_standard = 60.0
+                            reasons.append(f"⚠️ 40년 이상 노후주택 ({years_elapsed}년) → 60% 제한 ({old_ltv}% → 60%)")
+                        else:
+                            reasons.append(f"40년 이상 노후주택 ({years_elapsed}년, 현재 LTV는 60% 이하)")
+                    else:
+                        reasons.append(f"준공연도: {completion_year}년 (경과 {years_elapsed}년)")
+            except (ValueError, IndexError) as e:
+                reasons.append(f"⚠️ 준공일자 파싱 오류: {completion_date}")
+
+        # 최종 LTV 표시
+        reasons.append(f"✅ 최종 LTV: {ltv_standard}%")
+
+        return {'ltv': ltv_standard, 'reasons': reasons, 'error': None}
+    except Exception as e:
+        logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
+        return {'ltv': None, 'reasons': reasons, 'error': str(e)}
+
 def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type=''):
     """
     희망담보상품(아이엠질권) 금리 기준 (KB시세 아파트)
@@ -841,27 +952,28 @@ def auto_calculate_ltv_route():
         # 준공일자 가져오기
         completion_date = data.get('completion_date', '')
 
-        # 자동 LTV 계산 (클라이언트에서 전달받은 is_senior, KB 시세, 물건유형, 준공일자 사용)
-        auto_ltv = auto_calculate_ltv(address, area_val, is_senior=is_senior, kb_price=kb_price_val, property_type=property_type, completion_date=completion_date)
+        # 자동 LTV 계산 (사유 포함)
+        result = auto_calculate_ltv_with_reasons(
+            address,
+            area_val,
+            is_senior=is_senior,
+            kb_price=kb_price_val,
+            property_type=property_type,
+            completion_date=completion_date
+        )
 
-        # Non-APT 2군/3군 취급불가 처리
-        if auto_ltv is None:
+        # 오류 처리
+        if result['ltv'] is None or result['error']:
             region_grade = get_region_grade(address)
-            if property_type == 'Non-APT' and region_grade in ['2군', '3군']:
-                return jsonify({
-                    "success": False,
-                    "error": f"Non-APT {region_grade} 취급불가",
-                    "address": address,
-                    "region_grade": region_grade,
-                    "property_type": property_type
-                }), 200
-            else:
-                return jsonify({
-                    "success": False,
-                    "error": "급지를 판단할 수 없습니다.",
-                    "address": address,
+            return jsonify({
+                "success": False,
+                "error": result['error'] or "LTV 계산 실패",
+                "reasons": result['reasons'],
+                "address": address,
+                "region_grade": region_grade,
+                "property_type": property_type,
                 "area": area_val
-            }), 400
+            }), 200
 
         # 추가 정보
         region_grade = get_region_grade(address)
@@ -869,7 +981,8 @@ def auto_calculate_ltv_route():
 
         return jsonify({
             "success": True,
-            "auto_ltv": auto_ltv,
+            "auto_ltv": result['ltv'],
+            "reasons": result['reasons'],  # 적용 사유 추가
             "region_grade": region_grade,
             "is_caution_region": is_caution,
             "is_senior": is_senior,
