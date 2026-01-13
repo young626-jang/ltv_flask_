@@ -986,6 +986,20 @@ async function loadCustomerData() {
             checkTransferDateColor(data.ownership_transfer_date);
         }
         safeSetValue('unit_count', data.unit_count || '');
+        safeSetValue('completion_date', data.completion_date || '');
+
+        // 즉발사업자 복원
+        const instantBusinessCheckbox = document.getElementById('instant-business-operator');
+        if (instantBusinessCheckbox && data.instant_business_operator) {
+            instantBusinessCheckbox.checked = true;
+            // 체크박스 이벤트 트리거하여 날짜 필드 표시
+            instantBusinessCheckbox.dispatchEvent(new Event('change'));
+        }
+
+        // 즉발사업자 날짜 필드 복원
+        safeSetValue('business_issue_date', data.business_issue_date || '');
+        safeSetValue('business_registration_date', data.business_registration_date || '');
+        safeSetValue('loan_available_date', data.loan_available_date || '');
 
         const regionSelect = document.getElementById('deduction_region');
         if (regionSelect) {
