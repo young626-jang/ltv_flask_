@@ -206,7 +206,31 @@
                 </div>
             </div>
 
-            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0;">
+            <!-- 즉발사업자 날짜 필드 (체크 시 표시) -->
+            <div id="instant-business-dates" class="mb-2 mt-2" style="display: none; background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; position: relative; z-index: 10;">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label mb-0" style="min-width: 100px; font-weight: 500;">사업자 발급일</label>
+                            <input type="date" class="form-control form-field md-input" id="business_issue_date">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label mb-0" style="min-width: 110px; font-weight: 500;">사업자등록일자</label>
+                            <input type="text" class="form-control form-field md-input" id="business_registration_date" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label mb-0" style="min-width: 100px; font-weight: 500;">대출가능일자</label>
+                            <input type="text" class="form-control form-field md-input" id="loan_available_date" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem;">
                 <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
                     <div class="row g-2">
                         <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설팅(만)"></div>
@@ -403,9 +427,9 @@ async function updateAutoLTV() {
     }
 
     // 메리츠 질권: APT이지만 100세대 이하면 Non-APT 기준 자동 적용
-    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+    // const meritzCheckbox = document.getElementById('meritz-collateral-loan'); // 이미 위에서 선언됨
     const unitCountField = document.getElementById('unit_count');
-    const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+    // const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked; // 이미 위에서 선언됨
 
     if (isMeritzChecked && property_type === 'APT' && unitCountField) {
         const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
@@ -457,10 +481,10 @@ async function updateAutoLTV() {
             }
 
             // ✅ [수정] 질권이 체크되어 있을 때만 LTV를 자동으로 설정
-            const hopeCheckbox = document.getElementById('hope-collateral-loan');
-            const meritzCheckbox = document.getElementById('meritz-collateral-loan');
-            const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
-            const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+            // const hopeCheckbox = document.getElementById('hope-collateral-loan'); // 이미 위에서 선언됨
+            // const meritzCheckbox = document.getElementById('meritz-collateral-loan'); // 이미 위에서 선언됨
+            // const isHopeChecked = hopeCheckbox && hopeCheckbox.checked; // 이미 위에서 선언됨
+            // const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked; // 이미 위에서 선언됨
 
             // 질권이 하나라도 체크되어 있을 때만 자동으로 LTV 설정
             if (isHopeChecked || isMeritzChecked) {
@@ -576,7 +600,107 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 메리츠 급지 호버 효과 초기화
     initMeritzRegionTooltips();
+
+    // ✅ 즉발사업자 체크박스 이벤트
+    const instantCheckbox = document.getElementById('instant-business-operator');
+    console.log('즉발사업자 체크박스 찾기:', instantCheckbox);
+    if (instantCheckbox) {
+        instantCheckbox.addEventListener('change', handleInstantBusinessOperator);
+        console.log('즉발사업자 이벤트 리스너 등록 완료');
+    } else {
+        console.error('즉발사업자 체크박스를 찾을 수 없습니다!');
+    }
 });
+
+// 2026년 공휴일 목록 (간단하게 하드코딩, 나중에 API로 대체 가능)
+const holidays2026 = [
+    '2026-01-01', // 신정
+    '2026-01-24', '2026-01-25', '2026-01-26', // 설날 연휴
+    '2026-03-01', // 삼일절
+    '2026-05-05', // 어린이날
+    '2026-05-24', // 석가탄신일
+    '2026-06-06', // 현충일
+    '2026-08-15', // 광복절
+    '2026-09-14', '2026-09-15', '2026-09-16', // 추석 연휴
+    '2026-10-03', // 개천절
+    '2026-10-09', // 한글날
+    '2026-12-25'  // 크리스마스
+];
+
+// 즉발사업자 체크박스 핸들러
+function handleInstantBusinessOperator(e) {
+    console.log('handleInstantBusinessOperator 함수 호출됨!', e);
+    const isChecked = e.target.checked;
+    console.log('체크 상태:', isChecked);
+    const datesContainer = document.getElementById('instant-business-dates');
+    const businessRegDateField = document.getElementById('business_registration_date');
+    const loanAvailableDateField = document.getElementById('loan_available_date');
+    console.log('날짜 컨테이너:', datesContainer);
+
+    if (isChecked) {
+        // 1. 오늘 날짜
+        const today = new Date();
+
+        // 2. 사업자등록일 = 오늘로부터 20일 전
+        const businessRegDate = new Date(today);
+        businessRegDate.setDate(today.getDate() - 20);
+
+        // 3. 대출가능일 = 사업자등록일로부터 30일 후
+        let loanAvailableDate = new Date(businessRegDate);
+        loanAvailableDate.setDate(businessRegDate.getDate() + 30);
+
+        // 4. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
+        loanAvailableDate = getNextBusinessDay(loanAvailableDate);
+
+        // 5. 날짜를 YYYY-MM-DD 형식으로 포맷
+        businessRegDateField.value = formatDate(businessRegDate);
+        loanAvailableDateField.value = formatDate(loanAvailableDate);
+
+        // 6. 필드 표시
+        datesContainer.style.display = '';
+
+        console.log(`즉발사업자 체크: 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
+    } else {
+        // 체크 해제 시 필드 숨김
+        datesContainer.style.display = 'none';
+        businessRegDateField.value = '';
+        loanAvailableDateField.value = '';
+    }
+}
+
+// 날짜를 YYYY-MM-DD 형식으로 포맷
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// 다음 영업일 계산 (토/일/공휴일 제외)
+function getNextBusinessDay(date) {
+    let resultDate = new Date(date);
+
+    while (true) {
+        const dayOfWeek = resultDate.getDay(); // 0=일요일, 6=토요일
+        const dateStr = formatDate(resultDate);
+
+        // 토요일(6) 또는 일요일(0)인지 체크
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        // 공휴일인지 체크
+        const isHoliday = holidays2026.includes(dateStr);
+
+        if (!isWeekend && !isHoliday) {
+            // 영업일이면 반환
+            break;
+        }
+
+        // 다음 날로 이동
+        resultDate.setDate(resultDate.getDate() + 1);
+    }
+
+    return resultDate;
+}
 </script>
 
 </body>
