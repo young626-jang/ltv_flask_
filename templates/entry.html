@@ -91,7 +91,10 @@
 
                 <!-- 물건유형 + 면적 라인 -->
                 <div class="row g-2 mb-2">
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input fw-bold" id="property_type" placeholder="물건유형" readonly style="background-color: #f0f8ff;"></div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-field md-input fw-bold" id="property_type" placeholder="물건유형 (예: 아파트, 오피스텔, 다세대)">
+                        <small id="property_type_warning" style="color: red; display: none;">물건유형을 정확히 기재해주세요 (아파트/오피스텔/다세대/연립/빌라/주상복합)</small>
+                    </div>
                     <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
                 </div>
 
@@ -207,7 +210,7 @@
             </div>
 
             <!-- 즉발사업자 날짜 필드 (체크 시 표시) -->
-            <div id="instant-business-dates" class="mb-2 mt-2" style="display: none; background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; position: relative; z-index: 10;">
+            <div id="instant-business-dates" class="mb-2 mt-2" style="display: none; background: #FCE77D; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; position: relative; z-index: 10;">
                 <div class="row g-2">
                     <div class="col-md-4">
                         <div class="d-flex align-items-center gap-2">
@@ -456,6 +459,9 @@ async function updateAutoLTV() {
     const is_senior = maintain_sum === 0; // 유지 채권이 없으면 선순위
 
     try {
+        // 준공일자 가져오기
+        const completion_date = document.getElementById('completion_date')?.value || '';
+
         const response = await fetch('/api/auto_calculate_ltv', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -464,7 +470,8 @@ async function updateAutoLTV() {
                 area: parseFloat(area),
                 is_senior: is_senior,
                 kb_price: kb_price,
-                property_type: property_type  // 물건유형 추가
+                property_type: property_type,  // 물건유형 추가
+                completion_date: completion_date  // 준공일자 추가
             })
         });
 
@@ -581,11 +588,16 @@ function initMeritzRegionTooltips() {
 
 // 문서 로드 시 이벤트 리스너 추가
 document.addEventListener('DOMContentLoaded', function() {
-    // 주소, 면적, 물건유형, KB시세 입력 시 자동 LTV 재계산
-    document.getElementById('address').addEventListener('change', updateAutoLTV);
-    document.getElementById('area').addEventListener('change', updateAutoLTV);
-    document.getElementById('property_type').addEventListener('change', updateAutoLTV);
-    document.getElementById('kb_price').addEventListener('change', updateAutoLTV);
+    // 주소, 면적, 물건유형, KB시세, 준공일자 입력 시 자동 LTV 재계산
+    // change: Enter 키 또는 탭 이동 시 / blur: 포커스를 잃을 때 (다른 곳 클릭)
+    const autoLTVFields = ['address', 'area', 'property_type', 'kb_price', 'completion_date'];
+    autoLTVFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('change', updateAutoLTV);
+            field.addEventListener('blur', updateAutoLTV);
+        }
+    });
 
     // 근저당권 상태 변경 시 자동 LTV 재계산 (event delegation)
     document.addEventListener('change', function(e) {
@@ -610,6 +622,13 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error('즉발사업자 체크박스를 찾을 수 없습니다!');
     }
+
+    // ✅ 물건유형 유효성 검증
+    const propertyTypeField = document.getElementById('property_type');
+    if (propertyTypeField) {
+        propertyTypeField.addEventListener('input', validatePropertyType);
+        propertyTypeField.addEventListener('blur', validatePropertyType);
+    }
 });
 
 // 2026년 공휴일 목록 (간단하게 하드코딩, 나중에 API로 대체 가능)
@@ -627,45 +646,98 @@ const holidays2026 = [
     '2026-12-25'  // 크리스마스
 ];
 
+// 물건유형 유효성 검증
+function validatePropertyType() {
+    const propertyTypeField = document.getElementById('property_type');
+    const warningEl = document.getElementById('property_type_warning');
+    const value = propertyTypeField.value.trim();
+
+    // 유효한 물건유형 목록
+    const validTypes = ['아파트', '주상복합', '오피스텔', '다세대', '연립', '빌라'];
+
+    // 빈 값이거나 유효하지 않은 경우
+    if (!value || !validTypes.some(type => value.includes(type))) {
+        // 경고 표시
+        warningEl.style.display = 'block';
+        propertyTypeField.style.backgroundColor = '#ffe6e6'; // 연한 빨간색
+        propertyTypeField.style.borderColor = '#ff4444';
+        return false;
+    } else {
+        // 유효한 경우
+        warningEl.style.display = 'none';
+        propertyTypeField.style.backgroundColor = '#ffffff'; // 흰색
+        propertyTypeField.style.borderColor = '';
+        return true;
+    }
+}
+
 // 즉발사업자 체크박스 핸들러
 function handleInstantBusinessOperator(e) {
     console.log('handleInstantBusinessOperator 함수 호출됨!', e);
     const isChecked = e.target.checked;
     console.log('체크 상태:', isChecked);
     const datesContainer = document.getElementById('instant-business-dates');
+    const businessIssueDateField = document.getElementById('business_issue_date');
     const businessRegDateField = document.getElementById('business_registration_date');
     const loanAvailableDateField = document.getElementById('loan_available_date');
     console.log('날짜 컨테이너:', datesContainer);
 
     if (isChecked) {
-        // 1. 오늘 날짜
+        // 1. 오늘 날짜를 사업자 발급일에 설정
         const today = new Date();
+        businessIssueDateField.value = formatDateForInput(today);
 
-        // 2. 사업자등록일 = 오늘로부터 20일 전
-        const businessRegDate = new Date(today);
-        businessRegDate.setDate(today.getDate() - 20);
+        // 2. 날짜 계산 및 설정
+        calculateDatesFromIssueDate(today);
 
-        // 3. 대출가능일 = 사업자등록일로부터 30일 후
-        let loanAvailableDate = new Date(businessRegDate);
-        loanAvailableDate.setDate(businessRegDate.getDate() + 30);
-
-        // 4. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
-        loanAvailableDate = getNextBusinessDay(loanAvailableDate);
-
-        // 5. 날짜를 YYYY-MM-DD 형식으로 포맷
-        businessRegDateField.value = formatDate(businessRegDate);
-        loanAvailableDateField.value = formatDate(loanAvailableDate);
-
-        // 6. 필드 표시
+        // 3. 필드 표시
         datesContainer.style.display = '';
 
-        console.log(`즉발사업자 체크: 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
+        // 4. 사업자 발급일 변경 이벤트 리스너 등록
+        businessIssueDateField.addEventListener('change', handleBusinessIssueDateChange);
+
+        console.log(`즉발사업자 체크: 발급일=${businessIssueDateField.value}, 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
     } else {
-        // 체크 해제 시 필드 숨김
+        // 체크 해제 시 필드 숨김 및 초기화
         datesContainer.style.display = 'none';
+        businessIssueDateField.value = '';
         businessRegDateField.value = '';
         loanAvailableDateField.value = '';
+
+        // 이벤트 리스너 제거
+        businessIssueDateField.removeEventListener('change', handleBusinessIssueDateChange);
     }
+}
+
+// 사업자 발급일 변경 시 자동 계산
+function handleBusinessIssueDateChange(e) {
+    const issueDate = new Date(e.target.value);
+    if (issueDate && !isNaN(issueDate)) {
+        calculateDatesFromIssueDate(issueDate);
+    }
+}
+
+// 사업자 발급일 기준으로 날짜 계산
+function calculateDatesFromIssueDate(issueDate) {
+    const businessRegDateField = document.getElementById('business_registration_date');
+    const loanAvailableDateField = document.getElementById('loan_available_date');
+
+    // 1. 사업자등록일 = 발급일로부터 20일 전
+    const businessRegDate = new Date(issueDate);
+    businessRegDate.setDate(issueDate.getDate() - 20);
+
+    // 2. 대출가능일 = 사업자등록일로부터 30일 후
+    let loanAvailableDate = new Date(businessRegDate);
+    loanAvailableDate.setDate(businessRegDate.getDate() + 30);
+
+    // 3. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
+    loanAvailableDate = getNextBusinessDay(loanAvailableDate);
+
+    // 4. 날짜를 표시 형식으로 포맷
+    businessRegDateField.value = formatDate(businessRegDate);
+    loanAvailableDateField.value = formatDate(loanAvailableDate);
+
+    console.log(`날짜 재계산: 발급일=${formatDate(issueDate)}, 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
 }
 
 // 날짜를 YYYY-MM-DD 형식으로 포맷
@@ -674,6 +746,11 @@ function formatDate(date) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+// date input 필드용 날짜 포맷 (formatDate와 동일)
+function formatDateForInput(date) {
+    return formatDate(date);
 }
 
 // 다음 영업일 계산 (토/일/공휴일 제외)
