@@ -429,6 +429,59 @@ async function updateAutoLTV() {
     const displayEl = document.getElementById('auto-ltv-display'); // ✅ displayEl 정의 추가
     const completion_date = document.getElementById('completion_date')?.value || '';
 
+    // ✅ [핵심] 아이엠 질권 체크 시 - 메리츠 API 호출하지 않고 아이엠 기준 적용
+    if (isHopeChecked && !isMeritzChecked) {
+        // 선순위/후순위 판단
+        const maintain_statuses = ['유지', '동의', '비동의'];
+        const loanRows = document.querySelectorAll('.loan-item');
+        let maintain_sum = 0;
+        loanRows.forEach(row => {
+            const statusSelect = row.querySelector('[name="status"]');
+            const status = statusSelect ? statusSelect.value : '';
+            if (maintain_statuses.includes(status)) {
+                maintain_sum += 1;
+            }
+        });
+        const is_senior = maintain_sum === 0;
+        const loanTypeLabel = is_senior ? '선순위' : '후순위';
+
+        // 서울/경기/인천 체크
+        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천');
+
+        if (!isValidRegion) {
+            if (displayEl) {
+                displayEl.textContent = '⚠️ 아이엠: 서울/경기/인천 외 지역 취급불가';
+                displayEl.style.color = '#dc3545';
+            }
+            return;
+        }
+
+        // 아이엠 LTV: 선순위 70%, 후순위 80%
+        const hopeLtv = is_senior ? 70 : 80;
+
+        if (displayEl) {
+            displayEl.textContent = `자동LTV: ${hopeLtv}% [아이엠] (${loanTypeLabel})`;
+            displayEl.style.color = '#198754';
+        }
+
+        // LTV 적용 사유 표시
+        const reasonsContainer = document.getElementById('ltv-reasons-container');
+        const reasonsList = document.getElementById('ltv-reasons-list');
+        if (reasonsContainer && reasonsList) {
+            reasonsList.innerHTML = `
+                <div>지역: 서울/경기/인천</div>
+                <div>순위: ${loanTypeLabel}</div>
+                <div style="color: #059669; font-weight: 600; margin-top: 4px;">✅ 아이엠 LTV: ${hopeLtv}%</div>
+            `;
+            reasonsContainer.style.display = '';
+        }
+
+        // LTV 필드에 값 설정
+        document.getElementById("ltv1").value = hopeLtv;
+        console.log(`📊 아이엠 자동LTV 설정: ${hopeLtv}% (${loanTypeLabel})`);
+        return; // 아이엠 처리 완료, 메리츠 API 호출하지 않음
+    }
+
     // ✅ 주소/면적이 없어도 준공일자만으로 40년 이상 체크
     if ((!address || !area) && completion_date) {
         // 준공일자만 있는 경우: 40년 이상이면 LTV 60%로 설정
