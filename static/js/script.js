@@ -1042,16 +1042,17 @@ async function loadCustomerData() {
             safeSetValue('share-customer-birth-2', data.share_rate2);
         }
 
-        // 아이엠질권 및 메리츠질권 체크박스 복원
+        // 아이엠질권 및 메리츠질권 체크박스 복원 (상호 배타적 - 아이엠 우선)
         const hopeCheckbox = document.getElementById('hope-collateral-loan');
         const meritzCheckbox = document.getElementById('meritz-collateral-loan');
 
         if (hopeCheckbox && data.hope_collateral_checked) {
+            // 아이엠 체크 시 메리츠는 복원하지 않음 (상호 배타적)
             hopeCheckbox.checked = true;
             hopeCheckbox.dispatchEvent(new Event('change'));
-        }
-
-        if (meritzCheckbox && data.meritz_collateral_checked) {
+            console.log('✅ 아이엠질권 복원 (메리츠 복원 생략)');
+        } else if (meritzCheckbox && data.meritz_collateral_checked) {
+            // 아이엠이 체크되지 않은 경우에만 메리츠 복원
             meritzCheckbox.checked = true;
             meritzCheckbox.dispatchEvent(new Event('change'));
 
@@ -1075,6 +1076,7 @@ async function loadCustomerData() {
                     }
                 });
             }
+            console.log('✅ 메리츠질권 복원');
         }
 
         triggerMemoGeneration();
