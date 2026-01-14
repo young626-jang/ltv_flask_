@@ -2793,6 +2793,13 @@ function validateMeritzLoanConditions() {
 
     if (!meritzCheckbox || !areaField || !kbPriceField || !ltv1Field) return;
 
+    // ✅ [핵심] 아이엠 질권이 체크되어 있으면 메리츠 검증 스킵
+    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+    if (hopeCheckbox && hopeCheckbox.checked) {
+        console.log('⏭️ 아이엠 질권 활성화 - 메리츠 검증 스킵');
+        return;
+    }
+
     // 메리츠 질권이 체크되어 있는지 확인
     const isMeritzChecked = meritzCheckbox.checked;
     const regionButtonsDiv = document.getElementById('meritz-loan-region-buttons');
@@ -2915,6 +2922,31 @@ function validateMeritzLoanConditions() {
             const deductedLtv = baseLtv - 5;
             ltv1Field.value = deductedLtv;
             console.log(`💸 고가물건 조정: 시세 15억 초과 → LTV ${baseLtv}% → ${deductedLtv}%`);
+        }
+
+        // ========================================================
+        // 4. 1군 유의지역 max LTV 80% 상한 적용
+        // ========================================================
+        // 유의지역: 서울(중랑구, 관악구, 강북구, 성북구, 노원구, 도봉구), 경기(구리시, 남양주시), 인천1군 전체
+        if (meritzRegion === '1gun' && address) {
+            const cautionAreas = [
+                // 서울 유의지역
+                '중랑구', '관악구', '강북구', '성북구', '노원구', '도봉구',
+                // 경기 유의지역
+                '구리시', '구리', '남양주시', '남양주',
+                // 인천 1군 전체
+                '계양구', '계양', '부평구', '부평', '연수구', '연수', '미추홀구', '미추홀'
+            ];
+
+            const isCautionArea = cautionAreas.some(area => address.includes(area));
+
+            if (isCautionArea) {
+                const currentLtv = parseFloat(ltv1Field.value) || baseLtv;
+                if (currentLtv > 80) {
+                    ltv1Field.value = 80;
+                    console.log(`⚠️ 1군 유의지역: ${address} → LTV ${currentLtv}% → 80% (Max 상한)`);
+                }
+            }
         }
 
         // ========================================================
