@@ -1606,9 +1606,10 @@ async function handleFileUpload(file) {
                     loans: loans,
                     owners: owners,
                     loan_type: loanTypeInfo,
-                    address: address,  // 지분대출 1군 지역 검증용
-                    area: area,  // 메리츠 LTV 기준 계산용
-                    is_collateral_checked: isHopeChecked || isMeritzChecked  // 질권 체크 여부
+                    address: address,
+                    area: area,
+                    is_meritz_checked: isMeritzChecked, // 메리츠 체크 여부 분리
+                    is_hope_checked: isHopeChecked      // 아이엠 체크 여부 분리
                 };
 
                 const res = await fetch("/api/calculate_individual_share", {
@@ -3169,7 +3170,6 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun', propertyT
 // ========================================================
 // 주소 기반 메리츠 지역 판단 함수
 // ========================================================
-function determineMeritzRegionFromAddress(address) {
     /**
      * 메리츠 지역 판단 기준 (PDF 기준)
      *
@@ -3185,138 +3185,67 @@ function determineMeritzRegionFromAddress(address) {
      * 3군 지역: 경기3군
      * - 경기3군: 평택, 안성, 여주, 포천
      */
-
+function determineMeritzRegionFromAddress(address) {
     if (!address) return null;
 
-    // 3군 지역 목록 (먼저 확인)
-    const region3Gun = [
-        // 경기3군
-        '평택', '안성', '여주', '포천'
-    ];
+    // 지역 목록 (정확한 매칭을 위해 리스트 활용)
+    const r3 = ['평택', '안성', '여주', '포천'];
+    const r2 = ['시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주', '남동구', '서구', '동구', '중구'];
+    const r1 = ['강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '용산', '영등포', '동작', '관악', '성동', '광진', '동대문', '중랑', '성북', '강북', '노원', '도봉', '은평', '양천', '구로', '강서', '금천', '수지', '기흥', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주', '계양', '부평', '연수', '미추홀'];
 
-    // 2군 지역 목록
-    const region2Gun = [
-        // 경기2군 - 처인구는 용인의 일부이므로 "용인 처인구" 또는 "처인구" 확인
-        '시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주',
-        // 인천2군
-        '남동구', '서구', '동구', '중구'
-    ];
-
-    // 1군 지역 목록
-    const region1Gun = [
-        // 서울 (모든 구)
-        '강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '용산', '영등포', '동작', '관악', '성동', '광진', '동대문', '중랑', '성북', '강북', '노원', '도봉', '은평', '양천', '구로', '강서', '금천',
-        // 경기1군 - 수지구, 기흥구는 용인의 일부
-        '수지', '기흥', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주',
-        // 인천1군
-        '계양', '부평', '연수', '미추홀'
-    ];
-
-    // 주소에서 지역명 검색 (3군 → 2군 → 1군 순서)
-
-    // 3군 우선 확인
-    for (let region of region3Gun) {
-        if (address.includes(region)) {
-            return '3gun';
-        }
+    // ✅ 1. 1군부터 확인
+    for (let reg of r1) {
+        if (address.includes(reg)) return '1gun';
     }
 
-    // 2군 확인 (처인구 특별 처리: 용인이 없을 때만)
-    for (let region of region2Gun) {
-        if (address.includes(region)) {
-            // 처인구의 경우 특별 처리
-            if (region === '처인구' && address.includes('용인')) {
-                // 용인 처인구 = 경기2군
-                return '2gun';
-            }
+    // ✅ 2. 2군 확인 (서구 예외처리)
+    for (let reg of r2) {
+        if (address.includes(reg)) {
+            if (reg === '서구' && address.includes('강서구')) continue;
             return '2gun';
         }
     }
 
-    // 1군 확인 (용인 단독 = 경기1군)
-    for (let region of region1Gun) {
-        if (address.includes(region)) {
-            // 용인이 처인구 없이 단독으로 나타나면 경기1군 (수지/기흥 포함)
-            if (region === '수지' || region === '기흥') {
-                return '1gun';
-            }
-            return '1gun';
-        }
+    // ✅ 3. 3군 확인
+    for (let reg of r3) {
+        if (address.includes(reg)) return '3gun';
     }
 
-    // 용인이 처인구 없이 단독으로 나타나는 경우 (용인 = 기본값 1군)
-    if (address.includes('용인') && !address.includes('처인구')) {
-        return '1gun';
-    }
+    // ✅ 4. 용인 단독 처리
+    if (address.includes('용인') && !address.includes('처인구')) return '1gun';
 
     return null;
 }
 
 // ========================================================
-// 주소 기반 급지 판단 함수 (지분대출용)
+// 주소 기반 급지 판단 함수 (지분대출/기본 급지용)
 // ========================================================
 function getRegionGradeFromAddress(address) {
-    /**
-     * 주소에서 급지(1군, 2군, 3군) 자동 판단
-     *
-     * @param {string} address - 주소 문자열
-     * @returns {string} - '1군', '2군', '3군', 또는 '미분류'
-     */
     if (!address) return "미분류";
+    const addr = address.toUpperCase();
 
-    const upperAddress = address.toUpperCase();
-
-    // 급지 분류 데이터
-    const REGION_CLASSIFICATION = {
-        "3군": {
-            "경기": ["평택", "안성", "여주", "포천"]
-        },
-        "2군": {
-            "인천": ["남동구", "서구", "동구", "중구"],
-            "경기": ["시흥", "안산", "화성", "의정부", "양주", "고양", "광주", "동두천", "오산", "이천", "파주"]
-        },
-        "1군": {
-            "서울": [
-                "강남구", "서초구", "송파구", "강동구", "마포구", "서대문구",
-                "종로구", "중구", "용산구", "영등포구", "동작구", "관악구",
-                "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구",
-                "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구"
-            ],
-            "인천": ["계양구", "부평구", "연수구", "미추홀구"],
-            "경기": [
-                "용인", "과천", "광명", "구리", "군포", "부천", "성남",
-                "수원", "안양", "의왕", "하남", "김포", "남양주"
-            ]
-        }
+    const CLASSIFICATION = {
+        "1군": ["강남구", "서초구", "송파구", "강동구", "마포구", "서대문구", "종로구", "중구", "용산구", "영등포구", "동작구", "관악구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구", "강서구", "금천구", "계양구", "부평구", "연수구", "미추홀구", "용인", "과천", "광명", "구리", "군포", "부천", "성남", "수원", "안양", "의왕", "하남", "김포", "남양주"],
+        "2군": ["남동구", "서구", "동구", "중구", "시흥", "안산", "화성", "의정부", "양주", "고양", "광주", "동두천", "오산", "이천", "파주"],
+        "3군": ["평택", "안성", "여주", "포천"]
     };
 
-    // 3군 확인
-    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["3군"])) {
-        for (const district of districts) {
-            if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
-                return "3군";
-            }
+    // ✅ 1. 1군 우선 확인
+    for (let dist of CLASSIFICATION["1군"]) {
+        if (addr.includes(dist.toUpperCase())) return "1군";
+    }
+
+    // ✅ 2. 2군 확인 (서구 예외처리)
+    for (let dist of CLASSIFICATION["2군"]) {
+        if (addr.includes(dist.toUpperCase())) {
+            if (dist === "서구" && addr.includes("강서구")) continue;
+            return "2군";
         }
     }
 
-    // 2군 확인
-    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["2군"])) {
-        for (const district of districts) {
-            if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
-                return "2군";
-            }
-        }
-    }
-
-    // 1군 확인
-    for (const [city, districts] of Object.entries(REGION_CLASSIFICATION["1군"])) {
-        if (upperAddress.includes(city.toUpperCase()) || address.includes(city)) {
-            for (const district of districts) {
-                if (upperAddress.includes(district.toUpperCase()) || address.includes(district)) {
-                    return "1군";
-                }
-            }
-        }
+    // ✅ 3. 3군 확인
+    for (let dist of CLASSIFICATION["3군"]) {
+        if (addr.includes(dist.toUpperCase())) return "3군";
     }
 
     return "미분류";
