@@ -112,24 +112,27 @@ def get_region_grade(address):
 
     address = address.upper()
 
-    # 3군 확인
-    for city, districts in REGION_CLASSIFICATION.get("3군", {}).items():
-        for district in districts:
-            if district.upper() in address or district in address:
-                return "3군"
+    # ✅ 1. 1군부터 가장 먼저 확인
+    for city, districts in REGION_CLASSIFICATION.get("1군", {}).items():
+        if city.upper() in address:
+            for district in districts:
+                if district.upper() in address:
+                    return "1군"
 
-    # 2군 확인
+    # ✅ 2. 그 다음 2군 확인 (서구 오판정 방지)
     for city, districts in REGION_CLASSIFICATION.get("2군", {}).items():
         for district in districts:
-            if district.upper() in address or district in address:
+            if district.upper() in address:
+                # '서구'가 검색되었는데 주소에 '강서구'가 있으면 무시하고 넘어감
+                if district == "서구" and "강서구" in address:
+                    continue
                 return "2군"
 
-    # 1군 확인
-    for city, districts in REGION_CLASSIFICATION.get("1군", {}).items():
-        if city.upper() in address or city in address:
-            for district in districts:
-                if district.upper() in address or district in address:
-                    return "1군"
+    # ✅ 3. 마지막으로 3군 확인
+    for city, districts in REGION_CLASSIFICATION.get("3군", {}).items():
+        for district in districts:
+            if district.upper() in address:
+                return "3군"
 
     return "미분류"
 
