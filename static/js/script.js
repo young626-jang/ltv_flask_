@@ -850,8 +850,8 @@ function collectAllData() {
             // [복구] LTV1만 전송
             ltv_rates: [document.getElementById('ltv1').value],
 
-            // [삭제] required_amount 필드 제거
-            // required_amount: document.getElementById('required_amount').value,
+            // [복구] 필요금액 전송 - 입력 시 한도에 반영
+            required_amount: document.getElementById('required_amount').value,
 
             share_rate1: document.getElementById('share-customer-birth-1').value,
             share_rate2: document.getElementById('share-customer-birth-2').value,
