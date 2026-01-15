@@ -1380,8 +1380,11 @@ async function handleFileUpload(file) {
             // 최종적으로 메모를 업데이트합니다.
             triggerMemoGeneration();
 
-        } else { 
-            alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`); 
+            // ✅ [신규] 질권 체크 상태에서 지방 물건이면 경고 표시
+            checkRegionWarningForCollateral(scraped.address);
+
+        } else {
+            alert(`업로드 실패: ${result.error || '알 수 없는 오류'}`);
         }
 
     } catch (error) {
@@ -1948,6 +1951,10 @@ function attachAllEventListeners() {
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
 
                 console.log('✅ 희망담보대부 적용 - 지역 버튼 표시');
+
+                // ✅ [신규] 아이엠 체크 시 지방 물건 경고
+                const currentAddress = document.getElementById('address')?.value || '';
+                checkRegionWarningForCollateral(currentAddress);
             } else {
                 // 체크 해제되면 지역 버튼 숨김
                 regionButtonsDiv.style.cssText = 'display: none !important;';
@@ -2091,6 +2098,10 @@ function attachAllEventListeners() {
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
 
                 console.log('✅ 메리츠질권적용 - 활성화');
+
+                // ✅ [신규] 메리츠 체크 시 지방 물건 경고
+                const currentAddress = document.getElementById('address')?.value || '';
+                checkRegionWarningForCollateral(currentAddress);
             } else {
                 // 체크 해제되면 메리츠 지역 버튼 숨김
                 if (meritzRegionButtonsDiv) {
@@ -3281,4 +3292,38 @@ function getRegionGradeFromAddress(address) {
     }
 
     return "미분류";
+}
+
+// ========================================================
+// 질권 체크 시 지방 물건 경고 함수
+// ========================================================
+function checkRegionWarningForCollateral(address) {
+    // 아이엠 또는 메리츠 질권이 체크되어 있는지 확인
+    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+
+    const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
+    const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
+
+    // 질권이 체크되어 있지 않으면 경고하지 않음
+    if (!isHopeChecked && !isMeritzChecked) {
+        return;
+    }
+
+    // 주소가 없으면 경고하지 않음
+    if (!address || address.trim() === '') {
+        return;
+    }
+
+    // 서울/경기/인천 지역인지 확인
+    const isSeoul = address.includes('서울');
+    const isGyeonggi = address.includes('경기');
+    const isIncheon = address.includes('인천');
+
+    // 서울/경기/인천이 아니면 경고 표시
+    if (!isSeoul && !isGyeonggi && !isIncheon) {
+        const pledgeType = isHopeChecked ? '아이엠질권' : '메리츠질권';
+        showCustomAlert(`⚠️ ${pledgeType} 취급불가 지역입니다!\n\n서울/경기/인천 외 지역은 취급이 불가합니다.\n현재 주소: ${address}`);
+        console.log(`🔴 경고: ${pledgeType} 취급불가 지역 - ${address}`);
+    }
 }
