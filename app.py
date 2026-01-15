@@ -725,6 +725,10 @@ def generate_memo(data):
                     pass
         # --- ▲▲▲ LTV 계산 완료 ▲▲▲ ---
 
+        # ✅ [신규] 필요금액이 입력되면 한도 대신 필요금액 사용
+        required_amount_raw = inputs.get('required_amount', '')
+        required_amount_val = parse_korean_number(required_amount_raw) if required_amount_raw else 0
+
         if ltv_results and isinstance(ltv_results, list):
             ltv_memo = []
             for res in ltv_results:
@@ -733,6 +737,12 @@ def generate_memo(data):
                     ltv_rate = int(res.get('ltv_rate', 0)) if res.get('ltv_rate', 0) else '/'
                     limit = res.get('limit', 0)
                     available = res.get('available', 0)
+
+                    # ✅ [핵심] 필요금액이 입력되면 한도와 가용자금 덮어쓰기
+                    if required_amount_val > 0:
+                        limit = required_amount_val
+                        # 가용자금 = 필요금액 - 대환/선말소 원금 합계
+                        available = required_amount_val - principal_sum
 
                     # 기본 LTV 한도 메시지 생성
                     ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
