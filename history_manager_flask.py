@@ -98,6 +98,10 @@ def get_share_rate(props: Dict, name: str) -> Optional[float]:
     
     return None
 
+def get_checkbox(props: Dict, name: str) -> bool:
+    """Checkbox 속성에서 boolean 값 추출"""
+    return props.get(name, {}).get("checkbox", False)
+
 def safe_number_conversion(value: Any) -> int:
     """안전한 숫자 변환"""
     try:
@@ -218,6 +222,9 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "business_issue_date": get_rich_text(props, "사업자발급일"),
         "business_registration_date": get_rich_text(props, "사업자등록일자"),
         "loan_available_date": get_rich_text(props, "대출가능일자"),
+        "meritz_region": get_rich_text(props, "메리츠지역"),
+        "meritz_collateral_checked": get_checkbox(props, "메리츠질권적용"),
+        "hope_collateral_checked": get_checkbox(props, "아이엠질권적용"),
         "deduction_region": get_rich_text(props, "방공제지역"),
         "ltv1": get_rich_text(props, "LTV비율1"),
         "ltv2": get_rich_text(props, "LTV비율2"),
@@ -311,6 +318,15 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "대출가능일자": {
             "rich_text": [{"text": {"content": inputs.get("loan_available_date", "").strip()}}]
+        },
+        "메리츠지역": {
+            "rich_text": [{"text": {"content": inputs.get("meritz_region", "").strip()}}]
+        },
+        "메리츠질권적용": {
+            "checkbox": inputs.get("meritz_collateral_checked", False)
+        },
+        "아이엠질권적용": {
+            "checkbox": inputs.get("hope_collateral_checked", False)
         },
         "방공제지역": {
             "rich_text": [{"text": {"content": inputs.get("deduction_region_text", "").strip()}}]
@@ -558,6 +574,11 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
+
+
+
 
 
 
