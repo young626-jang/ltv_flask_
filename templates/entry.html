@@ -234,7 +234,7 @@
                     <div class="col-md-4">
                         <div class="d-flex align-items-center gap-2">
                             <label class="form-label mb-0" style="min-width: 110px; font-weight: 500;">사업자등록일자</label>
-                            <input type="text" class="form-control form-field md-input" id="business_registration_date" readonly>
+                            <input type="date" class="form-control form-field md-input" id="business_registration_date">
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -896,6 +896,9 @@ function handleInstantBusinessOperator(e) {
         // 4. 사업자 발급일 변경 이벤트 리스너 등록
         businessIssueDateField.addEventListener('change', handleBusinessIssueDateChange);
 
+        // 5. 사업자등록일자 변경 이벤트 리스너 등록 (수기 입력용)
+        businessRegDateField.addEventListener('change', handleBusinessRegistrationDateChange);
+
         console.log(`즉발사업자 체크: 발급일=${businessIssueDateField.value}, 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
     } else {
         // 체크 해제 시 필드 숨김 및 초기화
@@ -906,6 +909,7 @@ function handleInstantBusinessOperator(e) {
 
         // 이벤트 리스너 제거
         businessIssueDateField.removeEventListener('change', handleBusinessIssueDateChange);
+        businessRegDateField.removeEventListener('change', handleBusinessRegistrationDateChange);
     }
 }
 
@@ -914,6 +918,14 @@ function handleBusinessIssueDateChange(e) {
     const issueDate = new Date(e.target.value);
     if (issueDate && !isNaN(issueDate)) {
         calculateDatesFromIssueDate(issueDate);
+    }
+}
+
+// 사업자등록일자 수기 입력 시 자동 계산
+function handleBusinessRegistrationDateChange(e) {
+    const registrationDate = new Date(e.target.value);
+    if (registrationDate && !isNaN(registrationDate)) {
+        calculateFromRegistrationDate(registrationDate);
     }
 }
 
@@ -934,10 +946,31 @@ function calculateDatesFromIssueDate(issueDate) {
     loanAvailableDate = getNextBusinessDay(loanAvailableDate);
 
     // 4. 날짜를 표시 형식으로 포맷
-    businessRegDateField.value = formatDate(businessRegDate);
+    businessRegDateField.value = formatDateForInput(businessRegDate);
     loanAvailableDateField.value = formatDate(loanAvailableDate);
 
     console.log(`날짜 재계산: 발급일=${formatDate(issueDate)}, 사업자등록일=${businessRegDateField.value}, 대출가능일=${loanAvailableDateField.value}`);
+}
+
+// 사업자등록일자 기준으로 대출가능일 계산 (발급일은 리셋)
+function calculateFromRegistrationDate(registrationDate) {
+    const businessIssueDateField = document.getElementById('business_issue_date');
+    const loanAvailableDateField = document.getElementById('loan_available_date');
+
+    // 1. 사업자 발급일 리셋 (역계산하지 않음)
+    businessIssueDateField.value = '';
+
+    // 2. 대출가능일 = 사업자등록일로부터 30일 후
+    let loanAvailableDate = new Date(registrationDate);
+    loanAvailableDate.setDate(registrationDate.getDate() + 30);
+
+    // 3. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
+    loanAvailableDate = getNextBusinessDay(loanAvailableDate);
+
+    // 4. 날짜를 표시 형식으로 포맷
+    loanAvailableDateField.value = formatDate(loanAvailableDate);
+
+    console.log(`등록일자 기준 계산: 사업자등록일=${formatDate(registrationDate)}, 대출가능일=${loanAvailableDateField.value}, 발급일=리셋`);
 }
 
 // 날짜를 YYYY-MM-DD 형식으로 포맷
