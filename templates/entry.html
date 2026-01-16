@@ -372,14 +372,14 @@
                         <div class="row g-2">
                             <div class="col-md-4">
                                 <div class="p-2 bg-light rounded text-center">
-                                    <small class="text-muted d-block">경과이자</small>
-                                    <strong id="prepay-result-interest">-</strong>
+                                    <small class="text-muted d-block">중도상환수수료</small>
+                                    <strong id="prepay-result-fee">-</strong>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="p-2 bg-light rounded text-center">
-                                    <small class="text-muted d-block">중도상환수수료</small>
-                                    <strong id="prepay-result-fee">-</strong>
+                                    <small class="text-muted d-block">경과이자</small>
+                                    <strong id="prepay-result-interest">-</strong>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -392,8 +392,8 @@
                         <div id="prepay-fee-adjusted" class="text-danger small mt-2" style="display: none;"></div>
                         <div class="mt-3 p-2 bg-light rounded small">
                             <div class="d-flex justify-content-between"><span>대출 원금</span><span id="prepay-breakdown-principal">-</span></div>
-                            <div class="d-flex justify-content-between"><span>경과이자</span><span id="prepay-breakdown-interest">-</span></div>
                             <div class="d-flex justify-content-between"><span>중도상환수수료</span><span id="prepay-breakdown-fee">-</span></div>
+                            <div class="d-flex justify-content-between"><span>경과이자</span><span id="prepay-breakdown-interest">-</span></div>
                             <hr class="my-1">
                             <div class="d-flex justify-content-between fw-bold"><span>총 상환금액</span><span id="prepay-breakdown-total">-</span></div>
                         </div>
@@ -1073,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// 중도상환수수료 계산 함수
+// 중도상환수수료 계산 함수 (금융 전산 방식: 내림 적용으로 1원 오차 방지)
 function calculatePrepayFee() {
     let principal = parseFloat(document.getElementById('prepay-principal').value.replace(/,/g, '')) || 0;
     const interestRate = parseFloat(document.getElementById('prepay-interest-rate').value) || 0;
@@ -1090,27 +1090,28 @@ function calculatePrepayFee() {
         return;
     }
 
-    // 1. 경과이자 계산 (일할)
-    const interest = principal * (interestRate / 100) * (days / 365);
+    // 1. 법적 총수익 한도 (20%) - 소수점 버림 (내림)
+    const legalLimit = Math.floor(principal * 0.20 / 365 * days);
 
-    // 2. 법적 총 한도 계산 (연 20%)
-    const legalLimit = principal * (20 / 100) * (days / 365);
+    // 2. 경과이자 계산 - 소수점 버림 (내림) ★ 1원 오차 방지 핵심
+    const interest = Math.floor(principal * (interestRate / 100) / 365 * days);
 
-    // 3. 단순 중도상환수수료 계산
-    const rawFee = principal * (feeRate / 100);
+    // 3. 단순 중도상환수수료 계산 - 소수점 버림
+    const rawFee = Math.floor(principal * (feeRate / 100));
 
     // 4. 법적 상한선에 따른 수수료 조정
+    // 수수료 = 법적 한도 - 이자 (차감 방식)
     const maxAllowableFee = Math.max(0, legalLimit - interest);
     const finalFee = Math.min(rawFee, maxAllowableFee);
     const isAdjusted = finalFee < rawFee;
 
-    // 5. 총 상환금액
+    // 5. 총 상환금액 (정수 합산, 추가 반올림 불필요)
     const totalPayment = principal + interest + finalFee;
 
     // 결과 표시
     document.getElementById('prepay-results').style.display = '';
 
-    const formatWon = (num) => Math.round(num).toLocaleString() + '원';
+    const formatWon = (num) => num.toLocaleString() + '원';
 
     document.getElementById('prepay-result-interest').textContent = formatWon(interest);
     document.getElementById('prepay-result-fee').textContent = formatWon(finalFee);
