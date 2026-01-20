@@ -473,5 +473,381 @@ def extract_last_transfer_info(text):
 
     except Exception as e:
         print(f"소유권 이전 정보 추출 중 오류 발생: {e}")
-        
+
+    return result
+
+
+def extract_seizure_info(full_text):
+    """
+    갑구에서 압류/가압류 정보를 추출합니다.
+
+    Returns:
+        dict: {
+            'total_count': int,  # 총 압류 이력 건수 (말소된 것 포함)
+            'active_count': int,  # 현재 유효한 압류 건수
+            'active_seizures': [  # 현재 유효한 압류 목록
+                {
+                    'rank': str,  # 순위번호
+                    'type': str,  # 압류 또는 가압류
+                    'creditor': str,  # 채권자
+                    'date': str,  # 접수일
+                    'amount': str  # 금액 (있는 경우)
+                }
+            ]
+        }
+    """
+    result = {
+        'total_count': 0,
+        'active_count': 0,
+        'active_seizures': []
+    }
+
+    try:
+        # 갑구 영역 추출
+        gap_gu_match = re.search(r"【\s*갑\s*구\s*】([\s\S]*?)(?:【\s*을\s*구\s*】|주요\s*등기사항|$)", full_text)
+        if not gap_gu_match:
+            return result
+
+        gap_gu_text = gap_gu_match.group(1)
+
+        # 모든 항목 파싱
+        seizures = {}  # {순위번호: 압류정보}
+        cancelled_ranks = set()  # 말소된 순위번호 집합
+
+        # 순위번호 기준으로 항목 분리
+        entries = re.split(r'\n(?=\d{1,2}(?:-\d{1,2})?\s+)', gap_gu_text)
+
+        for entry in entries:
+            if not entry.strip():
+                continue
+
+            # 순위번호와 등기목적 추출
+            first_line_match = re.match(r'^\s*(\d{1,2}(?:-\d{1,2})?)\s+([^\s]+)', entry)
+            if not first_line_match:
+                continue
+
+            rank = first_line_match.group(1)
+            purpose = first_line_match.group(2)
+
+            # 말소 등기인지 확인 ("N번압류등기말소", "N번가압류등기말소")
+            if '말소' in purpose:
+                cancelled_match = re.search(r'(\d{1,2})번(?:압류|가압류)등기말소', entry)
+                if cancelled_match:
+                    cancelled_ranks.add(cancelled_match.group(1))
+                continue
+
+            # 압류 또는 가압류 등기인지 확인
+            if purpose == '압류' or purpose == '가압류':
+                # 날짜 추출
+                date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', entry)
+                date = date_match.group(1) if date_match else ''
+
+                # 채권자 추출
+                creditor = ''
+                creditor_match = re.search(r'권리자\s+([^\n]+)', entry)
+                if creditor_match:
+                    creditor = creditor_match.group(1).strip()
+
+                # 금액 추출 (가압류의 경우)
+                amount = ''
+                if purpose == '가압류':
+                    amount_match = re.search(r'청구금액\s+금([\d,]+)\s*원', entry)
+                    if amount_match:
+                        amount = amount_match.group(1)
+
+                seizures[rank] = {
+                    'rank': rank,
+                    'type': purpose,
+                    'creditor': creditor,
+                    'date': date,
+                    'amount': amount
+                }
+
+        # 총 건수
+        result['total_count'] = len(seizures)
+
+        # 현재 유효한 압류 (말소되지 않은 것만)
+        for rank, info in seizures.items():
+            if rank not in cancelled_ranks:
+                result['active_count'] += 1
+                result['active_seizures'].append(info)
+
+        print(f"[DEBUG] 압류 정보 추출: 총 {result['total_count']}건, 현재 유효 {result['active_count']}건")
+        print(f"[DEBUG] 말소된 순위: {sorted(cancelled_ranks)}")
+
+    except Exception as e:
+        print(f"압류 정보 추출 중 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return result
+
+
+def parse_address_for_building_api(address):
+    """
+    주소를 파싱하여 건축물대장 API에 필요한 파라미터를 추출합니다.
+
+    Args:
+        address: 주소 문자열 (예: "경기도 남양주시 화도읍 창현리 745")
+
+    Returns:
+        dict: {
+            'sigunguCd': str,  # 시군구코드 (5자리)
+            'bjdongCd': str,   # 법정동코드 (5자리: 읍면동3+리2)
+            'bun': str,        # 번 (4자리)
+            'ji': str,         # 지 (4자리)
+            'success': bool    # 파싱 성공 여부
+        }
+    """
+    result = {
+        'sigunguCd': '',
+        'bjdongCd': '',
+        'bun': '',
+        'ji': '',
+        'success': False
+    }
+
+    try:
+        # 주소 정규화 (보이지 않는 공백, 특수문자 제거)
+        address = ' '.join(address.split())  # 연속된 공백을 하나로
+        print(f"[건축물대장] 정규화된 주소: {address}")
+        print(f"[건축물대장] 주소 바이트: {address.encode('utf-8')[:50]}")
+
+        # 시군구 코드 매핑 테이블 (주요 지역만)
+        sigungu_map = {
+            '남양주시': '41360',
+            '서울특별시 강남구': '11680',
+            '서울특별시 강동구': '11740',
+            '서울특별시 강북구': '11305',
+            '서울특별시 강서구': '11500',
+            '서울특별시 관악구': '11620',
+            '서울특별시 광진구': '11215',
+            '서울특별시 구로구': '11530',
+            '서울특별시 금천구': '11545',
+            '서울특별시 노원구': '11350',
+            '서울특별시 도봉구': '11320',
+            '서울특별시 동대문구': '11230',
+            '서울특별시 동작구': '11590',
+            '서울특별시 마포구': '11440',
+            '서울특별시 서대문구': '11410',
+            '서울특별시 서초구': '11650',
+            '서울특별시 성동구': '11200',
+            '서울특별시 성북구': '11290',
+            '서울특별시 송파구': '11710',
+            '서울특별시 양천구': '11470',
+            '서울특별시 영등포구': '11560',
+            '서울특별시 용산구': '11170',
+            '서울특별시 은평구': '11380',
+            '서울특별시 종로구': '11110',
+            '서울특별시 중구': '11140',
+            '서울특별시 중랑구': '11260',
+            # 경기도
+            '수원시': '41110',
+            '성남시': '41130',
+            '의정부시': '41150',
+            '안양시': '41170',
+            '부천시': '41190',
+            '광명시': '41210',
+            '평택시': '41220',
+            '동두천시': '41250',
+            '안산시': '41270',
+            '고양시': '41280',
+            '과천시': '41290',
+            '구리시': '41310',
+            '오산시': '41370',
+            '시흥시': '41390',
+            '군포시': '41410',
+            '의왕시': '41430',
+            '하남시': '41450',
+            '용인시': '41460',
+            '파주시': '41480',
+            '이천시': '41500',
+            '안성시': '41550',
+            '김포시': '41570',
+            '화성시': '41590',
+            '광주시': '41610',
+            '양주시': '41630',
+            '포천시': '41650',
+            '여주시': '41670',
+            # 인천
+            '인천광역시 중구': '28110',
+            '인천광역시 동구': '28140',
+            '인천광역시 미추홀구': '28177',
+            '인천광역시 연수구': '28185',
+            '인천광역시 남동구': '28200',
+            '인천광역시 부평구': '28237',
+            '인천광역시 계양구': '28245',
+            '인천광역시 서구': '28260',
+        }
+
+        # 주소에서 시군구 찾기 (긴 키부터 매칭 - 더 구체적인 주소 우선)
+        sigungu_cd = None
+        sorted_cities = sorted(sigungu_map.items(), key=lambda x: len(x[0]), reverse=True)
+
+        print(f"[건축물대장] 시군구 매칭 시작...")
+        for city, code in sorted_cities:
+            if city in address:
+                print(f"[건축물대장] 매칭 성공: '{city}' -> {code}")
+                sigungu_cd = code
+                break
+            # 디버그: 처음 5개만 출력
+            if sorted_cities.index((city, code)) < 5:
+                print(f"[건축물대장] 매칭 실패: '{city}' not in address")
+
+        if not sigungu_cd:
+            print(f"[건축물대장] 시군구 코드를 찾을 수 없습니다: {address}")
+            print(f"[건축물대장] 가용한 시군구 키워드: {list(sigungu_map.keys())[:10]}")
+            return result
+
+        result['sigunguCd'] = sigungu_cd
+
+        # 번지 추출 (가장 마지막 숫자 패턴)
+        # 예: "창현리 745" 또는 "창현리 745-3"
+        bungi_match = re.search(r'(\d+)(?:-(\d+))?\s*(?:번지|번길|$)', address)
+        if not bungi_match:
+            # 주소 끝의 숫자
+            bungi_match = re.search(r'\s(\d+)(?:-(\d+))?\s*$', address)
+
+        if bungi_match:
+            bun = bungi_match.group(1).zfill(4)  # 4자리로 패딩
+            ji = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
+            result['bun'] = bun
+            result['ji'] = ji
+        else:
+            print(f"[건축물대장] 번지를 추출할 수 없습니다: {address}")
+            return result
+
+        # 법정동코드는 복잡하므로 일단 성공으로 표시
+        # 실제 구현 시 법정동코드 DB 필요
+        result['success'] = True
+
+        print(f"[건축물대장] 주소 파싱 성공: {address}")
+        print(f"  - 시군구코드: {result['sigunguCd']}")
+        print(f"  - 번지: {result['bun']}-{result['ji']}")
+
+    except Exception as e:
+        print(f"[건축물대장] 주소 파싱 중 오류: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return result
+
+
+def get_building_info(address):
+    """
+    주소를 기반으로 건축물대장 정보를 조회합니다.
+
+    Args:
+        address: 주소 문자열
+
+    Returns:
+        dict: {
+            'success': bool,
+            'total_households': int,  # 총 세대수
+            'completion_date': str,   # 준공일 (YYYY년 MM월 DD일 형식)
+            'raw_completion_date': str,  # 원본 준공일 (YYYYMMDD)
+            'buildings': list  # 동별 상세 정보
+        }
+    """
+    import requests
+    import xml.etree.ElementTree as ET
+    from urllib.parse import unquote
+
+    result = {
+        'success': False,
+        'total_households': 0,
+        'completion_date': '',
+        'raw_completion_date': '',
+        'buildings': []
+    }
+
+    try:
+        # 주소 파싱
+        parsed = parse_address_for_building_api(address)
+        if not parsed['success']:
+            return result
+
+        # API 설정
+        url = 'http://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
+        service_key_encoded = 'B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l%2BItDSFbeL64CxbxJORed%2B4LpR5uMHxebO%2Fv7LSHBXm1FHFJ8XE6UHqA%3D%3D'
+        service_key = unquote(service_key_encoded)
+
+        # API 파라미터
+        params = {
+            'serviceKey': service_key,
+            'sigunguCd': parsed['sigunguCd'],
+            'bjdongCd': '',  # 법정동코드는 선택사항
+            'platGbCd': '0',  # 대지구분 (0:대지)
+            'bun': parsed['bun'],
+            'ji': parsed['ji'],
+            'numOfRows': '100',
+            'pageNo': '1'
+        }
+
+        # API 호출
+        print(f"[건축물대장] API 호출 중...")
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code != 200:
+            print(f"[건축물대장] API 연결 실패 (상태 코드: {response.status_code})")
+            return result
+
+        # XML 파싱
+        root = ET.fromstring(response.text)
+
+        # 결과 확인
+        result_code = root.findtext('.//resultCode')
+        if result_code != '00':
+            result_msg = root.findtext('.//resultMsg')
+            print(f"[건축물대장] API 오류: {result_msg}")
+            return result
+
+        # 건물 정보 추출
+        items = root.findall('.//item')
+
+        if not items:
+            print(f"[건축물대장] 검색 결과 없음")
+            return result
+
+        total_hhld = 0
+        completion_date = None
+
+        for item in items:
+            bld_nm = item.findtext('bldNm') or ''
+            hhld_cnt = item.findtext('hhldCnt') or '0'
+            use_apr_day = item.findtext('useAprDay') or ''
+
+            # 세대수 합산
+            if hhld_cnt.isdigit():
+                total_hhld += int(hhld_cnt)
+
+            # 준공일 저장 (첫 번째 것 사용)
+            if use_apr_day and not completion_date:
+                completion_date = use_apr_day
+
+            # 건물 정보 저장
+            result['buildings'].append({
+                'name': bld_nm,
+                'households': int(hhld_cnt) if hhld_cnt.isdigit() else 0,
+                'completion_date': use_apr_day
+            })
+
+        # 결과 설정
+        result['success'] = True
+        result['total_households'] = total_hhld
+        result['raw_completion_date'] = completion_date or ''
+
+        # 날짜 포맷팅 (YYYYMMDD -> YYYY년 MM월 DD일)
+        if completion_date and len(completion_date) == 8:
+            result['completion_date'] = f"{completion_date[:4]}년 {completion_date[4:6]}월 {completion_date[6:8]}일"
+
+        print(f"[건축물대장] 조회 성공:")
+        print(f"  - 총 세대수: {result['total_households']}세대")
+        print(f"  - 준공일: {result['completion_date']}")
+
+    except Exception as e:
+        print(f"[건축물대장] 정보 조회 중 오류: {e}")
+        import traceback
+        traceback.print_exc()
+
     return result
