@@ -504,21 +504,18 @@
         container.addEventListener('dragover', (e) => {
             e.preventDefault();
             const draggingItem = container.querySelector('.dragging');
+            
+            // ✨ [수정] 드래그 중인 아이템이 없으면 에러 방지를 위해 즉시 중단합니다.
+            if (!draggingItem) return; 
+
             const siblings = [...container.querySelectorAll('.loan-item:not(.dragging)')];
             
+            // 현재 마우스 위치에 따라 어느 항목 사이에 끼워 넣을지 결정
             const nextSibling = siblings.find(sibling => {
                 return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
             });
 
             container.insertBefore(draggingItem, nextSibling || null);
-        });
-        
-        container.addEventListener('drop', (e) => {
-            e.preventDefault();
-            // 드롭 후 메모 업데이트
-            setTimeout(() => {
-                triggerMemoGeneration();
-            }, 100);
         });
     }
 
@@ -1366,8 +1363,9 @@ async function handleFileUpload(file) {
 
             // [신규] 세대수 자동 입력 (건축물대장에서 조회)
             if (building_info && building_info.success && building_info.total_households > 0) {
-                safeSetValue('total_households', building_info.total_households);
-                console.log(`✅ 세대수 자동 입력: ${building_info.total_households}세대`);
+                // HTML의 실제 ID인 'unit_count'에 값을 넣습니다.
+                safeSetValue('unit_count', building_info.total_households);
+                console.log(`✅ 세대수 자동 입력 성공: ${building_info.total_households}세대`);
             }
 
             // 등기 경고 표시 (오래된 등기인지 등)
