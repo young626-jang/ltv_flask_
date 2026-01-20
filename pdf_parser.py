@@ -756,14 +756,12 @@ import xml.etree.ElementTree as ET
 from urllib.parse import unquote
 import re
 
-# 1. 카카오 API를 통해 법정동코드를 가져오는 함수 (주소 정제 추가)
+# 1. 카카오 API를 통해 법정동코드를 가져오는 함수
 def get_legal_code_from_kakao(address):
     """주소를 입력받아 10자리 법정동코드를 반환합니다."""
-    # 보내주신 키를 미리 넣어두었습니다.
     KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0" 
     
-    # ✨ [정제] 카카오 API는 "동/호" 정보가 있으면 검색에 실패할 수 있습니다.
-    # 번지수(예: 745)까지만 잘라서 검색어로 사용합니다.
+    # [정제] "동/호" 정보가 있으면 검색에 실패하므로 번지수까지만 잘라서 검색
     clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
     search_query = clean_match.group(1) if clean_match else address
     
@@ -802,7 +800,7 @@ def parse_address_for_building_api(address):
         print(f"[주소 파싱 오류] {e}")
     return result
 
-# 3. 건축물대장 정보를 최종적으로 가져오는 함수 (태그 명칭 정밀 수정)
+# 3. 건축물대장 정보를 최종적으로 가져오는 함수
 def get_building_info(address):
     result = {'success': False, 'total_households': 0, 'completion_date': '', 'raw_completion_date': '', 'buildings': []}
     try:
@@ -833,7 +831,6 @@ def get_building_info(address):
                     total_hhld = 0
                     comp_date = ""
                     for item in items:
-                        # ✨ 건축HUB API의 정확한 태그명 사용
                         h_cnt = item.findtext('hhldCnt') or '0'
                         u_date = item.findtext('useAprvDe') or '' 
                         
