@@ -773,6 +773,13 @@
                     if (e.target.name === 'status') {
                         checkTenantDeductionWarning();
 
+                        // ✅ [신규] 상태 변경 시 필요금액 초기화 (한도 재계산 필요)
+                        const requiredAmountField = document.getElementById('required_amount');
+                        if (requiredAmountField && requiredAmountField.value) {
+                            requiredAmountField.value = '';
+                            console.log('🔄 대출 상태 변경 → 필요금액 초기화 (한도 재계산)');
+                        }
+
                         // ✅ [신규] 아이엠 질권 체크 시 LTV 재계산 (선순위/후순위 자동 반영)
                         const hopeCheckbox = document.getElementById('hope-collateral-loan');
                         const ltv1Field = document.getElementById('ltv1');
@@ -3315,15 +3322,20 @@ function checkRegionWarningForCollateral(address) {
         return;
     }
 
-    // 서울/경기/인천 지역인지 확인
+    // 서울/경기/인천 지역인지 확인 (군 지역 제외)
     const isSeoul = address.includes('서울');
     const isGyeonggi = address.includes('경기');
     const isIncheon = address.includes('인천');
 
-    // 서울/경기/인천이 아니면 경고 표시
-    if (!isSeoul && !isGyeonggi && !isIncheon) {
+    // 제외할 군 지역 목록
+    const excludedGuns = ['가평군', '양평군', '연천군', '강화군', '옹진군'];
+    const isExcludedGun = excludedGuns.some(gun => address.includes(gun));
+
+    // 서울/경기/인천이 아니거나 군 지역이면 경고 표시
+    if ((!isSeoul && !isGyeonggi && !isIncheon) || isExcludedGun) {
         const pledgeType = isHopeChecked ? '아이엠질권' : '메리츠질권';
-        showCustomAlert(`⚠️ ${pledgeType} 취급불가 지역입니다!\n\n서울/경기/인천 외 지역은 취급이 불가합니다.\n현재 주소: ${address}`);
-        console.log(`🔴 경고: ${pledgeType} 취급불가 지역 - ${address}`);
+        const gunWarning = isExcludedGun ? '\n(군 지역은 취급 불가)' : '';
+        showCustomAlert(`⚠️ ${pledgeType} 취급불가 지역입니다!\n\n서울/경기/인천만 취급 가능합니다. (군 지역 제외)${gunWarning}\n현재 주소: ${address}`);
+        console.log(`🔴 경고: ${pledgeType} 취급불가 지역 - ${address}${isExcludedGun ? ' (군 지역)' : ''}`);
     }
 }
