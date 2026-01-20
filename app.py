@@ -31,7 +31,9 @@ from pdf_parser import (
     extract_owner_shares_with_birth,
     extract_rights_info,  # 근저당권 분석 함수
     extract_construction_date,  # [신규] 준공일자 추출
-    extract_last_transfer_info  # [신규] 최근 소유권 이전 정보
+    extract_last_transfer_info,  # [신규] 최근 소유권 이전 정보
+    extract_seizure_info,  # [신규] 압류/가압류 정보 추출
+    get_building_info  # [신규] 건축물대장 정보 조회
 )
 
 # --- 로깅 설정 ---
@@ -187,6 +189,22 @@ def upload_and_parse_pdf():
     construction_date = extract_construction_date(full_text) # 준공일
     transfer_info = extract_last_transfer_info(full_text)    # 소유권 이전 내역 (날짜, 원인, 가액)
 
+    # [신규] 압류/가압류 정보 추출
+    seizure_info = extract_seizure_info(full_text)
+
+    # [신규] 건축물대장 정보 조회 (세대수, 준공일)
+    print(f"\n===== 건축물대장 조회 시작 =====")
+    print(f"추출된 주소: {extracted_address}")
+    try:
+        building_info = get_building_info(extracted_address)
+        print(f"건축물대장 결과: {building_info}")
+    except Exception as e:
+        print(f"건축물대장 조회 중 에러 발생: {e}")
+        import traceback
+        traceback.print_exc()
+        building_info = {'success': False, 'total_households': 0, 'completion_date': '', 'raw_completion_date': '', 'buildings': []}
+    print(f"===== 건축물대장 조회 종료 =====\n")
+
     # 3. 결과 정리 및 반환 (KB 크롤링 제거 - 별도 API 사용)
     scraped_data = {
         'address': extracted_address,
@@ -209,7 +227,9 @@ def upload_and_parse_pdf():
     return jsonify({
         "success": True,
         "scraped_data": scraped_data,
-        "rights_info": rights_info
+        "rights_info": rights_info,
+        "seizure_info": seizure_info,  # [신규] 압류 정보 추가
+        "building_info": building_info  # [신규] 건축물대장 정보 추가
     })
 
 # --- (이하 나머지 모든 API 라우트 및 앱 실행 코드는 기존과 완벽하게 동일합니다) ---
