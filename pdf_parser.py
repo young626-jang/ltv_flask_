@@ -418,7 +418,8 @@ def extract_construction_date(text):
 
 def extract_last_transfer_info(text):
     """
-    [최종본] 갑구에서 가장 높은 순위번호를 가진 소유권 이전 내역을 추출합니다.
+    [개선판] 갑구에서 가장 최신(높은 순위번호) 소유권 이전 내역을 추출합니다.
+    따옴표 유무와 상관없이 날짜와 거래가액을 찾아냅니다.
     """
     result = {"date": "", "reason": "", "price": ""}
     try:
@@ -429,47 +430,48 @@ def extract_last_transfer_info(text):
         
         gap_gu_text = gap_gu_match.group(1)
 
-        # 2. 모든 소유권 이전 내역 찾기 (순위번호와 날짜 매칭)
-        # 의 형식인 "4","소유권이전","2021년5월12일" 패턴을 탐색
-        pattern = r'"(\d+)"\s*,\s*"소유권\s*이전"\s*,\s*"(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+        # 2. 모든 소유권 이전 내역 찾기 (따옴표 " 가 있어도 없어도 찾을 수 있도록 수정)
+        # 패턴 설명: 순위번호, 소유권 이전, 접수일자를 순서대로 탐색
+        pattern = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*이전["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
         all_transfers = re.findall(pattern, gap_gu_text)
+
+        if not all_transfers:
+            # 패턴 2: 쉼표 없이 공백으로 구분된 경우를 위한 예비 패턴
+            pattern2 = r'(\d+)\s+소유권\s*이전\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            all_transfers = re.findall(pattern2, gap_gu_text)
 
         if not all_transfers:
             return result
 
-        # 3. 순위번호가 가장 큰(최신) 항목 선택 
-        # 예: ('2', '...'), ('3', '...'), ('4', '...') 중 ('4', '...') 선택
+        # 3. 순위번호가 가장 큰(최신) 항목 선택
         latest_entry = max(all_transfers, key=lambda x: int(x[0]))
-        target_rank = latest_entry[0]  # "4"
-        raw_date = latest_entry[1]    # "2021년5월12일"
+        target_rank = latest_entry[0]  # 순위번호
+        raw_date = latest_entry[1]     # 날짜 문자열
 
         # 날짜 포맷팅 (YYYY-MM-DD)
         date_nums = re.findall(r'\d+', raw_date)
         if len(date_nums) >= 3:
             result["date"] = f"{date_nums[0]}-{date_nums[1].zfill(2)}-{date_nums[2].zfill(2)}"
 
-        # 4. 해당 순위번호("4") 주변에서 거래가액과 원인 추출
-        # 순위번호가 시작되는 지점부터 다음 순위번호 전까지를 컨텍스트로 설정
-        rank_pattern = rf'"{target_rank}"'
-        rank_start_pos = gap_gu_text.find(rank_pattern)
-        
-        # 해당 순위번호 이후 약 500자 정도를 탐색 범위로 지정
-        context = gap_gu_text[rank_start_pos : rank_start_pos + 500]
+        # 4. 해당 순위번호 주변에서 거래가액과 원인 추출 (범위 600자로 확대)
+        rank_pattern = rf'["\']?{target_rank}["\']?'
+        rank_start_pos = gap_gu_text.find(target_rank)
+        context = gap_gu_text[rank_start_pos : rank_start_pos + 600]
 
         # 원인 판별
         if "매매" in context:
             result["reason"] = "매매"
-            # 거래가액 추출 
-            p_match = re.search(r"거래가액\s*금\s*([\d,]+)\s*원", context)
+            # 거래가액 추출 (숫자 사이의 콤마 무시)
+            p_match = re.search(r"거래가액\s*금?\s*([\d,]+)\s*원", context)
             if p_match:
                 price_won = int(p_match.group(1).replace(',', ''))
-                result["price"] = str(price_won // 10000) # 만원 단위 (27000)
+                result["price"] = str(price_won // 10000) # 만원 단위
         elif "보존" in context:
             result["reason"] = "소유권보존"
         elif "상속" in context:
             result["reason"] = "상속"
 
-        print(f"[DEBUG] 최종 추출 성공: {result}")
+        print(f"[DEBUG] 소유권 이전 정보 추출 성공: {result}")
 
     except Exception as e:
         print(f"소유권 이전 정보 추출 중 오류 발생: {e}")
@@ -754,41 +756,42 @@ import xml.etree.ElementTree as ET
 from urllib.parse import unquote
 import re
 
-# 1. 카카오 API를 통해 법정동코드를 가져오는 핵심 함수
+# 1. 카카오 API를 통해 법정동코드를 가져오는 함수 (주소 정제 추가)
 def get_legal_code_from_kakao(address):
     """주소를 입력받아 10자리 법정동코드를 반환합니다."""
-    # [중요] 여기에 본인의 카카오 REST API 키를 넣으세요!
-    KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0"
+    # 보내주신 키를 미리 넣어두었습니다.
+    KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0" 
+    
+    # ✨ [정제] 카카오 API는 "동/호" 정보가 있으면 검색에 실패할 수 있습니다.
+    # 번지수(예: 745)까지만 잘라서 검색어로 사용합니다.
+    clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
+    search_query = clean_match.group(1) if clean_match else address
     
     url = 'https://dapi.kakao.com/v2/local/search/address.json'
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-    params = {'query': address}
+    params = {'query': search_query}
     
     try:
         response = requests.get(url, headers=headers, params=params, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            if data['documents'] and 'address' in data['documents'][0] and data['documents'][0]['address']:
-                # b_code가 건축물대장에 필요한 10자리 법정동코드입니다.
+            if data['documents'] and data['documents'][0].get('address'):
                 return data['documents'][0]['address'].get('b_code', '')
         return ""
     except Exception as e:
         print(f"[카카오 API 오류] {e}")
         return ""
 
-# 2. 주소를 API 규격(시군구/법정동/번지/호)으로 쪼개는 함수
+# 2. 주소를 API 규격으로 쪼개는 함수
 def parse_address_for_building_api(address):
     result = {'sigunguCd': '', 'bjdongCd': '', 'bun': '', 'ji': '', 'success': False}
-    
     try:
-        # 카카오 API로 10자리 코드(시군구5자리 + 법정동5자리) 가져오기
         full_code = get_legal_code_from_kakao(address)
         
         if len(full_code) == 10:
-            result['sigunguCd'] = full_code[:5]  # 앞 5자리
-            result['bjdongCd'] = full_code[5:]   # 뒤 5자리
+            result['sigunguCd'] = full_code[:5]
+            result['bjdongCd'] = full_code[5:]
             
-            # 주소에서 번지-호 추출 (예: 745-1 -> 0745, 0001)
             bungi_match = re.search(r'(\d+)(?:-(\d+))?', address)
             if bungi_match:
                 result['bun'] = bungi_match.group(1).zfill(4)
@@ -797,32 +800,19 @@ def parse_address_for_building_api(address):
                 
     except Exception as e:
         print(f"[주소 파싱 오류] {e}")
-        
     return result
 
-# 3. 건축물대장 정보를 최종적으로 가져오는 함수
+# 3. 건축물대장 정보를 최종적으로 가져오는 함수 (태그 명칭 정밀 수정)
 def get_building_info(address):
-    result = {
-        'success': False,
-        'total_households': 0,
-        'completion_date': '',
-        'raw_completion_date': '',
-        'buildings': []
-    }
-
+    result = {'success': False, 'total_households': 0, 'completion_date': '', 'raw_completion_date': '', 'buildings': []}
     try:
-        # 주소 분석 (카카오 API 활용)
         parsed = parse_address_for_building_api(address)
         if not parsed['success']:
-            print(f"[건축물대장] 주소에서 코드를 추출하지 못했습니다: {address}")
             return result
 
-        # API 설정 (공공데이터포털)
-        url = 'http://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
-        # 파이썬 requests는 자동으로 인코딩하므로 Decoding 키를 사용하는 것이 좋습니다.
+        url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
         service_key = "B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l+ItDSFbeL64CxbxJORed+4LpR5uMHxebO/v7LSHBXm1FHFJ8XE6UHqA=="
 
-        # API 파라미터 (bjdongCd가 이제 자동으로 채워집니다!)
         params = {
             'serviceKey': service_key,
             'sigunguCd': parsed['sigunguCd'],
@@ -834,51 +824,30 @@ def get_building_info(address):
             'pageNo': '1'
         }
 
-        print(f"[건축물대장] API 호출 중... (코드: {parsed['sigunguCd']}{parsed['bjdongCd']})")
         response = requests.get(url, params=params, timeout=10)
-
         if response.status_code == 200:
             root = ET.fromstring(response.text)
-            
-            # 결과 성공 여부 확인 (00이 성공)
-            if root.findtext('.//resultCode') != '00':
-                print(f"[건축물대장] API 오류: {root.findtext('.//resultMsg')}")
-                return result
+            if root.findtext('.//resultCode') == '00':
+                items = root.findall('.//item')
+                if items:
+                    total_hhld = 0
+                    comp_date = ""
+                    for item in items:
+                        # ✨ 건축HUB API의 정확한 태그명 사용
+                        h_cnt = item.findtext('hhldCnt') or '0'
+                        u_date = item.findtext('useAprvDe') or '' 
+                        
+                        if h_cnt.isdigit():
+                            total_hhld += int(h_cnt)
+                        if u_date and not comp_date:
+                            comp_date = u_date
 
-            items = root.findall('.//item')
-            if not items:
-                print(f"[건축물대장] 결과가 없습니다.")
-                return result
-
-            total_hhld = 0
-            completion_date = None
-
-            for item in items:
-                hhld_cnt = item.findtext('hhldCnt') or '0'
-                use_apr_day = item.findtext('useAprDay') or ''
-
-                if hhld_cnt.isdigit():
-                    total_hhld += int(hhld_cnt)
-                
-                if use_apr_day and not completion_date:
-                    completion_date = use_apr_day
-
-                result['buildings'].append({
-                    'name': item.findtext('bldNm') or '',
-                    'households': int(hhld_cnt) if hhld_cnt.isdigit() else 0,
-                    'completion_date': use_apr_day
-                })
-
-            result['success'] = True
-            result['total_households'] = total_hhld
-            result['raw_completion_date'] = completion_date or ''
-            
-            if completion_date and len(completion_date) == 8:
-                result['completion_date'] = f"{completion_date[:4]}년 {completion_date[4:6]}월 {completion_date[6:8]}일"
-
-            print(f"[조회 성공] 총 {total_hhld}세대 / 준공일: {result['completion_date']}")
-
+                    result['success'] = True
+                    result['total_households'] = total_hhld
+                    result['raw_completion_date'] = comp_date
+                    if len(comp_date) == 8:
+                        result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
+        
     except Exception as e:
         print(f"[건축물대장 조회 오류] {e}")
-        
     return result
