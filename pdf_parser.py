@@ -749,10 +749,59 @@ def get_building_info(address):
             'buildings': list  # 동별 상세 정보
         }
     """
-    import requests
-    import xml.etree.ElementTree as ET
-    from urllib.parse import unquote
+import requests
+import xml.etree.ElementTree as ET
+from urllib.parse import unquote
+import re
 
+# 1. 카카오 API를 통해 법정동코드를 가져오는 핵심 함수
+def get_legal_code_from_kakao(address):
+    """주소를 입력받아 10자리 법정동코드를 반환합니다."""
+    # [중요] 여기에 본인의 카카오 REST API 키를 넣으세요!
+    KAKAO_REST_API_KEY = "여기에_카카오_REST_API_키를_넣으세요" 
+    
+    url = 'https://dapi.kakao.com/v2/local/search/address.json'
+    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    params = {'query': address}
+    
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data['documents'] and 'address' in data['documents'][0] and data['documents'][0]['address']:
+                # b_code가 건축물대장에 필요한 10자리 법정동코드입니다.
+                return data['documents'][0]['address'].get('b_code', '')
+        return ""
+    except Exception as e:
+        print(f"[카카오 API 오류] {e}")
+        return ""
+
+# 2. 주소를 API 규격(시군구/법정동/번지/호)으로 쪼개는 함수
+def parse_address_for_building_api(address):
+    result = {'sigunguCd': '', 'bjdongCd': '', 'bun': '', 'ji': '', 'success': False}
+    
+    try:
+        # 카카오 API로 10자리 코드(시군구5자리 + 법정동5자리) 가져오기
+        full_code = get_legal_code_from_kakao(address)
+        
+        if len(full_code) == 10:
+            result['sigunguCd'] = full_code[:5]  # 앞 5자리
+            result['bjdongCd'] = full_code[5:]   # 뒤 5자리
+            
+            # 주소에서 번지-호 추출 (예: 745-1 -> 0745, 0001)
+            bungi_match = re.search(r'(\d+)(?:-(\d+))?', address)
+            if bungi_match:
+                result['bun'] = bungi_match.group(1).zfill(4)
+                result['ji'] = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
+                result['success'] = True
+                
+    except Exception as e:
+        print(f"[주소 파싱 오류] {e}")
+        
+    return result
+
+# 3. 건축물대장 정보를 최종적으로 가져오는 함수
+def get_building_info(address):
     result = {
         'success': False,
         'total_households': 0,
@@ -762,92 +811,74 @@ def get_building_info(address):
     }
 
     try:
-        # 주소 파싱
+        # 주소 분석 (카카오 API 활용)
         parsed = parse_address_for_building_api(address)
         if not parsed['success']:
+            print(f"[건축물대장] 주소에서 코드를 추출하지 못했습니다: {address}")
             return result
 
-        # API 설정
+        # API 설정 (공공데이터포털)
         url = 'http://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
-        service_key_encoded = 'B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l%2BItDSFbeL64CxbxJORed%2B4LpR5uMHxebO%2Fv7LSHBXm1FHFJ8XE6UHqA%3D%3D'
-        service_key = unquote(service_key_encoded)
+        # 파이썬 requests는 자동으로 인코딩하므로 Decoding 키를 사용하는 것이 좋습니다.
+        service_key = "B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l+ItDSFbeL64CxbxJORed+4LpR5uMHxebO/v7LSHBXm1FHFJ8XE6UHqA=="
 
-        # API 파라미터
+        # API 파라미터 (bjdongCd가 이제 자동으로 채워집니다!)
         params = {
             'serviceKey': service_key,
             'sigunguCd': parsed['sigunguCd'],
-            'bjdongCd': '',  # 법정동코드는 선택사항
-            'platGbCd': '0',  # 대지구분 (0:대지)
+            'bjdongCd': parsed['bjdongCd'],
+            'platGbCd': '0',
             'bun': parsed['bun'],
             'ji': parsed['ji'],
             'numOfRows': '100',
             'pageNo': '1'
         }
 
-        # API 호출
-        print(f"[건축물대장] API 호출 중...")
+        print(f"[건축물대장] API 호출 중... (코드: {parsed['sigunguCd']}{parsed['bjdongCd']})")
         response = requests.get(url, params=params, timeout=10)
 
-        if response.status_code != 200:
-            print(f"[건축물대장] API 연결 실패 (상태 코드: {response.status_code})")
-            return result
+        if response.status_code == 200:
+            root = ET.fromstring(response.text)
+            
+            # 결과 성공 여부 확인 (00이 성공)
+            if root.findtext('.//resultCode') != '00':
+                print(f"[건축물대장] API 오류: {root.findtext('.//resultMsg')}")
+                return result
 
-        # XML 파싱
-        root = ET.fromstring(response.text)
+            items = root.findall('.//item')
+            if not items:
+                print(f"[건축물대장] 결과가 없습니다.")
+                return result
 
-        # 결과 확인
-        result_code = root.findtext('.//resultCode')
-        if result_code != '00':
-            result_msg = root.findtext('.//resultMsg')
-            print(f"[건축물대장] API 오류: {result_msg}")
-            return result
+            total_hhld = 0
+            completion_date = None
 
-        # 건물 정보 추출
-        items = root.findall('.//item')
+            for item in items:
+                hhld_cnt = item.findtext('hhldCnt') or '0'
+                use_apr_day = item.findtext('useAprDay') or ''
 
-        if not items:
-            print(f"[건축물대장] 검색 결과 없음")
-            return result
+                if hhld_cnt.isdigit():
+                    total_hhld += int(hhld_cnt)
+                
+                if use_apr_day and not completion_date:
+                    completion_date = use_apr_day
 
-        total_hhld = 0
-        completion_date = None
+                result['buildings'].append({
+                    'name': item.findtext('bldNm') or '',
+                    'households': int(hhld_cnt) if hhld_cnt.isdigit() else 0,
+                    'completion_date': use_apr_day
+                })
 
-        for item in items:
-            bld_nm = item.findtext('bldNm') or ''
-            hhld_cnt = item.findtext('hhldCnt') or '0'
-            use_apr_day = item.findtext('useAprDay') or ''
+            result['success'] = True
+            result['total_households'] = total_hhld
+            result['raw_completion_date'] = completion_date or ''
+            
+            if completion_date and len(completion_date) == 8:
+                result['completion_date'] = f"{completion_date[:4]}년 {completion_date[4:6]}월 {completion_date[6:8]}일"
 
-            # 세대수 합산
-            if hhld_cnt.isdigit():
-                total_hhld += int(hhld_cnt)
-
-            # 준공일 저장 (첫 번째 것 사용)
-            if use_apr_day and not completion_date:
-                completion_date = use_apr_day
-
-            # 건물 정보 저장
-            result['buildings'].append({
-                'name': bld_nm,
-                'households': int(hhld_cnt) if hhld_cnt.isdigit() else 0,
-                'completion_date': use_apr_day
-            })
-
-        # 결과 설정
-        result['success'] = True
-        result['total_households'] = total_hhld
-        result['raw_completion_date'] = completion_date or ''
-
-        # 날짜 포맷팅 (YYYYMMDD -> YYYY년 MM월 DD일)
-        if completion_date and len(completion_date) == 8:
-            result['completion_date'] = f"{completion_date[:4]}년 {completion_date[4:6]}월 {completion_date[6:8]}일"
-
-        print(f"[건축물대장] 조회 성공:")
-        print(f"  - 총 세대수: {result['total_households']}세대")
-        print(f"  - 준공일: {result['completion_date']}")
+            print(f"[조회 성공] 총 {total_hhld}세대 / 준공일: {result['completion_date']}")
 
     except Exception as e:
-        print(f"[건축물대장] 정보 조회 중 오류: {e}")
-        import traceback
-        traceback.print_exc()
-
+        print(f"[건축물대장 조회 오류] {e}")
+        
     return result
