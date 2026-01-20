@@ -152,6 +152,57 @@
         }
     }
 
+    // 압류 경고 표시 함수
+    function displaySeizureWarning(seizureInfo) {
+        const warningElement = document.getElementById('seizure-warning');
+        const summaryElement = document.getElementById('seizure-summary');
+        const detailsElement = document.getElementById('seizure-details');
+
+        if (!seizureInfo || !warningElement) {
+            return;
+        }
+
+        const totalCount = seizureInfo.total_count || 0;
+        const activeCount = seizureInfo.active_count || 0;
+        const activeSeizures = seizureInfo.active_seizures || [];
+        const cancelledCount = totalCount - activeCount; // 말소된 건수
+
+        // 압류 정보가 하나라도 있으면 표시
+        if (totalCount > 0) {
+            // 요약 정보
+            summaryElement.textContent = `과거 압류/가압류 이력 (말소됨): ${cancelledCount}건\n현재 압류 중: ${activeCount}건`;
+
+            // 상세 정보 (현재 유효한 압류만)
+            if (activeCount > 0) {
+                const detailsHTML = activeSeizures.map(s => {
+                    const amountText = s.amount ? ` (${s.amount}원)` : '';
+                    return `순위 ${s.rank}: ${s.creditor} ${s.type} (${s.date})${amountText}`;
+                }).join('<br>');
+                detailsElement.innerHTML = detailsHTML;
+            } else {
+                detailsElement.textContent = '';
+            }
+
+            warningElement.style.display = 'block';
+
+            // 자동 스크롤하여 경고가 보이도록
+            setTimeout(() => {
+                warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        } else {
+            // 압류 정보가 없으면 숨김
+            warningElement.style.display = 'none';
+        }
+    }
+
+    // 압류 경고 숨김 함수
+    function hideSeizureWarning() {
+        const warningElement = document.getElementById('seizure-warning');
+        if (warningElement) {
+            warningElement.style.display = 'none';
+        }
+    }
+
     // 소유권이전일이 3개월 미만인 경우 빨강색으로 표시
     function checkTransferDateColor(dateString) {
         const field = document.getElementById('ownership_transfer_date');
@@ -1273,10 +1324,12 @@ async function handleFileUpload(file) {
             // 1. 서버가 보내준 데이터를 각각의 변수에 저장합니다.
             const scraped = result.scraped_data;  // 기본 정보 (주소, 소유자, 지분 등)
             const rights_info = result.rights_info; // 근저당권 정보
+            const seizure_info = result.seizure_info; // [신규] 압류/가압류 정보
 
             // 디버깅: 추출된 데이터 로그
             console.log('📊 scraped_data:', scraped);
             console.log('📅 transfer_date:', scraped.transfer_date);
+            console.log('⚠️ seizure_info:', seizure_info);
 
             // --- 2. 추출된 기본 정보를 각 필드에 자동으로 채워 넣습니다. ---
             
@@ -1308,6 +1361,9 @@ async function handleFileUpload(file) {
 
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
+
+            // [신규] 압류 경고 표시
+            displaySeizureWarning(seizure_info);
 
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
@@ -1488,6 +1544,8 @@ async function handleFileUpload(file) {
 
         // 등기 경고 숨김
         hideRegistrationWarning();
+        // 압류 경고 숨김
+        hideSeizureWarning();
 
         setPdfColumnCompact(); // 전체 초기화 시 PDF 컬럼 컴팩트
         alert("모든 입력 내용이 초기화되었습니다.");
