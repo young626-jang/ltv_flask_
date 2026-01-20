@@ -509,8 +509,8 @@
             const nextSibling = siblings.find(sibling => {
                 return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
             });
-            
-            container.insertBefore(draggingItem, nextSibling);
+
+            container.insertBefore(draggingItem, nextSibling || null);
         });
         
         container.addEventListener('drop', (e) => {
@@ -1325,11 +1325,13 @@ async function handleFileUpload(file) {
             const scraped = result.scraped_data;  // 기본 정보 (주소, 소유자, 지분 등)
             const rights_info = result.rights_info; // 근저당권 정보
             const seizure_info = result.seizure_info; // [신규] 압류/가압류 정보
+            const building_info = result.building_info; // [신규] 건축물대장 정보 (세대수, 준공일)
 
             // 디버깅: 추출된 데이터 로그
             console.log('📊 scraped_data:', scraped);
             console.log('📅 transfer_date:', scraped.transfer_date);
             console.log('⚠️ seizure_info:', seizure_info);
+            console.log('🏢 building_info:', building_info);
 
             // --- 2. 추출된 기본 정보를 각 필드에 자동으로 채워 넣습니다. ---
             
@@ -1356,8 +1358,17 @@ async function handleFileUpload(file) {
                 checkTransferDateColor(scraped.transfer_date);
             }
 
-            // 준공일자 채우기
-            safeSetValue('completion_date', scraped.construction_date || '');
+            // 준공일자 채우기 (건축물대장 우선, 없으면 등기부등본)
+            const completionDate = (building_info && building_info.success)
+                ? building_info.completion_date
+                : scraped.construction_date;
+            safeSetValue('completion_date', completionDate || '');
+
+            // [신규] 세대수 자동 입력 (건축물대장에서 조회)
+            if (building_info && building_info.success && building_info.total_households > 0) {
+                safeSetValue('total_households', building_info.total_households);
+                console.log(`✅ 세대수 자동 입력: ${building_info.total_households}세대`);
+            }
 
             // 등기 경고 표시 (오래된 등기인지 등)
             displayRegistrationWarning(scraped.age_check);
