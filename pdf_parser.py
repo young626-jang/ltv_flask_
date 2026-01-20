@@ -758,7 +758,7 @@ import re
 def get_legal_code_from_kakao(address):
     """주소를 입력받아 10자리 법정동코드를 반환합니다."""
     # [중요] 여기에 본인의 카카오 REST API 키를 넣으세요!
-    KAKAO_REST_API_KEY = "여기에_카카오_REST_API_키를_넣으세요" 
+    KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0"
     
     url = 'https://dapi.kakao.com/v2/local/search/address.json'
     headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
