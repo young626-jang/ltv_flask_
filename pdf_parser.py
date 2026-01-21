@@ -2,6 +2,7 @@ import fitz  # PyMuPDF 라이브러리
 import re
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+from legal_code_data import sigungu_map, bjdong_map  # 법정동코드 데이터 import
 
 def extract_address(text):
     """텍스트에서 주소를 추출합니다."""
@@ -636,33 +637,22 @@ def parse_address_for_building_api(address):
     try:
         print(f"[주소 파싱] 원본 주소: {address}")
 
-        # 시군구 코드 매핑 테이블
-        sigungu_map = {
-            '남양주시': '41360',
-            '서울특별시 강남구': '11680',
-            '서울특별시 강동구': '11740',
-            '서울특별시 강북구': '11305',
-            '서울특별시 강서구': '11500',
-        }
+        # 시군구 코드와 법정동 코드는 legal_code_data.py에서 import됨
+        # (sigungu_map: 시군구 86개, bjdong_map: 법정동 2,892개)
 
-        # 법정동 코드 매핑 (더 구체적인 것부터 매칭)
-        bjdong_map = [
-            (('41360', '창현리'), '25628'),  # 남양주시 화도읍 창현리
-            (('41360', '화도읍'), '25600'),  # 남양주시 화도읍 (기본값)
-        ]
-
-        # 1. 시군구 코드 찾기
+        # 1. 시군구 코드 찾기 (가장 긴 매칭을 찾아서 더 구체적인 주소 우선)
         sigungu_cd = None
+        matched_city = ""
         for city, code in sigungu_map.items():
-            if city in address:
+            if city in address and len(city) > len(matched_city):
                 sigungu_cd = code
-                print(f"[주소 파싱] 시군구 매칭: {city} -> {code}")
-                break
+                matched_city = city
 
         if not sigungu_cd:
             print(f"[주소 파싱] 시군구 코드를 찾을 수 없습니다")
             return result
 
+        print(f"[주소 파싱] 시군구 매칭: {matched_city} -> {sigungu_cd}")
         result['sigunguCd'] = sigungu_cd
 
         # 2. 법정동 코드 찾기 (리스트 순서대로, 더 구체적인 것 우선)
