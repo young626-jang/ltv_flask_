@@ -1419,11 +1419,25 @@ async function handleFileUpload(file) {
             }
 
             // --- 4. 모든 자동 입력이 끝난 후, 후속 처리를 실행합니다. ---
-            
+
             // 새로 추가된 모든 대출 항목의 금액 변환을 강제로 실행시킵니다.
             document.querySelectorAll('.loan-item [name="max_amount"]').forEach(input => {
                 input.dispatchEvent(new Event('blur'));
             });
+
+            // [신규] KB시세 창 자동 열기
+            if (scraped.search_address) {
+                console.log(`🏠 KB시세 자동화 신호 발생: ${scraped.search_address}`);
+
+                // 1. 클립보드 복사 (기존 유지)
+                navigator.clipboard.writeText(scraped.search_address);
+
+                // 2. ★ 핵심: 확장 프로그램이 가로챌 수 있도록 '이벤트'를 쏩니다.
+                // 직접 window.open을 하지 않습니다!
+                window.dispatchEvent(new CustomEvent('START_KB_AUTO_SEARCH', { 
+                    detail: { address: scraped.search_address } 
+                }));
+            }
 
             // PDF 뷰어를 표시하고 파일 이름을 보여줍니다.
             const fileURL = URL.createObjectURL(file);
