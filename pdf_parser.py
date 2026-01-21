@@ -60,10 +60,12 @@ def extract_property_type(text):
         return {'type': 'Non-APT', 'detail': '도시형생활주택'}
 
     # 3-3. 아파트
-    # 건물 내역에 '아파트'가 있거나, 주소/건물명에 '아파트'가 포함된 경우
+    # 건물 내역에 '아파트' 또는 '공동주택'이 있거나, 주소/건물명에 포함된 경우
     # 단, '빌라'인데 이름만 'XX아파트'인 경우를 배제하기 위해 건물내역(구조) 키워드를 우선 봄
-    # [수정] '(아파트)' 형태를 인식하기 위해 패턴에 '[\(\[]' 추가
-    if re.search(r'건물\s*내역.*?아파트', clean_text) or re.search(r'[\d\s\(\[]아파트', clean_text):
+    # [수정] '(아파트)', '공동주택' 형태도 인식
+    if (re.search(r'건물\s*내역.*?아파트', clean_text) or
+        re.search(r'[\d\s\(\[]아파트', clean_text) or
+        re.search(r'공동주택', clean_text)):
         return {'type': 'APT', 'detail': '아파트'}
 
     # 3-4. 연립/다세대
@@ -77,7 +79,7 @@ def extract_property_type(text):
     # 위 구조 내역에서 못 찾았을 경우 주소 텍스트를 분석
     address_match = extract_address(text) # 기존에 정의된 함수 활용
     if address_match:
-        if '아파트' in address_match:
+        if '아파트' in address_match or '공동주택' in address_match:
             return {'type': 'APT', 'detail': '아파트'}
         if '오피스텔' in address_match:
             return {'type': 'Non-APT', 'detail': '오피스텔'}
@@ -655,18 +657,27 @@ def parse_address_for_building_api(address):
         print(f"[주소 파싱] 시군구 매칭: {matched_city} -> {sigungu_cd}")
         result['sigunguCd'] = sigungu_cd
 
-        # 2. 법정동 코드 찾기 (리스트 순서대로, 더 구체적인 것 우선)
+        # 2. 법정동 코드 찾기 (가장 구체적인 매칭 우선: 리/동 > 읍/면)
         bjdong_cd = None
+        matched_dong = ""
+        matched_priority = 0  # 0: 없음, 1: 읍/면, 2: 리/동
+
         for (sig_cd, dong_name), code in bjdong_map:
             if sig_cd == sigungu_cd and dong_name in address:
-                bjdong_cd = code
-                print(f"[주소 파싱] 법정동 매칭: {dong_name} -> {code}")
-                break
+                # 우선순위 계산: 리/동이 읍/면보다 높음
+                priority = 2 if dong_name.endswith(('리', '동')) else 1
+
+                # 더 높은 우선순위이거나, 같은 우선순위에서 더 긴 매칭
+                if priority > matched_priority or (priority == matched_priority and len(dong_name) > len(matched_dong)):
+                    bjdong_cd = code
+                    matched_dong = dong_name
+                    matched_priority = priority
 
         if not bjdong_cd:
             print(f"[주소 파싱] 법정동 코드를 찾을 수 없습니다")
             return result
 
+        print(f"[주소 파싱] 법정동 매칭: {matched_dong} -> {bjdong_cd}")
         result['bjdongCd'] = bjdong_cd
 
         # 3. 번지 추출
