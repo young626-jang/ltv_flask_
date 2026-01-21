@@ -14,6 +14,45 @@ def extract_address(text):
         return match.group(1).strip()
     return ""
 
+
+def extract_search_address(full_address):
+    """
+    전체 주소에서 KB시세 검색용 축약 주소를 추출합니다.
+    예: "경기도 남양주시 평내동 87 효성타운아파트 제106동 제2층 제202호" → "남양주시 평내동 87"
+
+    Args:
+        full_address (str): 등기부등본에서 추출한 전체 주소
+
+    Returns:
+        str: 검색용 축약 주소 (시군구 + 동/리 + 지번)
+    """
+    if not full_address:
+        return ""
+
+    try:
+        # 패턴: (시/군/구) + (동/읍/면/리) + (지번)
+        # 예: 남양주시 평내동 87, 서울시 강남구 역삼동 123-4
+        pattern = r'([가-힣]+[시군구])\s+([가-힣]+[동읍면리])\s+(\d+(?:-\d+)?)'
+        match = re.search(pattern, full_address)
+
+        if match:
+            sigungu = match.group(1)  # 시군구
+            dong = match.group(2)      # 동/읍/면/리
+            jibun = match.group(3)     # 지번
+
+            result = f"{sigungu} {dong} {jibun}"
+            print(f"[검색주소 추출] 원본: {full_address}")
+            print(f"[검색주소 추출] 결과: {result}")
+            return result
+
+        # 매칭 실패 시 원본 반환
+        print(f"[검색주소 추출] 패턴 매칭 실패, 원본 사용: {full_address}")
+        return full_address
+
+    except Exception as e:
+        print(f"[검색주소 추출 오류] {e}")
+        return full_address
+
 def extract_area(text):
     """텍스트에서 전용 면적을 추출합니다."""
     area_section_match = re.search(r"전유부분의 건물의 표시([\s\S]*?)대지권의 표시", text)
