@@ -23,6 +23,7 @@ from history_manager_flask import fetch_all_customers, fetch_customer_details, c
 # --- ▼▼▼ pdf_parser.py에서 모든 필요한 함수를 가져오도록 수정합니다 ▼▼▼ ---
 from pdf_parser import (
     extract_address,
+    extract_search_address,  # [신규] KB시세 검색용 축약 주소 추출
     extract_area,
     extract_property_type,
     extract_owner_info,
@@ -206,8 +207,12 @@ def upload_and_parse_pdf():
     print(f"===== 건축물대장 조회 종료 =====\n")
 
     # 3. 결과 정리 및 반환 (KB 크롤링 제거 - 별도 API 사용)
+    # [신규] KB시세 검색용 축약 주소 추출
+    search_address = extract_search_address(extracted_address)
+
     scraped_data = {
         'address': extracted_address,
+        'search_address': search_address,  # [신규] KB시세 검색용 축약 주소
         'area': extracted_area,
         'property_type': property_type_info.get('detail', 'Unknown'),
         'property_category': property_type_info.get('type', 'Unknown'),
