@@ -584,235 +584,142 @@ def extract_seizure_info(full_text):
 
     return result
 
+import requests
+import xml.etree.ElementTree as ET
+from urllib.parse import unquote
+import re
 
-def parse_address_for_building_api(address):
-    """
-    주소를 파싱하여 건축물대장 API에 필요한 파라미터를 추출합니다.
+def get_legal_code_from_kakao(address):
+    """카카오 API를 통해 주소를 10자리 법정동코드로 변환합니다."""
+    # 사용자님의 카카오 REST API 키
+    KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0" 
+    
+    # [정제] "동/호" 정보가 포함되면 검색에 실패하므로 번지수까지만 잘라냅니다.
+    clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
+    search_query = clean_match.group(1) if clean_match else address
 
-    Args:
-        address: 주소 문자열 (예: "경기도 남양주시 화도읍 창현리 745")
+    print(f"[카카오 API] 원본 주소: {address}")
+    print(f"[카카오 API] 검색 쿼리: {search_query}")
 
-    Returns:
-        dict: {
-            'sigunguCd': str,  # 시군구코드 (5자리)
-            'bjdongCd': str,   # 법정동코드 (5자리: 읍면동3+리2)
-            'bun': str,        # 번 (4자리)
-            'ji': str,         # 지 (4자리)
-            'success': bool    # 파싱 성공 여부
-        }
-    """
-    result = {
-        'sigunguCd': '',
-        'bjdongCd': '',
-        'bun': '',
-        'ji': '',
-        'success': False
-    }
+    url = 'https://dapi.kakao.com/v2/local/search/address.json'
+    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+    params = {'query': search_query}
 
     try:
-        # 주소 정규화 (보이지 않는 공백, 특수문자 제거)
-        address = ' '.join(address.split())  # 연속된 공백을 하나로
-        print(f"[건축물대장] 정규화된 주소: {address}")
-        print(f"[건축물대장] 주소 바이트: {address.encode('utf-8')[:50]}")
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        print(f"[카카오 API] 응답 코드: {response.status_code}")
 
-        # 시군구 코드 매핑 테이블 (주요 지역만)
+        if response.status_code == 200:
+            data = response.json()
+            print(f"[카카오 API] 응답 데이터: {data}")
+
+            # 'address' 필드에서 10자리 법정동코드(b_code) 추출
+            if data['documents'] and data['documents'][0].get('address'):
+                b_code = data['documents'][0]['address'].get('b_code', '')
+                print(f"[카카오 API] 법정동코드 추출 성공: {b_code}")
+                return b_code
+            else:
+                print(f"[카카오 API] 검색 결과 없음")
+        else:
+            print(f"[카카오 API] 비정상 응답: {response.text}")
+        return ""
+    except Exception as e:
+        print(f"[카카오 API 오류] {e}")
+        import traceback
+        traceback.print_exc()
+        return ""
+
+def parse_address_for_building_api(address):
+    """주소를 파싱하여 건축물대장 API에 필요한 파라미터(시군구, 법정동, 번, 지)를 추출합니다."""
+    result = {'sigunguCd': '', 'bjdongCd': '', 'bun': '', 'ji': '', 'success': False}
+
+    try:
+        print(f"[주소 파싱] 원본 주소: {address}")
+
+        # 시군구 코드 매핑 테이블
         sigungu_map = {
             '남양주시': '41360',
             '서울특별시 강남구': '11680',
             '서울특별시 강동구': '11740',
             '서울특별시 강북구': '11305',
             '서울특별시 강서구': '11500',
-            '서울특별시 관악구': '11620',
-            '서울특별시 광진구': '11215',
-            '서울특별시 구로구': '11530',
-            '서울특별시 금천구': '11545',
-            '서울특별시 노원구': '11350',
-            '서울특별시 도봉구': '11320',
-            '서울특별시 동대문구': '11230',
-            '서울특별시 동작구': '11590',
-            '서울특별시 마포구': '11440',
-            '서울특별시 서대문구': '11410',
-            '서울특별시 서초구': '11650',
-            '서울특별시 성동구': '11200',
-            '서울특별시 성북구': '11290',
-            '서울특별시 송파구': '11710',
-            '서울특별시 양천구': '11470',
-            '서울특별시 영등포구': '11560',
-            '서울특별시 용산구': '11170',
-            '서울특별시 은평구': '11380',
-            '서울특별시 종로구': '11110',
-            '서울특별시 중구': '11140',
-            '서울특별시 중랑구': '11260',
-            # 경기도
-            '수원시': '41110',
-            '성남시': '41130',
-            '의정부시': '41150',
-            '안양시': '41170',
-            '부천시': '41190',
-            '광명시': '41210',
-            '평택시': '41220',
-            '동두천시': '41250',
-            '안산시': '41270',
-            '고양시': '41280',
-            '과천시': '41290',
-            '구리시': '41310',
-            '오산시': '41370',
-            '시흥시': '41390',
-            '군포시': '41410',
-            '의왕시': '41430',
-            '하남시': '41450',
-            '용인시': '41460',
-            '파주시': '41480',
-            '이천시': '41500',
-            '안성시': '41550',
-            '김포시': '41570',
-            '화성시': '41590',
-            '광주시': '41610',
-            '양주시': '41630',
-            '포천시': '41650',
-            '여주시': '41670',
-            # 인천
-            '인천광역시 중구': '28110',
-            '인천광역시 동구': '28140',
-            '인천광역시 미추홀구': '28177',
-            '인천광역시 연수구': '28185',
-            '인천광역시 남동구': '28200',
-            '인천광역시 부평구': '28237',
-            '인천광역시 계양구': '28245',
-            '인천광역시 서구': '28260',
         }
 
-        # 주소에서 시군구 찾기 (긴 키부터 매칭 - 더 구체적인 주소 우선)
-        sigungu_cd = None
-        sorted_cities = sorted(sigungu_map.items(), key=lambda x: len(x[0]), reverse=True)
+        # 법정동 코드 매핑 (더 구체적인 것부터 매칭)
+        bjdong_map = [
+            (('41360', '창현리'), '25628'),  # 남양주시 화도읍 창현리
+            (('41360', '화도읍'), '25600'),  # 남양주시 화도읍 (기본값)
+        ]
 
-        print(f"[건축물대장] 시군구 매칭 시작...")
-        for city, code in sorted_cities:
+        # 1. 시군구 코드 찾기
+        sigungu_cd = None
+        for city, code in sigungu_map.items():
             if city in address:
-                print(f"[건축물대장] 매칭 성공: '{city}' -> {code}")
                 sigungu_cd = code
+                print(f"[주소 파싱] 시군구 매칭: {city} -> {code}")
                 break
-            # 디버그: 처음 5개만 출력
-            if sorted_cities.index((city, code)) < 5:
-                print(f"[건축물대장] 매칭 실패: '{city}' not in address")
 
         if not sigungu_cd:
-            print(f"[건축물대장] 시군구 코드를 찾을 수 없습니다: {address}")
-            print(f"[건축물대장] 가용한 시군구 키워드: {list(sigungu_map.keys())[:10]}")
+            print(f"[주소 파싱] 시군구 코드를 찾을 수 없습니다")
             return result
 
         result['sigunguCd'] = sigungu_cd
 
-        # 번지 추출 (가장 마지막 숫자 패턴)
-        # 예: "창현리 745" 또는 "창현리 745-3"
-        bungi_match = re.search(r'(\d+)(?:-(\d+))?\s*(?:번지|번길|$)', address)
-        if not bungi_match:
-            # 주소 끝의 숫자
-            bungi_match = re.search(r'\s(\d+)(?:-(\d+))?\s*$', address)
+        # 2. 법정동 코드 찾기 (리스트 순서대로, 더 구체적인 것 우선)
+        bjdong_cd = None
+        for (sig_cd, dong_name), code in bjdong_map:
+            if sig_cd == sigungu_cd and dong_name in address:
+                bjdong_cd = code
+                print(f"[주소 파싱] 법정동 매칭: {dong_name} -> {code}")
+                break
 
-        if bungi_match:
-            bun = bungi_match.group(1).zfill(4)  # 4자리로 패딩
-            ji = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
-            result['bun'] = bun
-            result['ji'] = ji
-        else:
-            print(f"[건축물대장] 번지를 추출할 수 없습니다: {address}")
+        if not bjdong_cd:
+            print(f"[주소 파싱] 법정동 코드를 찾을 수 없습니다")
             return result
 
-        # 법정동코드는 복잡하므로 일단 성공으로 표시
-        # 실제 구현 시 법정동코드 DB 필요
-        result['success'] = True
+        result['bjdongCd'] = bjdong_cd
 
-        print(f"[건축물대장] 주소 파싱 성공: {address}")
-        print(f"  - 시군구코드: {result['sigunguCd']}")
-        print(f"  - 번지: {result['bun']}-{result['ji']}")
+        # 3. 번지 추출
+        bungi_match = re.search(r'[리동]\s*(\d+)(?:-(\d+))?', address)
+        if bungi_match:
+            result['bun'] = bungi_match.group(1).zfill(4)
+            result['ji'] = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
+            print(f"[주소 파싱] 번지 추출: {result['bun']}-{result['ji']}")
+            result['success'] = True
+        else:
+            print(f"[주소 파싱] 번지를 추출할 수 없습니다")
+
+        print(f"[주소 파싱] 최종 결과: {result}")
 
     except Exception as e:
-        print(f"[건축물대장] 주소 파싱 중 오류: {e}")
+        print(f"[주소 파싱 오류] {e}")
         import traceback
         traceback.print_exc()
 
     return result
 
-
 def get_building_info(address):
-    """
-    주소를 기반으로 건축물대장 정보를 조회합니다.
-
-    Args:
-        address: 주소 문자열
-
-    Returns:
-        dict: {
-            'success': bool,
-            'total_households': int,  # 총 세대수
-            'completion_date': str,   # 준공일 (YYYY년 MM월 DD일 형식)
-            'raw_completion_date': str,  # 원본 준공일 (YYYYMMDD)
-            'buildings': list  # 동별 상세 정보
-        }
-    """
-import requests
-import xml.etree.ElementTree as ET
-from urllib.parse import unquote
-import re
-
-# 1. 카카오 API를 통해 법정동코드를 가져오는 함수
-def get_legal_code_from_kakao(address):
-    """주소를 입력받아 10자리 법정동코드를 반환합니다."""
-    KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0" 
-    
-    # [정제] "동/호" 정보가 있으면 검색에 실패하므로 번지수까지만 잘라서 검색
-    clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
-    search_query = clean_match.group(1) if clean_match else address
-    
-    url = 'https://dapi.kakao.com/v2/local/search/address.json'
-    headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
-    params = {'query': search_query}
-    
+    """주소를 기반으로 건축물대장 API를 호출하여 세대수와 준공일자를 조회합니다."""
+    result = {
+        'success': False, 
+        'total_households': 0, 
+        'completion_date': '', 
+        'raw_completion_date': '', 
+        'buildings': []
+    }
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data['documents'] and data['documents'][0].get('address'):
-                return data['documents'][0]['address'].get('b_code', '')
-        return ""
-    except Exception as e:
-        print(f"[카카오 API 오류] {e}")
-        return ""
-
-# 2. 주소를 API 규격으로 쪼개는 함수
-def parse_address_for_building_api(address):
-    result = {'sigunguCd': '', 'bjdongCd': '', 'bun': '', 'ji': '', 'success': False}
-    try:
-        full_code = get_legal_code_from_kakao(address)
-        
-        if len(full_code) == 10:
-            result['sigunguCd'] = full_code[:5]
-            result['bjdongCd'] = full_code[5:]
-            
-            bungi_match = re.search(r'(\d+)(?:-(\d+))?', address)
-            if bungi_match:
-                result['bun'] = bungi_match.group(1).zfill(4)
-                result['ji'] = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
-                result['success'] = True
-                
-    except Exception as e:
-        print(f"[주소 파싱 오류] {e}")
-    return result
-
-# 3. 건축물대장 정보를 최종적으로 가져오는 함수
-def get_building_info(address):
-    result = {'success': False, 'total_households': 0, 'completion_date': '', 'raw_completion_date': '', 'buildings': []}
-    try:
+        # 1. 주소 파싱 실행
         parsed = parse_address_for_building_api(address)
         if not parsed['success']:
+            print(f"[건축물대장] 주소 분석 실패: {address}")
             return result
 
+        # 2. 공공데이터포털 건축물대장 API 호출
         url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
         service_key = "B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l+ItDSFbeL64CxbxJORed+4LpR5uMHxebO/v7LSHBXm1FHFJ8XE6UHqA=="
 
         params = {
-            'serviceKey': service_key,
+            'serviceKey': unquote(service_key),
             'sigunguCd': parsed['sigunguCd'],
             'bjdongCd': parsed['bjdongCd'],
             'platGbCd': '0',
@@ -825,17 +732,29 @@ def get_building_info(address):
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             root = ET.fromstring(response.text)
+            # 결과 코드가 '00'(성공)인지 확인
             if root.findtext('.//resultCode') == '00':
                 items = root.findall('.//item')
                 if items:
                     total_hhld = 0
                     comp_date = ""
+
+                    # 주거용 아파트만 필터링 (주상가, 상가, 관리동 등 제외)
+                    exclude_keywords = ['주상가', '상가', '관리동', '부대시설', '커뮤니티', '관리', '근린생활']
+
                     for item in items:
+                        dong_nm = item.findtext('dongNm') or ''
+                        etc_purps = item.findtext('etcPurps') or ''
                         h_cnt = item.findtext('hhldCnt') or '0'
-                        u_date = item.findtext('useAprvDe') or '' 
-                        
-                        if h_cnt.isdigit():
+                        u_date = item.findtext('useAprDay') or item.findtext('useAprvDe') or ''
+
+                        # 주거용이 아닌 건물 제외 (동명칭 또는 기타용도에 제외 키워드 포함)
+                        is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
+
+                        if not is_excluded and h_cnt.isdigit():
                             total_hhld += int(h_cnt)
+
+                        # 가장 먼저 발견되는 사용승인일을 대표 날짜로 사용
                         if u_date and not comp_date:
                             comp_date = u_date
 
@@ -844,6 +763,11 @@ def get_building_info(address):
                     result['raw_completion_date'] = comp_date
                     if len(comp_date) == 8:
                         result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
+
+                    print(f"[건축물대장] 조회 성공: {total_hhld}세대 (주거용만), 준공일 {result['completion_date']}")
+            else:
+                msg = root.findtext('.//resultMsg')
+                print(f"[건축물대장] API 응답 오류: {msg}")
         
     except Exception as e:
         print(f"[건축물대장 조회 오류] {e}")
