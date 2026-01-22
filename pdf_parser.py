@@ -5,10 +5,49 @@ from dateutil.relativedelta import relativedelta
 from legal_code_data import sigungu_map, bjdong_map  # 법정동코드 데이터 import
 
 def extract_address(text):
-    """텍스트에서 주소를 추출합니다."""
-    match = re.search(r"\[집합건물\]\s*([^\n]+)", text)
-    if match:
-        return match.group(1).strip()
+    """
+    텍스트에서 주소를 추출합니다.
+    PDF에서 주소가 줄바꿈으로 분리되는 경우가 있으므로,
+    [집합건물] 이후 "제~호"까지 포함하여 추출합니다.
+    """
+    # 모든 [집합건물] 위치 찾기
+    pattern = r'\[집합건물\]\s*'
+    positions = [(m.end(), m.start()) for m in re.finditer(pattern, text)]
+
+    best_address = ""
+
+    for i, (start_pos, _) in enumerate(positions):
+        # 다음 [집합건물] 위치까지 또는 텍스트 끝까지
+        if i + 1 < len(positions):
+            end_pos = positions[i + 1][1]  # 다음 [집합건물]의 시작 위치
+        else:
+            end_pos = min(start_pos + 500, len(text))  # 최대 500자까지만
+
+        block = text[start_pos:end_pos]
+
+        # 이 블록 내에서 "제~호"로 끝나는 주소 찾기
+        # 줄바꿈 포함하여 "제~호"까지 추출
+        match = re.search(r'^(.+?제\d+호)', block, re.DOTALL)
+        if match:
+            # 줄바꿈을 공백으로 치환하고 연속 공백 제거
+            address = re.sub(r'\s+', ' ', match.group(1)).strip()
+            # 가장 짧은 완전한 주소 선택 (불필요한 데이터 제외)
+            if not best_address or len(address) < len(best_address):
+                best_address = address
+
+    if best_address:
+        return best_address
+
+    # 패턴 2: 줄바꿈 없이 한 줄에 있는 경우 (기존 방식)
+    matches = re.findall(r"\[집합건물\]\s*([^\n]+)", text)
+    if matches:
+        # "제~호"로 끝나는 주소 우선, 없으면 가장 긴 것
+        complete = [m.strip() for m in matches if re.search(r'제\d+호', m)]
+        if complete:
+            return min(complete, key=len)  # 가장 짧은 완전한 주소
+        return max([m.strip() for m in matches], key=len)
+
+    # 패턴 3: 소재지 패턴
     match = re.search(r"소재지\s*[:：]?\s*([^\n]+)", text)
     if match:
         return match.group(1).strip()
@@ -18,31 +57,74 @@ def extract_address(text):
 def extract_search_address(full_address):
     """
     전체 주소에서 KB시세 검색용 축약 주소를 추출합니다.
-    예: "경기도 남양주시 평내동 87 효성타운아파트 제106동 제2층 제202호" → "남양주시 평내동 87"
+
+    우선순위:
+    1. 시군구 + 동 + 지번 (예: "남양주시 평내동 87")
+    2. 시군구 + 동 + 아파트명 (예: "미추홀구 용현동 용현자이크레스트")
 
     Args:
         full_address (str): 등기부등본에서 추출한 전체 주소
 
     Returns:
-        str: 검색용 축약 주소 (시군구 + 동/리 + 지번)
+        str: 검색용 축약 주소
     """
     if not full_address:
         return ""
 
     try:
-        # 패턴: (시/군/구) + (동/읍/면/리) + (지번)
-        # 예: 남양주시 평내동 87, 서울시 강남구 역삼동 123-4
-        pattern = r'([가-힣]+[시군구])\s+([가-힣]+[동읍면리])\s+(\d+(?:-\d+)?)'
-        match = re.search(pattern, full_address)
+        # 1. 시군구 추출
+        sigungu_match = re.search(r'([가-힣]+[시군구])', full_address)
+        sigungu = sigungu_match.group(1) if sigungu_match else ""
 
-        if match:
-            sigungu = match.group(1)  # 시군구
-            dong = match.group(2)      # 동/읍/면/리
-            jibun = match.group(3)     # 지번
+        # 2. 동/읍/면/리 추출
+        dong_match = re.search(r'([가-힣]+[동읍면리])(?:\s|$|\d)', full_address)
+        dong = dong_match.group(1) if dong_match else ""
 
+        # 패턴 1: 시군구 + 동 + 지번 (가장 이상적인 형태)
+        pattern1 = r'([가-힣]+[시군구])\s+([가-힣]+[동읍면리])\s+(\d+(?:-\d+)?)'
+        match1 = re.search(pattern1, full_address)
+
+        if match1:
+            sigungu = match1.group(1)
+            dong = match1.group(2)
+            jibun = match1.group(3)
             result = f"{sigungu} {dong} {jibun}"
-            print(f"[검색주소 추출] 원본: {full_address}")
-            print(f"[검색주소 추출] 결과: {result}")
+            print(f"[검색주소 추출] 패턴1(지번) 매칭: {result}")
+            return result
+
+        # 패턴 2: 지번이 없는 경우 아파트명 추출
+        # 아파트명 패턴: ~아파트, ~자이, ~힐스테이트, ~푸르지오, ~래미안, ~e편한세상 등
+        apt_patterns = [
+            r'([가-힣]+자이[가-힣]*)',           # 자이, 자이크레스트 등
+            r'([가-힣]+아파트)',                 # ~아파트
+            r'([가-힣]+힐스테이트)',             # 힐스테이트
+            r'([가-힣]+푸르지오)',               # 푸르지오
+            r'([가-힣]+래미안)',                 # 래미안
+            r'([가-힣]+e편한세상)',              # e편한세상
+            r'([가-힣]+센트럴)',                 # ~센트럴
+            r'([가-힣]+파크)',                   # ~파크
+            r'([가-힣]+타운)',                   # ~타운
+            r'([가-힣]+빌)',                     # ~빌
+            r'([가-힣]+캐슬)',                   # ~캐슬
+            r'([가-힣]+스카이뷰)',               # ~스카이뷰
+        ]
+
+        apt_name = ""
+        for apt_pattern in apt_patterns:
+            apt_match = re.search(apt_pattern, full_address)
+            if apt_match:
+                apt_name = apt_match.group(1)
+                break
+
+        if sigungu and dong and apt_name:
+            result = f"{sigungu} {dong} {apt_name}"
+            print(f"[검색주소 추출] 패턴2(아파트명) 매칭: {result}")
+            return result
+
+        # 패턴 3: 시군구 + 동만 추출 가능한 경우
+        if sigungu and dong:
+            result = f"{sigungu} {dong}"
+            print(f"[검색주소 추출] 패턴3(동만) 매칭: {result}")
             return result
 
         # 매칭 실패 시 원본 반환
@@ -55,16 +137,35 @@ def extract_search_address(full_address):
 
 def extract_area(text):
     """텍스트에서 전용 면적을 추출합니다."""
-    area_section_match = re.search(r"전유부분의 건물의 표시([\s\S]*?)대지권의 표시", text)
-    search_text = area_section_match.group(1) if area_section_match else text
+    # 패턴 1: "전유부분의 건물의 표시" ~ "갑 구" 또는 "대지권의 표시" 사이
+    # 괄호로 감싸져 있을 수 있음: ( 전유부분의 건물의 표시 )
+    area_section_match = re.search(
+        r"전유부분의\s*건물의\s*표시\s*\)?([\s\S]*?)(?:갑\s*구|대지권의\s*표시)",
+        text
+    )
+    search_text = area_section_match.group(1) if area_section_match else ""
 
-    # 줄바꿈으로 분리된 면적 처리 (박규생님 등기 등)
-    clean_text = re.sub(r'구조(\d+)\s*\n\s*\.', r'구조\1.', search_text)
+    if search_text:
+        # 전유부분 섹션 내에서 면적 찾기
+        matches = re.findall(r"(\d+\.\d+)\s*㎡", search_text)
+        if matches:
+            # 전유부분은 보통 한 개의 면적만 있음 (여러 개면 가장 큰 것)
+            largest_area = max(matches, key=lambda x: float(x))
+            return f"{largest_area}㎡"
+
+    # 패턴 2: 전유부분 섹션을 못 찾은 경우, 기존 방식 (전체 텍스트에서)
+    # 줄바꿈으로 분리된 면적 처리
+    clean_text = re.sub(r'구조(\d+)\s*\n\s*\.', r'구조\1.', text)
     clean_text = re.sub(r'\s+', ' ', clean_text)
 
     matches = re.findall(r"(\d+\.\d+)\s*㎡", clean_text)
-    # 가장 큰 면적을 선택 (경로당, 경비실 등 작은 면적 제외)
     if matches:
+        # 아파트 전용면적 범위 (20~200㎡) 내에서 가장 큰 면적 선택
+        valid_areas = [m for m in matches if 20 <= float(m) <= 200]
+        if valid_areas:
+            largest_area = max(valid_areas, key=lambda x: float(x))
+            return f"{largest_area}㎡"
+        # 유효 범위 없으면 가장 큰 면적
         largest_area = max(matches, key=lambda x: float(x))
         return f"{largest_area}㎡"
     return ""
