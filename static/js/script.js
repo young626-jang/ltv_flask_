@@ -2575,6 +2575,28 @@ document.addEventListener('DOMContentLoaded', () => {
        // 페이지 로드시에도 한번 실행
        parseCustomerNames();
    }
+
+   // KB시세 버튼 클릭 시 확장프로그램으로 자동 검색 트리거
+   const kbButtons = document.querySelectorAll('a[href*="kbland.kr"]');
+   kbButtons.forEach(btn => {
+       btn.addEventListener('click', (e) => {
+           e.preventDefault();
+           const addressField = document.getElementById('address');
+           if (addressField && addressField.value.trim()) {
+               const address = addressField.value.trim();
+               console.log('🔍 KB시세 자동 검색 시작:', address);
+
+               // CustomEvent 발생 - content_flask.js가 감지
+               const event = new CustomEvent('START_KB_AUTO_SEARCH', {
+                   detail: { address: address }
+               });
+               window.dispatchEvent(event);
+           } else {
+               console.warn('⚠️ 주소가 입력되지 않았습니다');
+               alert('주소를 먼저 입력해주세요.');
+           }
+       });
+   });
 });
 
 // [신규] 필요금액을 기준으로 LTV 비율을 계산하고 ltv1에 자동 입력
