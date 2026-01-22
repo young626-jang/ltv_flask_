@@ -267,12 +267,11 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
 
 def calculate_ltv_from_required_amount(kb_price, required_amount, loans, deduction_amount):
     """
-    필요금액을 기반으로 LTV를 역산하는 함수 (올림 처리로 수정됨)
+    필요금액을 기반으로 LTV를 역산하는 함수 (소수점 1자리까지 표시)
 
     계산식:
     - 후순위의 경우: LTV = (유지/동의/비동의 채권최고액 합계 + 필요금액 + 방공제) / KB시세 × 100
     - 선순위의 경우: LTV = (필요금액 + 방공제) / KB시세 × 100
-    - 계산된 LTV는 소수점 이하를 '올림'하여 금리 구간을 보수적으로 판단합니다.
 
     Args:
         kb_price (int): KB 시세 (만원 단위)
@@ -281,7 +280,7 @@ def calculate_ltv_from_required_amount(kb_price, required_amount, loans, deducti
         deduction_amount (int): 방공제 금액 (만원 단위)
 
     Returns:
-        int: 계산된 LTV (최대 80%)
+        float: 계산된 LTV (소수점 1자리)
     """
     if kb_price <= 0:
         return 0
@@ -298,10 +297,7 @@ def calculate_ltv_from_required_amount(kb_price, required_amount, loans, deducti
     total_ltv_base_amount = total_max_amount_sum + required_amount + deduction_amount
     calculated_ltv = (total_ltv_base_amount / kb_price) * 100
 
-    # --- ▼▼▼ 여기가 핵심 수정 부분입니다 (반올림 -> 올림) ▼▼▼ ---
-    # math.ceil()을 사용하여 소수점 첫째 자리에서 무조건 올림 처리합니다.
-    # 예: 70.1 -> 71, 75.8 -> 76
-    final_ltv = math.ceil(calculated_ltv)
-    # --- ▲▲▲ 여기가 핵심 수정 부분입니다 ▲▲▲ ---
+    # 소수점 첫째 자리까지 반올림 (예: 79.24 -> 79.2, 80.56 -> 80.6)
+    final_ltv = round(calculated_ltv, 1)
 
     return final_ltv if final_ltv > 0 else 0
