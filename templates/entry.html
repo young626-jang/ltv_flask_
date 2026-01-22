@@ -86,6 +86,18 @@
                 </div>
             </div>
 
+            <!-- 압류 경고 영역 -->
+            <div id="seizure-warning" class="alert alert-danger" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>
+                    <div>
+                        <div class="fw-bold text-danger" id="seizure-title">⚠️ 압류 정보</div>
+                        <div class="small text-danger" id="seizure-summary" style="font-weight: 600;"></div>
+                        <div class="small text-danger mt-1" id="seizure-details"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
                 <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
 
@@ -373,7 +385,26 @@
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
                 <!-- ====================================================== -->
                 <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
-                    
+
+                    <!-- 지분용 LTV 비율 & 필요금액 (역계산) -->
+                    <div class="row mb-2 g-2">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label for="share-ltv" class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">📊 LTV</label>
+                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('share-ltv', -5)" style="padding: 2px 6px;">-</button>
+                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('share-ltv', 5)" style="padding: 2px 6px;">+</button>
+                                <input type="text" class="form-control form-field text-center md-input" id="share-ltv" value="80" style="flex: 1; max-width: 70px;">
+                                <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('share-ltv')" style="padding: 2px 6px;">×</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label for="share-required-amount" class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">💰 필요(만)</label>
+                                <input type="text" class="form-control form-field manwon-format md-input" id="share-required-amount" placeholder="역계산" style="flex: 1;">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 공유자 1 정보 입력 -->
                     <div class="row mb-2 align-items-center g-2">
                         <div class="col-auto">
@@ -494,12 +525,21 @@ async function updateAutoLTV() {
         const is_senior = maintain_sum === 0;
         const loanTypeLabel = is_senior ? '선순위' : '후순위';
 
-        // 서울/경기/인천 체크
-        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천');
+        // 서울/경기/인천 체크 (군 지역 제외)
+        const isSeoul = address.includes('서울');
+        const isGyeonggi = address.includes('경기');
+        const isIncheon = address.includes('인천');
+
+        // 제외할 군 지역 목록
+        const excludedGuns = ['가평군', '양평군', '연천군', '강화군', '옹진군'];
+        const isExcludedGun = excludedGuns.some(gun => address.includes(gun));
+
+        const isValidRegion = (isSeoul || isGyeonggi || isIncheon) && !isExcludedGun;
 
         if (!isValidRegion) {
             if (displayEl) {
-                displayEl.textContent = '⚠️ 아이엠: 서울/경기/인천 외 지역 취급불가';
+                const gunMsg = isExcludedGun ? ' (군 지역 제외)' : '';
+                displayEl.textContent = `⚠️ 아이엠: 서울/경기/인천만 취급 가능${gunMsg}`;
                 displayEl.style.color = '#dc3545';
             }
             return;
