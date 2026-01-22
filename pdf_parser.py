@@ -675,10 +675,13 @@ def extract_seizure_info(full_text):
             purpose = first_line_match.group(2)
 
             # 말소 등기인지 확인 ("N번압류등기말소", "N번가압류등기말소")
-            if '말소' in purpose:
-                cancelled_match = re.search(r'(\d{1,2})번(?:압류|가압류)등기말소', entry)
-                if cancelled_match:
-                    cancelled_ranks.add(cancelled_match.group(1))
+            # entry 전체에서 '말소' 키워드 확인 (여러 줄에 걸쳐 있을 수 있음)
+            if '말소' in entry:
+                # 여러 개의 압류/가압류가 한꺼번에 말소될 수 있음
+                # 예: "5번가압류, 6번가압류, 7번가압류, 8번가압류, 9번임의경매개시결정 등기말소"
+                cancelled_matches = re.findall(r'(\d{1,2})번(?:가압류|압류)', entry)
+                for rank in cancelled_matches:
+                    cancelled_ranks.add(rank)
                 continue
 
             # 압류 또는 가압류 등기인지 확인
