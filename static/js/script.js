@@ -1425,18 +1425,30 @@ async function handleFileUpload(file) {
                 input.dispatchEvent(new Event('blur'));
             });
 
-            // [신규] KB시세 창 자동 열기
+            // [신규] KB시세 창 자동 열기 (팝업 방식)
             if (scraped.search_address) {
-                console.log(`🏠 KB시세 자동화 신호 발생: ${scraped.search_address}`);
+                console.log(`🏠 KB시세 자동 검색: ${scraped.search_address}`);
 
-                // 1. 클립보드 복사 (기존 유지)
+                // 클립보드 복사 (백업)
                 navigator.clipboard.writeText(scraped.search_address);
 
-                // 2. ★ 핵심: 확장 프로그램이 가로챌 수 있도록 '이벤트'를 쏩니다.
-                // 직접 window.open을 하지 않습니다!
-                window.dispatchEvent(new CustomEvent('START_KB_AUTO_SEARCH', { 
-                    detail: { address: scraped.search_address } 
-                }));
+                // ★ 핵심: URL 파라미터로 검색 주소를 전달
+                // content.js가 페이지 로드 시 파라미터를 감지하여 자동 검색 실행
+                const encodedAddress = encodeURIComponent(scraped.search_address);
+                const kbUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encodedAddress}`;
+
+                // 팝업 창 크기 및 위치 설정
+                const popupWidth = 1200;
+                const popupHeight = 900;
+                const left = (window.innerWidth - popupWidth) / 2;
+                const top = (window.innerHeight - popupHeight) / 2;
+
+                console.log(`📍 KB Land 팝업 열기: ${kbUrl}`);
+                window.open(
+                    kbUrl,
+                    'kbLandPopup',
+                    `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                );
             }
 
             // PDF 뷰어를 표시하고 파일 이름을 보여줍니다.
@@ -1615,11 +1627,11 @@ async function handleFileUpload(file) {
             const areaText = document.getElementById('area').value.trim();
             const area = parseFloat(areaText) || null;
 
-            // LTV 비율 수집 (ltv1만 사용)
+            // LTV 비율 수집 (지분용 share-ltv 사용)
             const ltvRates = [];
-            const ltv1 = document.getElementById("ltv1").value;
-            if (ltv1 && ltv1.trim()) ltvRates.push(parseFloat(ltv1));
-            if (ltvRates.length === 0) ltvRates.push(70); // 기본값
+            const shareLtv = document.getElementById("share-ltv")?.value;
+            if (shareLtv && shareLtv.trim()) ltvRates.push(parseFloat(shareLtv));
+            if (ltvRates.length === 0) ltvRates.push(80); // 기본값 80%
 
             // 대출 데이터 수집
             let loans = [];
@@ -1843,7 +1855,15 @@ function attachAllEventListeners() {
         validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
     });
 
-    // 4. 지분율 변경 시: 지분 개별 계산 (기존 로직 유지)
+    // 4. 지분용 LTV (share-ltv) 변경 시: 지분 개별 계산
+    document.getElementById('share-ltv')?.addEventListener('change', calculateIndividualShare);
+    document.getElementById('share-ltv')?.addEventListener('blur', calculateIndividualShare);
+
+    // 5. 지분용 필요금액 (share-required-amount) 변경 시: LTV 역산 후 지분 계산
+    document.getElementById('share-required-amount')?.addEventListener('change', calculateShareLTVFromRequiredAmount);
+    document.getElementById('share-required-amount')?.addEventListener('blur', calculateShareLTVFromRequiredAmount);
+
+    // 6. 지분율 변경 시: 지분 개별 계산 (기존 로직 유지)
     document.getElementById('share-customer-birth-1')?.addEventListener('change', function() {
         autoCalculateShareRatio(1, 2);
         calculateIndividualShare();
@@ -2644,6 +2664,86 @@ async function calculateLTVFromRequiredAmount() {
         console.error('LTV 계산 중 오류:', error);
         ltv1Field.value = '';
         triggerMemoGeneration();
+        calculateIndividualShare();
+    }
+}
+
+// [신규] 지분용 필요금액을 기준으로 LTV 비율을 계산하고 share-ltv에 자동 입력
+async function calculateShareLTVFromRequiredAmount() {
+    const kbPriceField = document.getElementById('kb_price');
+    const shareRequiredAmtField = document.getElementById('share-required-amount');
+    const shareLtvField = document.getElementById('share-ltv');
+
+    if (!kbPriceField || !shareRequiredAmtField || !shareLtvField) return;
+
+    const kbPrice = kbPriceField.value;
+    const requiredAmt = shareRequiredAmtField.value;
+
+    // 필요금액 체크
+    const requiredAmountValue = parseKoreanNumberString(requiredAmt);
+
+    // 필요금액이 0 이하이면 LTV 역산 실행하지 않음
+    if (requiredAmountValue <= 0) {
+        shareLtvField.value = '80'; // 기본값 복원
+        calculateIndividualShare();
+        return;
+    }
+
+    // KB시세가 0이면 경고
+    if (parseKoreanNumberString(kbPrice) === 0) {
+        showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
+        shareRequiredAmtField.value = '';
+        shareLtvField.value = '80';
+        calculateIndividualShare();
+        return;
+    }
+
+    // 대출 정보 수집
+    const deductionAmount = document.getElementById('deduction_amount').value;
+    const loans = [];
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const maxAmount = item.querySelector('[name="max_amount"]')?.value || '0';
+        const status = item.querySelector('[name="status"]')?.value || '-';
+
+        loans.push({
+            max_amount: maxAmount,
+            status: status
+        });
+    });
+
+    try {
+        // 서버 API 호출
+        const response = await fetch('/api/calculate_ltv_from_required_amount', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                kb_price: kbPrice,
+                required_amount: requiredAmt,
+                loans: loans,
+                deduction_amount: deductionAmount
+            })
+        });
+
+        if (!response.ok) {
+            console.error('API 응답 실패:', response.status);
+            return;
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.ltv !== undefined) {
+            shareLtvField.value = result.ltv > 0 ? result.ltv : '80';
+            calculateIndividualShare();
+        } else {
+            console.error('지분 LTV 계산 실패:', result.error);
+            shareLtvField.value = '80';
+            calculateIndividualShare();
+        }
+    } catch (error) {
+        console.error('지분 LTV 계산 중 오류:', error);
+        shareLtvField.value = '80';
         calculateIndividualShare();
     }
 }
