@@ -604,6 +604,16 @@ def generate_memo(data):
         if area_str:
             address_area_parts.append(area_str)
 
+        # 세대수 추가
+        unit_count = inputs.get('unit_count', '')
+        if unit_count:
+            try:
+                unit_count_val = int(str(unit_count).replace(',', '').strip())
+                if unit_count_val > 0:
+                    address_area_parts.append(f"세대수: {unit_count_val}")
+            except (ValueError, TypeError):
+                pass
+
         if address_area_parts:
             memo_lines.append(" | ".join(address_area_parts))
         
