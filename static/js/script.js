@@ -2555,6 +2555,18 @@ document.addEventListener('DOMContentLoaded', () => {
    addLoanItem();
    attachAllEventListeners();
    loadCustomerList();
+
+   // Select2 초기화 (고객 검색 기능)
+   $('#customer-history').select2({
+       placeholder: '고객명 검색...',
+       allowClear: true,
+       width: '100%',
+       language: {
+           noResults: function() { return '검색 결과 없음'; },
+           searching: function() { return '검색중...'; }
+       }
+   });
+
    triggerMemoGeneration();
    validateHopeLoanConditions(); // 페이지 로드 시 희망담보대부 조건 검증
    validateMeritzLoanConditions(); // 페이지 로드 시 메리츠질권 조건 검증
