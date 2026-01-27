@@ -619,14 +619,10 @@ def generate_memo(data):
             except (ValueError, TypeError):
                 pass
 
-        if address_area_parts:
-            memo_lines.append(" | ".join(address_area_parts))
-        
-        # KB시세, 시세적용, 방공제를 한 줄에 표시
-        price_info_parts = []
+        # KB시세 정보를 주소 라인에 합치기
         if kb_price_str:
-            price_info_parts.append(kb_price_str)
-        
+            address_area_parts.append(kb_price_str)
+
         # 시세적용 정보 추가 (층수 기준)
         price_type = ""
         if address and address.strip():
@@ -634,15 +630,15 @@ def generate_memo(data):
             if floor_match:
                 floor = int(floor_match.group(1))
                 price_type = "하안가 적용" if floor <= 2 else "일반가 적용"
-        
+
         if price_type:
-            price_info_parts.append(price_type)
-        
+            address_area_parts.append(price_type)
+
         if deduction_str:
-            price_info_parts.append(deduction_str)
-            
-        if price_info_parts:
-            memo_lines.append(" | ".join(price_info_parts))
+            address_area_parts.append(deduction_str)
+
+        if address_area_parts:
+            memo_lines.append(" | ".join(address_area_parts))
 
         # 기본 정보와 대출 정보 사이에 빈 줄 추가
         if memo_lines:
