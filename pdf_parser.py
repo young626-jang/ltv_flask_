@@ -622,6 +622,35 @@ def extract_last_transfer_info(text):
     return result
 
 
+def check_land_ownership_right(text):
+    """
+    등기부등본에서 소유권대지권 존재 여부를 확인합니다.
+    '대지권의 표시' 영역에서 '소유권 대지권' 텍스트가 있는지 확인합니다.
+
+    Returns:
+        bool: True=소유권대지권 있음, False=없음
+    """
+    try:
+        # 대지권의 표시 영역 찾기
+        land_section = re.search(
+            r"대지권의\s*표시([\s\S]*?)(?:갑\s*구|【\s*갑\s*구|$)",
+            text
+        )
+        if land_section:
+            section_text = land_section.group(1)
+            # '소유권 대지권' 또는 '소유권대지권' 패턴 검색
+            if re.search(r"소유권\s*대지권", section_text):
+                print("[DEBUG] 소유권대지권 확인됨")
+                return True
+
+        # 대지권의 표시 영역 자체가 없는 경우도 없음으로 처리
+        print("[DEBUG] 소유권대지권 없음 또는 대지권 영역 미발견")
+        return False
+    except Exception as e:
+        print(f"소유권대지권 확인 중 오류: {e}")
+        return False
+
+
 def extract_seizure_info(full_text):
     """
     갑구에서 압류/가압류 정보를 추출합니다.
