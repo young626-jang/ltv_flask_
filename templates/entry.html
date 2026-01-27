@@ -453,7 +453,8 @@
                     <div class="d-flex gap-2 ms-auto">
                         <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">신규 고객으로 저장</button>
                         <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 정보 수정</button>
-                        <button class="btn md-btn md-btn-info" id="loan-review-btn" type="button" onclick="goToLoanReview()"><i class="bi bi-arrow-right-circle"></i> 대출심사로 이동</button>
+                        <button class="btn md-btn md-btn-warning" id="union-receipt-btn" type="button" onclick="goToUnionReceipt()"><i class="bi bi-arrow-right-circle"></i> 조합접수</button>
+                        <button class="btn md-btn md-btn-info" id="loan-review-btn" type="button" onclick="goToLoanReview()"><i class="bi bi-arrow-right-circle"></i> 대출심사</button>
                     </div>
                 </div>
             </div>
@@ -464,24 +465,16 @@
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 <script>
-// 대출심사 현황관리로 이동 (Notion)
-function goToLoanReview() {
-    console.log('대출심사 버튼 클릭됨');
-    const url = 'https://www.notion.so/1f2ebdf111b580cdbefbe40390c5428c?v=2b6ebdf111b58095b3a2000c1c4fbf82&source=copy_link';
-    console.log('Notion URL:', url);
+// 조합접수로 이동 (Notion)
+function goToUnionReceipt() {
+    const url = 'https://www.notion.so/1f2ebdf111b580cdbefbe40390c5428c?v=22aebdf111b580c1a638000c9145867a&source=copy_link';
+    window.open(url, '_blank');
+}
 
-    try {
-        const newWindow = window.open(url, '_blank');
-        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-            console.error('팝업이 차단되었습니다!');
-            alert('팝업 차단을 해제해주세요.\n\n수동 링크: ' + url);
-        } else {
-            console.log('Notion 페이지 열림 성공');
-        }
-    } catch (error) {
-        console.error('오류 발생:', error);
-        alert('페이지를 열 수 없습니다: ' + error.message);
-    }
+// 대출심사로 이동 (Notion)
+function goToLoanReview() {
+    const url = 'https://www.notion.so/1f2ebdf111b580cdbefbe40390c5428c?v=2b6ebdf111b58095b3a2000c1c4fbf82&source=copy_link';
+    window.open(url, '_blank');
 }
 
 // ✨ 자동 LTV 계산 (선순위/후순위 자동 판단)
