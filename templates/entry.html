@@ -387,7 +387,22 @@
                 <!-- ====================================================== -->
                 <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
 
-                    <!-- 지분용 LTV 비율 & 필요금액 (역계산) -->
+                    <!-- 지분시세 & 필요금액 -->
+                    <div class="row mb-2 g-2">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">지분시세(만)</label>
+                                <input type="text" class="form-control form-field text-center md-input" id="share-price" readonly placeholder="-" style="flex: 1; background-color: #f0f0f0 !important;">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label for="share-required-amount" class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">필요금액(만)</label>
+                                <input type="text" class="form-control form-field manwon-format md-input" id="share-required-amount" placeholder="필요금액 입력" style="flex: 1;">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 지분 LTV 비율 -->
                     <div class="row mb-2 g-2">
                         <div class="col-6">
                             <div class="d-flex align-items-center gap-1">
@@ -396,12 +411,6 @@
                                 <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('share-ltv', 5)" style="padding: 2px 6px;">+</button>
                                 <input type="text" class="form-control form-field text-center md-input" id="share-ltv" value="80" style="flex: 1; max-width: 70px;">
                                 <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('share-ltv')" style="padding: 2px 6px;">×</button>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="d-flex align-items-center gap-1">
-                                <label for="share-required-amount" class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">필요금액(만)</label>
-                                <input type="text" class="form-control form-field manwon-format md-input" id="share-required-amount" placeholder="필요금액 입력" style="flex: 1;">
                             </div>
                         </div>
                     </div>
