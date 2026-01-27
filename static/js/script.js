@@ -1740,9 +1740,26 @@ async function handleFileUpload(file) {
                 
                 if (data.success && data.results.length > 0) {
                     const result = data.results[0];
-                    const shareLimit = result["지분LTV한도(만원)"];
-                    const available = result["가용자금(만원)"];
-                    
+                    let shareLimit = result["지분LTV한도(만원)"];
+                    let available = result["가용자금(만원)"];
+
+                    // 필요금액이 입력된 경우 한도와 가용자금 덮어쓰기
+                    const shareRequiredAmountField = document.getElementById('share-required-amount');
+                    const shareRequiredAmountText = shareRequiredAmountField ? shareRequiredAmountField.value.replace(/,/g, '') : '';
+                    const shareRequiredAmount = parseInt(shareRequiredAmountText) || 0;
+                    if (shareRequiredAmount > 0) {
+                        // 대환/선말소 원금 합계 계산
+                        const replaceStatuses = ['대환', '선말소', '퇴거자금'];
+                        let existingPrincipal = 0;
+                        loans.forEach(loan => {
+                            if (replaceStatuses.includes(loan.status)) {
+                                existingPrincipal += (loan.principal || 0);
+                            }
+                        });
+                        shareLimit = shareRequiredAmount;
+                        available = shareRequiredAmount - existingPrincipal;
+                    }
+
                     // 첫 번째 결과에서만 차주명과 지분율 표시
                     if (i === 0) {
                         ownerName = result.이름;
