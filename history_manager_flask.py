@@ -215,6 +215,7 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
         "birth_date": get_rich_text(props, "생년월일"),
         "kb_price": get_number(props, "KB시세"),
         "area": get_rich_text(props, "전용면적"),
+        "property_type": get_rich_text(props, "물건유형"),
         "unit_count": get_rich_text(props, "세대수"),
         "completion_date": get_rich_text(props, "준공일자"),
         "ownership_transfer_date": get_rich_text(props, "소유권이전일"),
@@ -297,6 +298,9 @@ def format_properties_payload(data: Dict) -> Dict:
         },
         "전용면적": {
             "rich_text": [{"text": {"content": inputs.get("area", "").strip()}}]
+        },
+        "물건유형": {
+            "rich_text": [{"text": {"content": inputs.get("property_type", "").strip()}}]
         },
         "세대수": {
             "rich_text": [{"text": {"content": str(inputs.get("unit_count", "")).strip()}}]
@@ -574,6 +578,11 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
+
+
+
+
+
 
 
 
