@@ -1375,6 +1375,15 @@ async function handleFileUpload(file) {
             // [신규] 압류 경고 표시
             displaySeizureWarning(seizure_info);
 
+            // [신규] 소유권대지권 없음 경고
+            if (scraped.has_land_ownership_right === false) {
+                const addressField = document.getElementById('address');
+                if (addressField) {
+                    addressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
+                }
+                showCustomAlert('⚠️ 소유권대지권 無\n\n이 등기부등본에 소유권대지권이 확인되지 않습니다.');
+            }
+
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
             if (scraped.owner_shares && scraped.owner_shares.length > 0) {
                 scraped.owner_shares.forEach((line, idx) => {
@@ -1593,6 +1602,9 @@ async function handleFileUpload(file) {
     // [관련 계산] calculatePrincipalFromRatio(라인 349), calculateSimpleInterest(라인 472), calculateLTVFromRequiredAmount(라인 1929), calculateBalloonLoan(라인 2034) 참고
     async function calculateIndividualShare() {
         try {
+            // 지분시세 자동 갱신
+            updateSharePrice();
+
             // ✅ [수정] 먼저 차주 선택 여부를 확인 (라디오 버튼 체크)
             const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
             if (!selectedRadio) return; // 선택된 차주가 없으면 조용히 종료 (경고 없음)
@@ -2708,84 +2720,86 @@ async function calculateLTVFromRequiredAmount() {
     }
 }
 
-// [신규] 지분용 필요금액을 기준으로 LTV 비율을 계산하고 share-ltv에 자동 입력
-async function calculateShareLTVFromRequiredAmount() {
+// 지분시세 자동 계산 함수
+function updateSharePrice() {
     const kbPriceField = document.getElementById('kb_price');
+    const sharePriceField = document.getElementById('share-price');
+    if (!kbPriceField || !sharePriceField) return 0;
+
+    const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
+    if (kbPrice <= 0) {
+        sharePriceField.value = '-';
+        return 0;
+    }
+
+    // 선택된 차주의 지분율 가져오기
+    const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
+    if (!selectedRadio) {
+        sharePriceField.value = '-';
+        return 0;
+    }
+
+    const ownerIdx = selectedRadio.value;
+    const shareField = document.getElementById(`share-customer-birth-${ownerIdx}`);
+    if (!shareField) {
+        sharePriceField.value = '-';
+        return 0;
+    }
+
+    // 지분율 파싱
+    const shareText = shareField.value.trim();
+    let sharePercent = 0;
+    if (shareText) {
+        const percentMatch = shareText.match(/\(([\d.]+)%?\)/);
+        if (percentMatch) {
+            sharePercent = parseFloat(percentMatch[1]);
+        } else {
+            const numberMatch = shareText.match(/([\d.]+)%?/);
+            sharePercent = numberMatch ? parseFloat(numberMatch[1]) : 0;
+        }
+    }
+
+    if (sharePercent <= 0) {
+        sharePriceField.value = '-';
+        return 0;
+    }
+
+    const sharePrice = Math.round(kbPrice * sharePercent / 100);
+    sharePriceField.value = sharePrice.toLocaleString();
+    return sharePrice;
+}
+
+// [수정] 지분용 필요금액을 기준으로 LTV 비율을 계산 (지분시세 기준)
+function calculateShareLTVFromRequiredAmount() {
     const shareRequiredAmtField = document.getElementById('share-required-amount');
     const shareLtvField = document.getElementById('share-ltv');
 
-    if (!kbPriceField || !shareRequiredAmtField || !shareLtvField) return;
+    if (!shareRequiredAmtField || !shareLtvField) return;
 
-    const kbPrice = kbPriceField.value;
-    const requiredAmt = shareRequiredAmtField.value;
-
-    // 필요금액 체크
-    const requiredAmountValue = parseKoreanNumberString(requiredAmt);
+    const requiredAmountValue = parseKoreanNumberString(shareRequiredAmtField.value);
 
     // 필요금액이 0 이하이면 LTV 역산 실행하지 않음
     if (requiredAmountValue <= 0) {
-        shareLtvField.value = '80'; // 기본값 복원
+        shareLtvField.value = '80';
         calculateIndividualShare();
         return;
     }
 
-    // KB시세가 0이면 경고
-    if (parseKoreanNumberString(kbPrice) === 0) {
-        showCustomAlert("KB시세를 먼저 입력해야 LTV 자동 계산이 가능합니다.");
+    // 지분시세 계산
+    const sharePrice = updateSharePrice();
+    if (sharePrice <= 0) {
+        showCustomAlert("KB시세와 지분율을 먼저 입력해주세요.");
         shareRequiredAmtField.value = '';
         shareLtvField.value = '80';
         calculateIndividualShare();
         return;
     }
 
-    // 대출 정보 수집
-    const deductionAmount = document.getElementById('deduction_amount').value;
-    const loans = [];
-    document.querySelectorAll('.loan-item').forEach(item => {
-        const maxAmount = item.querySelector('[name="max_amount"]')?.value || '0';
-        const status = item.querySelector('[name="status"]')?.value || '-';
-
-        loans.push({
-            max_amount: maxAmount,
-            status: status
-        });
-    });
-
-    try {
-        // 서버 API 호출
-        const response = await fetch('/api/calculate_ltv_from_required_amount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                kb_price: kbPrice,
-                required_amount: requiredAmt,
-                loans: loans,
-                deduction_amount: deductionAmount
-            })
-        });
-
-        if (!response.ok) {
-            console.error('API 응답 실패:', response.status);
-            return;
-        }
-
-        const result = await response.json();
-
-        if (result.success && result.ltv !== undefined) {
-            shareLtvField.value = result.ltv > 0 ? result.ltv : '80';
-            calculateIndividualShare();
-        } else {
-            console.error('지분 LTV 계산 실패:', result.error);
-            shareLtvField.value = '80';
-            calculateIndividualShare();
-        }
-    } catch (error) {
-        console.error('지분 LTV 계산 중 오류:', error);
-        shareLtvField.value = '80';
-        calculateIndividualShare();
-    }
+    // 지분시세 기준 LTV 역산: 필요금액 / 지분시세 * 100
+    const ltv = Math.round((requiredAmountValue / sharePrice) * 1000) / 10; // 소수점 1자리
+    shareLtvField.value = ltv > 0 ? ltv : '80';
+    console.log(`📊 지분 LTV 역산: 필요금액 ${requiredAmountValue}만 / 지분시세 ${sharePrice}만 = ${ltv}%`);
+    calculateIndividualShare();
 }
 
 // 페이지를 떠날 때 자동 저장
