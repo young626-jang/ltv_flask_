@@ -1031,6 +1031,7 @@ async function loadCustomerData() {
         safeSetValue('address', data.address || '');
         safeSetValue('kb_price', (data.kb_price || '').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         safeSetValue('area', data.area || '');
+        safeSetValue('property_type', data.property_type || '');
         safeSetValue('ltv1', data.ltv1 || '80');
         safeSetValue('consult_amt', (data.consult_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         safeSetValue('consult_rate', data.consult_rate || '1.5');
@@ -2603,6 +2604,11 @@ document.addEventListener('DOMContentLoaded', () => {
                    detail: { address: address }
                });
                window.dispatchEvent(event);
+
+               // KB Land 팝업 창 열기 (autoSearch 파라미터로 주소 전달)
+               const encodedAddress = encodeURIComponent(address);
+               const kbUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encodedAddress}`;
+               window.open(kbUrl, 'kbLandPopup', 'width=1200,height=900,resizable=yes,scrollbars=yes');
            } else {
                console.warn('⚠️ 주소가 입력되지 않았습니다');
                alert('주소를 먼저 입력해주세요.');
