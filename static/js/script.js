@@ -2986,38 +2986,38 @@ function updateCollateralRateDisplay() {
 
         if (regionGrade === '2군') {
             additional += 0.5;
-            addReasons.push('2군+0.5');
+            addReasons.push('2군');
         } else if (regionGrade === '3군') {
             additional += 1.0;
-            addReasons.push('3군+1.0');
+            addReasons.push('3군');
         }
 
         if (isApt && unitCount > 0 && unitCount <= 100) {
             additional += 0.5;
-            addReasons.push('100세대이하+0.5');
+            addReasons.push('100세대이하');
         }
 
         // 군(읍) 단위 소재
         if (/[가-힣]+군\s/.test(address) || /[가-힣]+읍\s/.test(address) || address.match(/[가-힣]+군$/)) {
             additional += 0.5;
-            addReasons.push('군읍+0.5');
+            addReasons.push('군읍소재');
         }
 
         // 지분대출: 공유자 라디오 선택 시
         const shareBorrowerRadio = document.querySelector('input[name="share-borrower"]:checked');
         if (shareBorrowerRadio) {
             additional += 1.0;
-            addReasons.push('지분+1.0');
+            addReasons.push('지분');
         }
 
         const totalRate = baseRate + additional;
         let displayText = `${totalRate.toFixed(1)}%`;
         if (additional > 0) {
-            displayText += ` (+${additional.toFixed(1)})`;
+            displayText += ` (+${additional.toFixed(1)} ${addReasons.join(',')})`;
         }
 
         meritzDisplay.textContent = displayText;
-        meritzDisplay.title = addReasons.length > 0 ? addReasons.join(', ') : '가산 없음';
+        meritzDisplay.title = addReasons.length > 0 ? addReasons.map(r => r + ' 가산').join(', ') : '가산 없음';
         meritzDisplay.style.display = 'inline';
     } else {
         meritzDisplay.style.display = 'none';
