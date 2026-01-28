@@ -936,7 +936,8 @@ function collectAllData() {
     // 메모 생성 요청 (디바운스 적용)
     function triggerMemoGeneration() {
         clearTimeout(memoDebounceTimeout);
-        memoDebounceTimeout = setTimeout(generateMemo, 800); 
+        memoDebounceTimeout = setTimeout(generateMemo, 800);
+        updateCollateralRateDisplay(); // 질권사 금리 실시간 업데이트
     }
 
     // 메모 생성 및 하안가/일반가 표시
@@ -1857,10 +1858,14 @@ function attachAllEventListeners() {
     });
     
     document.querySelectorAll('input[name="share-borrower"]').forEach(radio => {
-        radio.addEventListener('change', calculateIndividualShare);
+        radio.addEventListener('change', function() {
+            calculateIndividualShare();
+            updateCollateralRateDisplay();
+        });
         radio.addEventListener('click', function() {
             setTimeout(() => {
                 calculateIndividualShare();
+                updateCollateralRateDisplay();
             }, 50);
         });
     });
@@ -1879,10 +1884,12 @@ function attachAllEventListeners() {
     document.getElementById('ltv1')?.addEventListener('change', function() {
         calculateIndividualShare();
         validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
+        updateCollateralRateDisplay();
     });
     document.getElementById('ltv1')?.addEventListener('blur', function() {
         calculateIndividualShare();
         validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
+        updateCollateralRateDisplay();
     });
 
     // 4. 지분용 LTV (share-ltv) 변경 시: 지분 개별 계산
@@ -2121,6 +2128,7 @@ function attachAllEventListeners() {
             }
             // 희망담보대부 조건 검증
             validateHopeLoanConditions();
+            updateCollateralRateDisplay();
             triggerMemoGeneration();
         });
     }
@@ -2272,6 +2280,7 @@ function attachAllEventListeners() {
             }
             // 메리츠 조건 검증
             validateMeritzLoanConditions();
+            updateCollateralRateDisplay();
             triggerMemoGeneration();
         });
     }
@@ -2600,6 +2609,7 @@ document.addEventListener('DOMContentLoaded', () => {
    triggerMemoGeneration();
    validateHopeLoanConditions(); // 페이지 로드 시 희망담보대부 조건 검증
    validateMeritzLoanConditions(); // 페이지 로드 시 메리츠질권 조건 검증
+   updateCollateralRateDisplay(); // 페이지 로드 시 질권사 금리 표시
    initializeResizeBar(); // 리사이즈 바 초기화 추가
    initializeDragAndDrop(); // 드래그앤드롭 초기화 추가
    setPdfColumnCompact(); // 페이지 로드 시 PDF 컬럼 컴팩트
@@ -2896,6 +2906,122 @@ function openGuidePopup() {
         `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
     console.log('📖 가이드 팝업 열기:', guideUrl);
+}
+
+// ========================================================
+// 질권사 금리 실시간 표시 (아이엠 / 메리츠)
+// ========================================================
+function updateCollateralRateDisplay() {
+    const hopeCheckbox = document.getElementById('hope-collateral-loan');
+    const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+    const hopeDisplay = document.getElementById('hope-rate-display');
+    const meritzDisplay = document.getElementById('meritz-rate-display');
+
+    if (!hopeDisplay || !meritzDisplay) return;
+
+    const ltv = parseFloat(document.getElementById('ltv1')?.value) || 0;
+
+    // 선순위/후순위 판단
+    const maintainStatuses = ['유지', '동의', '비동의'];
+    let hasSubordinate = false;
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const statusSelect = item.querySelector('[name="status"]');
+        if (statusSelect && maintainStatuses.includes(statusSelect.value)) {
+            hasSubordinate = true;
+        }
+    });
+    const isSenior = !hasSubordinate;
+
+    // --- 아이엠 금리 ---
+    if (hopeCheckbox?.checked) {
+        let hopeRate = null;
+        if (isSenior) {
+            // 선순위: 70% 이하만 가능
+            if (ltv <= 70) hopeRate = 6.4;
+            // 70% 초과는 표시 안함
+        } else {
+            // 후순위
+            if (ltv <= 70) hopeRate = 6.4;
+            else if (ltv <= 75) hopeRate = 6.6;
+            else if (ltv <= 80) hopeRate = 7.0;
+        }
+
+        if (hopeRate !== null) {
+            const label = isSenior ? '선순위' : '후순위';
+            hopeDisplay.textContent = `${label} ${hopeRate}%`;
+            hopeDisplay.style.display = 'inline';
+        } else {
+            hopeDisplay.style.display = 'none';
+        }
+    } else {
+        hopeDisplay.style.display = 'none';
+    }
+
+    // --- 메리츠 금리 ---
+    if (meritzCheckbox?.checked) {
+        const propertyType = document.getElementById('property_type')?.value || '';
+        const isApt = propertyType.includes('아파트') || propertyType.includes('주상복합');
+        const address = document.getElementById('address')?.value || '';
+        const regionGrade = getRegionGradeFromAddress(address);
+        const unitCount = parseInt((document.getElementById('unit_count')?.value || '0').replace(/,/g, '')) || 0;
+
+        // 아파트 100세대 이하 → Non-APT 기준 적용
+        const effectiveApt = isApt && (unitCount === 0 || unitCount > 100);
+
+        // 기본 금리
+        let baseRate;
+        if (effectiveApt) {
+            if (ltv <= 75) baseRate = 6.50;
+            else if (ltv <= 85) baseRate = 7.50;
+            else baseRate = 9.00;
+        } else {
+            if (ltv <= 75) baseRate = 8.70;
+            else if (ltv <= 85) baseRate = 9.70;
+            else baseRate = 11.20;
+        }
+
+        // 가산금리
+        let additional = 0;
+        const addReasons = [];
+
+        if (regionGrade === '2군') {
+            additional += 0.5;
+            addReasons.push('2군+0.5');
+        } else if (regionGrade === '3군') {
+            additional += 1.0;
+            addReasons.push('3군+1.0');
+        }
+
+        if (isApt && unitCount > 0 && unitCount <= 100) {
+            additional += 0.5;
+            addReasons.push('100세대이하+0.5');
+        }
+
+        // 군(읍) 단위 소재
+        if (/[가-힣]+군\s/.test(address) || /[가-힣]+읍\s/.test(address) || address.match(/[가-힣]+군$/)) {
+            additional += 0.5;
+            addReasons.push('군읍+0.5');
+        }
+
+        // 지분대출: 공유자 라디오 선택 시
+        const shareBorrowerRadio = document.querySelector('input[name="share-borrower"]:checked');
+        if (shareBorrowerRadio) {
+            additional += 1.0;
+            addReasons.push('지분+1.0');
+        }
+
+        const totalRate = baseRate + additional;
+        let displayText = `${totalRate.toFixed(1)}%`;
+        if (additional > 0) {
+            displayText += ` (+${additional.toFixed(1)})`;
+        }
+
+        meritzDisplay.textContent = displayText;
+        meritzDisplay.title = addReasons.length > 0 ? addReasons.join(', ') : '가산 없음';
+        meritzDisplay.style.display = 'inline';
+    } else {
+        meritzDisplay.style.display = 'none';
+    }
 }
 
 // 희망담보대부 조건 검증 (독립적인 두 조건)
