@@ -2114,9 +2114,16 @@ function attachAllEventListeners() {
                 const meritzCheckbox = document.getElementById('meritz-collateral-loan');
                 const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked;
 
+                // ✅ [수정] 필요금액이 입력되어 있으면 역계산 LTV 유지
+                const requiredAmountField = document.getElementById('required_amount');
+                const hasRequiredAmount = requiredAmountField && requiredAmountField.value && parseKoreanNumberString(requiredAmountField.value) > 0;
+
                 if (ltv1Field) {
-                    if (!isMeritzChecked) {
-                        // 메리츠도 체크 안 되어 있으면 기본 80%로 설정
+                    if (hasRequiredAmount) {
+                        // 필요금액이 입력되어 있으면 역계산 LTV 유지
+                        console.log('📊 LTV 비율 ① - 역계산 LTV 유지 (필요금액 입력됨)');
+                    } else if (!isMeritzChecked) {
+                        // 메리츠도 체크 안 되어 있고, 필요금액도 없으면 기본 80%로 설정
                         ltv1Field.value = '80';
                         console.log('📊 LTV 비율 ① - 기본값 80%로 설정 (질권 없음)');
                     } else {
@@ -2265,9 +2272,16 @@ function attachAllEventListeners() {
                 const isHopeChecked = hopeCheckbox && hopeCheckbox.checked;
                 const ltv1Field = document.getElementById('ltv1');
 
+                // ✅ [수정] 필요금액이 입력되어 있으면 역계산 LTV 유지
+                const requiredAmountField = document.getElementById('required_amount');
+                const hasRequiredAmount = requiredAmountField && requiredAmountField.value && parseKoreanNumberString(requiredAmountField.value) > 0;
+
                 if (ltv1Field) {
-                    if (!isHopeChecked) {
-                        // 아이엠도 체크 안 되어 있으면 기본 80%로 설정
+                    if (hasRequiredAmount) {
+                        // 필요금액이 입력되어 있으면 역계산 LTV 유지
+                        console.log('📊 LTV 비율 ① - 역계산 LTV 유지 (필요금액 입력됨)');
+                    } else if (!isHopeChecked) {
+                        // 아이엠도 체크 안 되어 있고, 필요금액도 없으면 기본 80%로 설정
                         ltv1Field.value = '80';
                         console.log('📊 LTV 비율 ① - 기본값 80%로 설정 (질권 없음)');
                     } else {
@@ -3299,8 +3313,17 @@ function validateMeritzLoanConditions() {
 
         console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 순위: ${priorityLabel}, 면적: ${area}㎡, 물건유형: ${propertyType}, 설정LTV: ${baseLtv}%`);
 
-        // LTV 값 설정 (0이면 취급불가를 의미)
-        ltv1Field.value = baseLtv;
+        // ✅ [수정] 필요금액이 입력되어 있으면 역계산된 LTV를 유지 (덮어쓰기 방지)
+        const requiredAmountField = document.getElementById('required_amount');
+        const hasRequiredAmount = requiredAmountField && requiredAmountField.value && parseKoreanNumberString(requiredAmountField.value) > 0;
+        const currentLtvValue = parseFloat(ltv1Field.value) || 0;
+
+        if (hasRequiredAmount && currentLtvValue > 0) {
+            console.log(`🔒 필요금액 역계산 LTV 유지: ${currentLtvValue}% (면적 기준 ${baseLtv}% 적용 안함)`);
+        } else {
+            // LTV 값 설정 (0이면 취급불가를 의미)
+            ltv1Field.value = baseLtv;
+        }
 
         // LTV가 0이면 LTV 필드도 빨간색 표시
         if (baseLtv === 0) {
@@ -3315,9 +3338,11 @@ function validateMeritzLoanConditions() {
         // ========================================================
         const FIFTEEN_HUNDRED_MILLION = 150000; // 15억 = 150,000만
         if (kbPrice > FIFTEEN_HUNDRED_MILLION) {
-            const deductedLtv = baseLtv - 5;
+            // ✅ [수정] 역계산 LTV가 있으면 그 값에서 -5%, 없으면 baseLtv에서 -5%
+            const currentLtvForDeduction = parseFloat(ltv1Field.value) || baseLtv;
+            const deductedLtv = currentLtvForDeduction - 5;
             ltv1Field.value = deductedLtv;
-            console.log(`💸 고가물건 조정: 시세 15억 초과 → LTV ${baseLtv}% → ${deductedLtv}%`);
+            console.log(`💸 고가물건 조정: 시세 15억 초과 → LTV ${currentLtvForDeduction}% → ${deductedLtv}%`);
         }
 
         // ========================================================
