@@ -783,6 +783,20 @@ def generate_memo(data):
                     # 기본 LTV 한도 메시지 생성
                     ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
 
+                    # 아이엠 또는 메리츠 질권 체크 시 적용 금리 추가 (공통 금리 기준)
+                    if hope_collateral_checked or meritz_collateral_checked:
+                        ltv_val = float(ltv_rate) if ltv_rate != '/' else 0
+                        if ltv_val > 0:
+                            if ltv_val <= 70:
+                                apply_rate = 9.9
+                            elif ltv_val <= 75:
+                                apply_rate = 10.9
+                            elif ltv_val <= 80:
+                                apply_rate = 11.9
+                            else:
+                                apply_rate = 12.9
+                            ltv_line += f" 적용 금리 {apply_rate}%"
+
                     # 메리츠 질권 체크 + 선순위 + 10억 초과 시 경고 추가
                     if meritz_collateral_checked and loan_type == "선순위" and limit > 100000:
                         ltv_line += " 이나 10억 초과 메리츠 질권 진행불가"
@@ -852,32 +866,6 @@ def generate_memo(data):
         # ✨ 아이엠/메리츠 질권적용 로직 (둘 다 금리 적용)
         hope_collateral_checked = inputs.get('hope_collateral_checked', False)
         meritz_collateral_checked = inputs.get('meritz_collateral_checked', False)
-
-        # ✅ 아이엠 또는 메리츠 질권 체크 시 금리 적용
-        if hope_collateral_checked or meritz_collateral_checked:
-            # ltv_results에서 가장 높은 LTV (사용자 입력값 우선) 선택
-            if ltv_results and len(ltv_results) > 0:
-                # 사용자 입력 LTV가 있으면 그걸 사용, 없으면 자동값 사용
-                ltv_rate = ltv_results[-1].get('ltv_rate')  # 마지막 항목 (사용자입력이 있으면 그것)
-
-                # 주소에서 지역 추출
-                address = inputs.get('address', '')
-                region = get_region_from_address(address)
-
-                # 물건종류 가져오기
-                property_type = inputs.get('property_type', '')
-
-                # 지역과 LTV에 따른 금리 구간 조회
-                if region and ltv_rate:
-                    interest_rate = get_hope_collateral_interest_rate(
-                        region,
-                        ltv_rate,
-                        is_meritz=meritz_collateral_checked,
-                        property_type=property_type
-                    )
-                    if interest_rate:
-                        memo_lines.append(f"적용 금리 / {interest_rate}")
-                        memo_lines.append("")  # 빈 줄 추가
 
         # 시세 타입 결정 및 반환 - 층수 기준으로 변경
         # ✨ 아이엠질권적용 또는 메리츠질권적용 시 고정 텍스트 추가 (맨 하단)
