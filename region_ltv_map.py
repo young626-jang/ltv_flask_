@@ -23,7 +23,8 @@ REGION_CLASSIFICATION = {
         ]
     },
     "3군": {
-        "경기": ["평택", "안성", "여주", "포천"]
+        "경기": ["평택", "안성", "여주", "포천"],
+        "광역시": ["대전", "세종", "대구", "부산", "광주", "울산"]
     }
 }
 
@@ -110,29 +111,50 @@ def get_region_grade(address):
     if not address:
         return "미분류"
 
-    address = address.upper()
+    # 군 단위 지역 체크 (취급불가) - 신도시 예외 제외
+    import re
+    new_town_exceptions = [
+        '판교', '동탄', '광교', '위례', '평촌', '분당', '일산', '산본',
+        '중동', '정자', '수지', '죽전', '운정', '양주신도시', '화성동탄',
+        '김포한강신도시', '고덕', '위례신도시', '남양주왕숙', '하남감일',
+        '인천검단', '부천대장', '광명시흥', '성남판교', '용인흥덕'
+    ]
+    has_gun = re.search(r'\s군\s|\s군$|[가-힣]+군\s', address)
+    is_new_town = any(town in address for town in new_town_exceptions)
+
+    # 군 단위이면서 신도시가 아니면 취급불가 (미분류)
+    if has_gun and not is_new_town:
+        return "미분류"
+
+    address_upper = address.upper()
 
     # ✅ 1. 1군부터 가장 먼저 확인
     for city, districts in REGION_CLASSIFICATION.get("1군", {}).items():
-        if city.upper() in address:
+        if city.upper() in address_upper:
             for district in districts:
-                if district.upper() in address:
+                if district.upper() in address_upper:
                     return "1군"
 
     # ✅ 2. 그 다음 2군 확인 (서구 오판정 방지)
     for city, districts in REGION_CLASSIFICATION.get("2군", {}).items():
         for district in districts:
-            if district.upper() in address:
+            if district.upper() in address_upper:
                 # '서구'가 검색되었는데 주소에 '강서구'가 있으면 무시하고 넘어감
                 if district == "서구" and "강서구" in address:
                     continue
                 return "2군"
 
-    # ✅ 3. 마지막으로 3군 확인
+    # ✅ 3. 3군 확인 (경기 3군 + 광역시)
     for city, districts in REGION_CLASSIFICATION.get("3군", {}).items():
-        for district in districts:
-            if district.upper() in address:
-                return "3군"
+        if city == "광역시":
+            # 광역시는 도시명만 체크 (대전, 세종, 대구, 부산, 광주, 울산)
+            for metro_city in districts:
+                if metro_city in address:
+                    return "3군"
+        else:
+            for district in districts:
+                if district.upper() in address_upper:
+                    return "3군"
 
     return "미분류"
 
