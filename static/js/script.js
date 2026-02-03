@@ -2642,9 +2642,14 @@ document.addEventListener('DOMContentLoaded', () => {
        parseCustomerNames();
    }
 
-   // 도로명 주소 변환 버튼 이벤트
+   // 도로명 주소 변환 버튼 이벤트 (양방향 토글)
    const convertRoadAddressBtn = document.getElementById('convert-road-address-btn');
    if (convertRoadAddressBtn) {
+       // 원본 주소와 도로명 주소 저장용
+       let savedOriginalAddress = '';  // 지번 주소 (등기부등본 원본)
+       let savedRoadAddress = '';      // 도로명 주소
+       let isShowingRoadAddress = false;  // 현재 도로명 표시 중인지
+
        convertRoadAddressBtn.addEventListener('click', async function() {
            const addressField = document.getElementById('address');
            if (!addressField || !addressField.value.trim()) {
@@ -2652,7 +2657,30 @@ document.addEventListener('DOMContentLoaded', () => {
                return;
            }
 
-           const originalAddress = addressField.value.trim();
+           const currentAddress = addressField.value.trim();
+
+           // 이미 변환된 상태면 토글 (원본으로 복원)
+           if (isShowingRoadAddress && savedOriginalAddress) {
+               addressField.value = savedOriginalAddress;
+               convertRoadAddressBtn.textContent = '도로명';
+               isShowingRoadAddress = false;
+               console.log('원본 주소로 복원:', savedOriginalAddress);
+               triggerMemoGeneration();
+               return;
+           }
+
+           // 이미 도로명 주소가 저장되어 있으면 바로 표시
+           if (!isShowingRoadAddress && savedRoadAddress && savedOriginalAddress === currentAddress) {
+               addressField.value = savedRoadAddress;
+               convertRoadAddressBtn.textContent = '지번';
+               isShowingRoadAddress = true;
+               console.log('저장된 도로명 주소 표시:', savedRoadAddress);
+               triggerMemoGeneration();
+               return;
+           }
+
+           // 새로운 주소면 API 호출
+           savedOriginalAddress = currentAddress;
            convertRoadAddressBtn.disabled = true;
            convertRoadAddressBtn.textContent = '변환중...';
 
@@ -2660,26 +2688,41 @@ document.addEventListener('DOMContentLoaded', () => {
                const response = await fetch('/api/convert-to-road-address', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ address: originalAddress })
+                   body: JSON.stringify({ address: currentAddress })
                });
 
                const result = await response.json();
 
                if (result.success && result.road_address) {
+                   savedRoadAddress = result.road_address;
                    addressField.value = result.road_address;
+                   convertRoadAddressBtn.textContent = '지번';
+                   isShowingRoadAddress = true;
                    console.log('도로명 변환 완료:', result.road_address);
                    triggerMemoGeneration();
                } else {
                    alert(result.error || '도로명 주소 변환에 실패했습니다.');
+                   convertRoadAddressBtn.textContent = '도로명';
                }
            } catch (error) {
                console.error('도로명 변환 오류:', error);
                alert('도로명 주소 변환 중 오류가 발생했습니다.');
+               convertRoadAddressBtn.textContent = '도로명';
            } finally {
                convertRoadAddressBtn.disabled = false;
-               convertRoadAddressBtn.textContent = '도로명';
            }
        });
+
+       // 주소 필드가 수동으로 변경되면 저장된 주소 초기화
+       const addressField = document.getElementById('address');
+       if (addressField) {
+           addressField.addEventListener('input', function() {
+               savedOriginalAddress = '';
+               savedRoadAddress = '';
+               isShowingRoadAddress = false;
+               convertRoadAddressBtn.textContent = '도로명';
+           });
+       }
    }
 
    // KB시세 버튼 클릭 시 확장프로그램으로 자동 검색 트리거
@@ -3302,10 +3345,12 @@ function validateMeritzLoanConditions() {
     const priority = hasSubordinate ? 'second' : 'first';
     const priorityLabel = hasSubordinate ? '후순위' : '선순위';
 
-    // 서울/경기/인천 외 지역 검증
+    // 서울/경기/인천 + 광역시(메리츠 3군) 외 지역 검증
     let isInvalidRegion = false;
     if (address) {
-        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천');
+        const meritzMetroCities = ['대전', '세종', '대구', '부산', '광주', '울산'];
+        const isValidRegion = address.includes('서울') || address.includes('경기') || address.includes('인천') ||
+                              meritzMetroCities.some(city => address.includes(city));
         isInvalidRegion = !isValidRegion;
         if (isInvalidRegion) {
             console.log(`🔴 메리츠 경고: 취급불가 지역 - ${address}`);
@@ -3675,14 +3720,16 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun', propertyT
      * - 경기2군: 시흥, 안산, 화성, 용인(처인구), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
      * - 인천2군: 남동구, 서구, 동구, 중구
      *
-     * 3군 지역: 경기3군
+     * 3군 지역: 경기3군 + 광역시
      * - 경기3군: 평택, 안성, 여주, 포천
+     * - 광역시: 대전, 세종, 대구, 부산, 광주, 울산
      */
 function determineMeritzRegionFromAddress(address) {
     if (!address) return null;
 
     // 지역 목록 (정확한 매칭을 위해 리스트 활용)
-    const r3 = ['평택', '안성', '여주', '포천'];
+    const r3_gyeonggi = ['평택', '안성', '여주', '포천'];
+    const r3_metro = ['대전', '세종', '대구', '부산', '울산'];  // 광주는 경기 광주와 겹쳐서 별도 처리
     const r2 = ['시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주', '남동구', '서구', '동구', '중구'];
     const r1 = ['강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '용산', '영등포', '동작', '관악', '성동', '광진', '동대문', '중랑', '성북', '강북', '노원', '도봉', '은평', '양천', '구로', '강서', '금천', '수지', '기흥', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주', '계양', '부평', '연수', '미추홀'];
 
@@ -3695,16 +3742,25 @@ function determineMeritzRegionFromAddress(address) {
     for (let reg of r2) {
         if (address.includes(reg)) {
             if (reg === '서구' && address.includes('강서구')) continue;
+            // 경기도 광주와 광주광역시 구분
+            if (reg === '광주' && address.includes('광주광역시')) continue;
             return '2gun';
         }
     }
 
-    // ✅ 3. 3군 확인
-    for (let reg of r3) {
+    // ✅ 3. 3군 확인 (경기3군)
+    for (let reg of r3_gyeonggi) {
         if (address.includes(reg)) return '3gun';
     }
 
-    // ✅ 4. 용인 단독 처리
+    // ✅ 4. 3군 확인 (광역시)
+    for (let reg of r3_metro) {
+        if (address.includes(reg)) return '3gun';
+    }
+    // 광주광역시 별도 처리 (경기 광주와 구분)
+    if (address.includes('광주광역시')) return '3gun';
+
+    // ✅ 5. 용인 단독 처리
     if (address.includes('용인') && !address.includes('처인구')) return '1gun';
 
     return null;
@@ -3720,7 +3776,8 @@ function getRegionGradeFromAddress(address) {
     const CLASSIFICATION = {
         "1군": ["강남구", "서초구", "송파구", "강동구", "마포구", "서대문구", "종로구", "중구", "용산구", "영등포구", "동작구", "관악구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구", "강서구", "금천구", "계양구", "부평구", "연수구", "미추홀구", "용인", "과천", "광명", "구리", "군포", "부천", "성남", "수원", "안양", "의왕", "하남", "김포", "남양주"],
         "2군": ["남동구", "서구", "동구", "중구", "시흥", "안산", "화성", "의정부", "양주", "고양", "광주", "동두천", "오산", "이천", "파주"],
-        "3군": ["평택", "안성", "여주", "포천"]
+        "3군_경기": ["평택", "안성", "여주", "포천"],
+        "3군_광역시": ["대전", "세종", "대구", "부산", "울산"]  // 광주는 경기 광주와 겹쳐서 별도 처리
     };
 
     // ✅ 1. 1군 우선 확인
@@ -3732,14 +3789,23 @@ function getRegionGradeFromAddress(address) {
     for (let dist of CLASSIFICATION["2군"]) {
         if (addr.includes(dist.toUpperCase())) {
             if (dist === "서구" && addr.includes("강서구")) continue;
+            // 경기도 광주와 광주광역시 구분
+            if (dist === "광주" && addr.includes("광주광역시")) continue;
             return "2군";
         }
     }
 
-    // ✅ 3. 3군 확인
-    for (let dist of CLASSIFICATION["3군"]) {
+    // ✅ 3. 3군 확인 (경기3군)
+    for (let dist of CLASSIFICATION["3군_경기"]) {
         if (addr.includes(dist.toUpperCase())) return "3군";
     }
+
+    // ✅ 4. 3군 확인 (광역시)
+    for (let dist of CLASSIFICATION["3군_광역시"]) {
+        if (addr.includes(dist.toUpperCase())) return "3군";
+    }
+    // 광주광역시 별도 처리
+    if (addr.includes("광주광역시")) return "3군";
 
     return "미분류";
 }
@@ -3770,15 +3836,25 @@ function checkRegionWarningForCollateral(address) {
     const isGyeonggi = address.includes('경기');
     const isIncheon = address.includes('인천');
 
+    // 메리츠 질권 시 허용되는 광역시 (3군으로 취급)
+    const meritzMetroCities = ['대전', '세종', '대구', '부산', '광주', '울산'];
+    const isMeritzMetroCity = isMeritzChecked && meritzMetroCities.some(city => address.includes(city));
+
     // 제외할 군 지역 목록
     const excludedGuns = ['가평군', '양평군', '연천군', '강화군', '옹진군'];
     const isExcludedGun = excludedGuns.some(gun => address.includes(gun));
 
-    // 서울/경기/인천이 아니거나 군 지역이면 경고 표시
-    if ((!isSeoul && !isGyeonggi && !isIncheon) || isExcludedGun) {
+    // 유효한 지역 판단
+    // - 아이엠: 서울/경기/인천만
+    // - 메리츠: 서울/경기/인천 + 광역시(대전, 세종, 대구, 부산, 광주, 울산)
+    const isValidRegion = isSeoul || isGyeonggi || isIncheon || isMeritzMetroCity;
+
+    // 유효하지 않은 지역이거나 군 지역이면 경고 표시
+    if (!isValidRegion || isExcludedGun) {
         const pledgeType = isHopeChecked ? '아이엠질권' : '메리츠질권';
         const gunWarning = isExcludedGun ? '\n(군 지역은 취급 불가)' : '';
-        showCustomAlert(`⚠️ ${pledgeType} 취급불가 지역입니다!\n\n서울/경기/인천만 취급 가능합니다. (군 지역 제외)${gunWarning}\n현재 주소: ${address}`);
+        const regionInfo = isMeritzChecked ? '서울/경기/인천 및 광역시(대전, 세종, 대구, 부산, 광주, 울산)' : '서울/경기/인천';
+        showCustomAlert(`⚠️ ${pledgeType} 취급불가 지역입니다!\n\n${regionInfo}만 취급 가능합니다. (군 지역 제외)${gunWarning}\n현재 주소: ${address}`);
         console.log(`🔴 경고: ${pledgeType} 취급불가 지역 - ${address}${isExcludedGun ? ' (군 지역)' : ''}`);
     }
 }
