@@ -1101,50 +1101,71 @@ def convert_to_road_address():
         if not address:
             return jsonify({"success": False, "error": "주소가 입력되지 않았습니다"}), 400
 
-        # 주소에서 건물명 추출 (나중에 붙이기 위해)
-        building_name = ""
-        building_match = re.search(r'([가-힣a-zA-Z0-9]+(?:아파트|파크|타운|빌|캐슬|자이|힐스테이트|푸르지오|래미안|e편한세상|센트럴|스카이뷰|위브|센텀|시티|프라자|오피스텔|빌라|맨션|하이츠|노블랜드|더시그니처|센트레빌|트레비앙|아이파크|롯데캐슬|자연앤)[가-힣a-zA-Z0-9]*)', address)
+        logger.info(f"[도로명 변환] 원본: {address}")
+
+        # 주소에서 건물명 추출 (아파트, 오피스텔 등)
+        building_pattern = r'([가-힣a-zA-Z0-9]+(?:아파트|파크|타운|빌|캐슬|자이|힐스테이트|푸르지오|래미안|e편한세상|센트럴|스카이뷰|위브|센텀|시티|프라자|오피스텔|빌라|맨션|하이츠|노블랜드|더시그니처|센트레빌|트레비앙|아이파크|롯데캐슬|자연앤|대방노블랜드)[가-힣a-zA-Z0-9]*)'
+        building_match = re.search(building_pattern, address)
+
+        # 검색 키워드: 건물명이 있으면 "시군구 + 건물명", 없으면 원본 주소
         if building_match:
             building_name = building_match.group(1)
+            # 시/군/구 추출
+            region_match = re.search(r'([가-힣]+시)\s*([가-힣]+[구군])?', address)
+            if region_match:
+                region = region_match.group(1)
+                if region_match.group(2):
+                    region += ' ' + region_match.group(2)
+                search_keyword = f"{region} {building_name}"
+            else:
+                search_keyword = building_name
+        else:
+            search_keyword = address
 
-        # 검색용 주소 정제 (번지수까지만)
-        clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
-        search_query = clean_match.group(1) if clean_match else address
+        logger.info(f"[도로명 변환] 검색 키워드: {search_keyword}")
 
         # 행정안전부 도로명주소 API 호출
-        JUSO_API_KEY = "devU01TX0FVVEgyMDI1MDEwNjE2MzQwMzExNTQyMTc="  # 공공데이터포털 도로명주소 API 키
+        JUSO_API_KEY = "U01TX0FVVEgyMDI2MDEyMTE0MjUwMzExNzQ3MTg="
         url = 'https://business.juso.go.kr/addrlink/addrLinkApi.do'
         params = {
+            'keyword': search_keyword,
             'confmKey': JUSO_API_KEY,
-            'currentPage': '1',
-            'countPerPage': '1',
-            'keyword': search_query,
+            'countPerPage': '10',
             'resultType': 'json'
         }
 
-        response = requests.get(url, params=params, timeout=5)
-        logger.info(f"도로명 API 응답: {response.status_code}")
+        response = requests.post(url, data=params, timeout=5)
+        logger.info(f"[도로명 변환] API 응답: {response.status_code}")
 
         if response.status_code == 200:
             result = response.json()
-            juso_list = result.get('results', {}).get('juso', [])
+            logger.info(f"[도로명 변환] 응답 데이터: {result}")
 
+            juso_list = result.get('results', {}).get('juso', [])
             if juso_list and len(juso_list) > 0:
-                juso = juso_list[0]
-                road_addr = juso.get('roadAddr', '')  # 도로명주소
-                jibun_addr = juso.get('jibunAddr', '')  # 지번주소
-                bldg_name = juso.get('bdNm', '')  # 건물명
+                # 동/호수 정보 추출
+                dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
+                dong_num = dong_ho_match.group(1) if dong_ho_match else None
+                ho_num = dong_ho_match.group(2) if dong_ho_match else None
+
+                road_addr = juso_list[0].get('roadAddr', '')
 
                 if road_addr:
-                    # 건물명이 API 응답에 없고 원본에서 추출한 게 있으면 추가
-                    if not bldg_name and building_name:
-                        # 동명 추출 (예: 옥정동)
-                        dong_match = re.search(r'([가-힣]+동)', address)
-                        dong_name = dong_match.group(1) if dong_match else ""
-                        if dong_name:
-                            road_addr = f"{road_addr} ({dong_name}, {building_name})"
-                        else:
-                            road_addr = f"{road_addr} ({building_name})"
+                    # 도로명 주소 형식: "도로명 번지, 동호수 (법정동, 건물명)"
+                    # 괄호 부분 분리
+                    bracket_match = re.search(r'(\([^)]+\))$', road_addr)
+                    if bracket_match and (dong_num or ho_num):
+                        bracket_part = bracket_match.group(1)
+                        road_part = road_addr[:bracket_match.start()].strip()
+
+                        if dong_num and ho_num:
+                            road_addr = f"{road_part}, {dong_num}동 {ho_num}호 {bracket_part}"
+                        elif ho_num:
+                            road_addr = f"{road_part}, {ho_num}호 {bracket_part}"
+                    elif dong_num and ho_num:
+                        road_addr = f"{road_addr}, {dong_num}동 {ho_num}호"
+                    elif ho_num:
+                        road_addr = f"{road_addr}, {ho_num}호"
 
                     return jsonify({
                         "success": True,
@@ -1157,16 +1178,16 @@ def convert_to_road_address():
                         "error": "도로명 주소를 찾을 수 없습니다"
                     })
             else:
-                # API 에러 메시지 확인
-                error_msg = result.get('results', {}).get('common', {}).get('errorMessage', '검색 결과 없음')
+                error_msg = result.get('results', {}).get('common', {}).get('errorMessage', '주소 검색 결과가 없습니다')
                 return jsonify({
                     "success": False,
-                    "error": f"주소 검색 결과가 없습니다: {error_msg}"
+                    "error": error_msg
                 })
         else:
+            logger.error(f"[도로명 변환] API 오류: {response.status_code} - {response.text}")
             return jsonify({
                 "success": False,
-                "error": f"도로명주소 API 오류: {response.status_code}"
+                "error": f"API 오류: {response.status_code}"
             }), 500
 
     except Exception as e:
