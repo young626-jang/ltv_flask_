@@ -2642,6 +2642,46 @@ document.addEventListener('DOMContentLoaded', () => {
        parseCustomerNames();
    }
 
+   // 도로명 주소 변환 버튼 이벤트
+   const convertRoadAddressBtn = document.getElementById('convert-road-address-btn');
+   if (convertRoadAddressBtn) {
+       convertRoadAddressBtn.addEventListener('click', async function() {
+           const addressField = document.getElementById('address');
+           if (!addressField || !addressField.value.trim()) {
+               alert('주소를 먼저 입력해주세요.');
+               return;
+           }
+
+           const originalAddress = addressField.value.trim();
+           convertRoadAddressBtn.disabled = true;
+           convertRoadAddressBtn.textContent = '변환중...';
+
+           try {
+               const response = await fetch('/api/convert-to-road-address', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ address: originalAddress })
+               });
+
+               const result = await response.json();
+
+               if (result.success && result.road_address) {
+                   addressField.value = result.road_address;
+                   console.log('도로명 변환 완료:', result.road_address);
+                   triggerMemoGeneration();
+               } else {
+                   alert(result.error || '도로명 주소 변환에 실패했습니다.');
+               }
+           } catch (error) {
+               console.error('도로명 변환 오류:', error);
+               alert('도로명 주소 변환 중 오류가 발생했습니다.');
+           } finally {
+               convertRoadAddressBtn.disabled = false;
+               convertRoadAddressBtn.textContent = '도로명';
+           }
+       });
+   }
+
    // KB시세 버튼 클릭 시 확장프로그램으로 자동 검색 트리거
    const kbButtons = document.querySelectorAll('a[href*="kbland.kr"]');
    kbButtons.forEach(btn => {
