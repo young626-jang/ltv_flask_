@@ -273,7 +273,7 @@ def get_region_from_address(address):
     return None
 
 
-def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None):
+def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None, is_meritz_pledge=True):
     """
     메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산
 
@@ -284,6 +284,7 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
         property_type (str): 'APT' 또는 'Non-APT'
         completion_date (str): 준공일자 (YYYY-MM 형식, 예: 1980-01)
+        is_meritz_pledge (bool): 메리츠 질권 적용 여부 (True일 때만 광역시 3군 인정)
 
     Returns:
         float: 자동 계산된 LTV (%), Non-APT 2군/3군 취급불가 시 None
@@ -292,8 +293,8 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         return None
 
     try:
-        # 1. 주소에서 급지 자동 판단
-        region_grade = get_region_grade(address)
+        # 1. 주소에서 급지 자동 판단 (메리츠 질권 여부에 따라 광역시 3군 인정)
+        region_grade = get_region_grade(address, is_meritz_pledge=is_meritz_pledge)
 
         if region_grade == "미분류":
             logger.warning(f"급지 미분류: {address}")
@@ -349,7 +350,7 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return None
 
-def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None):
+def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None, property_type="APT", completion_date=None, is_meritz_pledge=True):
     """
     메리츠캐피탈 기준에 따라 주소와 면적으로 자동 LTV 계산 (적용 사유 포함)
 
@@ -360,6 +361,7 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         kb_price (int): KB 시세 (만원 단위, 15억 초과 시 5% 차감 적용)
         property_type (str): 'APT' 또는 'Non-APT'
         completion_date (str): 준공일자 (YYYY-MM 형식, 예: 1980-01)
+        is_meritz_pledge (bool): 메리츠 질권 적용 여부 (True일 때만 광역시 3군 인정)
 
     Returns:
         dict: {
@@ -374,8 +376,8 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         return {'ltv': None, 'reasons': [], 'error': '주소 또는 면적이 유효하지 않습니다'}
 
     try:
-        # 1. 주소에서 급지 자동 판단
-        region_grade = get_region_grade(address)
+        # 1. 주소에서 급지 자동 판단 (메리츠 질권 여부에 따라 광역시 3군 인정)
+        region_grade = get_region_grade(address, is_meritz_pledge=is_meritz_pledge)
 
         if region_grade == "미분류":
             return {'ltv': None, 'reasons': [], 'error': '급지를 판단할 수 없습니다'}
@@ -703,7 +705,7 @@ def generate_memo(data):
 
                 if auto_ltv is not None:
                     # 메모에 급지 정보 추가 (메리츠일 때만)
-                    region_grade = get_region_grade(address)
+                    region_grade = get_region_grade(address, is_meritz_pledge=True)
                     caution_flag = " (유의지역)" if is_caution_region(address) else ""
                     memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
                     memo_lines.insert(1, "")
@@ -998,7 +1000,7 @@ def auto_calculate_ltv_route():
 
         # 오류 처리
         if result['ltv'] is None or result['error']:
-            region_grade = get_region_grade(address)
+            region_grade = get_region_grade(address, is_meritz_pledge=True)
             return jsonify({
                 "success": False,
                 "error": result['error'] or "LTV 계산 실패",
@@ -1010,7 +1012,7 @@ def auto_calculate_ltv_route():
             }), 200
 
         # 추가 정보
-        region_grade = get_region_grade(address)
+        region_grade = get_region_grade(address, is_meritz_pledge=True)
         is_caution = is_caution_region(address)
 
         return jsonify({
@@ -1257,7 +1259,7 @@ def calculate_individual_share():
         is_collateral_checked = data.get("is_collateral_checked", False)  # 질권 체크 여부
 
         if is_collateral_checked and address:
-            region_grade = get_region_grade(address)
+            region_grade = get_region_grade(address, is_meritz_pledge=True)
             if region_grade != "1군":
                 return jsonify({
                     "success": False,
