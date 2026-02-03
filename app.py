@@ -1091,6 +1091,90 @@ def calculate_ltv_from_required_amount_route():
         logger.error(f"LTV 역산 계산 중 오류: {e}")
         return jsonify({"error": "LTV 계산 중 오류가 발생했습니다."}), 500
 
+@app.route('/api/convert-to-road-address', methods=['POST'])
+def convert_to_road_address():
+    """지번 주소를 도로명 주소로 변환 (카카오 API 사용)"""
+    try:
+        data = request.get_json()
+        address = data.get('address', '').strip()
+
+        if not address:
+            return jsonify({"success": False, "error": "주소가 입력되지 않았습니다"}), 400
+
+        # 주소에서 건물명과 동/호 정보 추출 (나중에 붙이기 위해)
+        building_name = ""
+        dong_ho = ""
+
+        # 건물명 추출 (예: 금천롯데캐슬골드파크3차)
+        building_match = re.search(r'([가-힣a-zA-Z0-9]+(?:아파트|파크|타운|빌|캐슬|자이|힐스테이트|푸르지오|래미안|e편한세상|센트럴|스카이뷰|위브|센텀|시티|프라자|오피스텔|빌라|맨션|하이츠)[가-힣a-zA-Z0-9]*)', address)
+        if building_match:
+            building_name = building_match.group(1)
+
+        # 동/호 정보 추출 (예: 제306동 제24층 제2405호)
+        dong_ho_match = re.search(r'(제?\d+동\s*제?\d+층\s*제?\d+호|제?\d+층\s*제?\d+호|\d+동\s*\d+호)', address)
+        if dong_ho_match:
+            dong_ho = dong_ho_match.group(1)
+
+        # 검색용 주소 정제 (번지수까지만)
+        clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
+        search_query = clean_match.group(1) if clean_match else address
+
+        # 카카오 API 호출
+        KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0"
+        url = 'https://dapi.kakao.com/v2/local/search/address.json'
+        headers = {"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"}
+        params = {'query': search_query}
+
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            if data['documents']:
+                doc = data['documents'][0]
+                road_address = doc.get('road_address')
+
+                if road_address:
+                    # 도로명 주소 조합
+                    road_addr = road_address.get('address_name', '')
+
+                    # 건물명이 있으면 괄호 안에 동명과 함께 추가
+                    if building_name:
+                        # 동명 추출 (예: 독산동)
+                        region_3 = road_address.get('region_3depth_name', '')
+                        if region_3:
+                            road_addr = f"{road_addr} ({region_3}, {building_name})"
+                        else:
+                            road_addr = f"{road_addr} ({building_name})"
+
+                    return jsonify({
+                        "success": True,
+                        "road_address": road_addr,
+                        "original_address": address
+                    })
+                else:
+                    # 도로명 주소가 없는 경우 지번 주소 반환
+                    jibun_address = doc.get('address', {}).get('address_name', '')
+                    return jsonify({
+                        "success": False,
+                        "error": "도로명 주소를 찾을 수 없습니다",
+                        "jibun_address": jibun_address
+                    })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "주소 검색 결과가 없습니다"
+                })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"카카오 API 오류: {response.status_code}"
+            }), 500
+
+    except Exception as e:
+        logger.error(f"도로명 주소 변환 오류: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/customers')
 def get_customers():
     try:
