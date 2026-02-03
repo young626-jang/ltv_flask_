@@ -202,9 +202,10 @@ def extract_property_type(text):
     # 3-3. 아파트
     # 건물 내역에 '아파트' 또는 '공동주택'이 있거나, 주소/건물명에 포함된 경우
     # 단, '빌라'인데 이름만 'XX아파트'인 경우를 배제하기 위해 건물내역(구조) 키워드를 우선 봄
-    # [수정] '(아파트)', '공동주택' 형태도 인식
+    # [수정] '(아파트)', '공동주택', '층아파트' 형태도 인식
     if (re.search(r'건물\s*내역.*?아파트', clean_text) or
         re.search(r'[\d\s\(\[]아파트', clean_text) or
+        re.search(r'층아파트', clean_text) or
         re.search(r'공동주택', clean_text)):
         return {'type': 'APT', 'detail': '아파트'}
 
@@ -874,10 +875,10 @@ def parse_address_for_building_api(address):
 def get_building_info(address):
     """주소를 기반으로 건축물대장 API를 호출하여 세대수와 준공일자를 조회합니다."""
     result = {
-        'success': False, 
-        'total_households': 0, 
-        'completion_date': '', 
-        'raw_completion_date': '', 
+        'success': False,
+        'total_households': 0,
+        'completion_date': '',
+        'raw_completion_date': '',
         'buildings': []
     }
     try:
@@ -887,8 +888,6 @@ def get_building_info(address):
             print(f"[건축물대장] 주소 분석 실패: {address}")
             return result
 
-        # 2. 공공데이터포털 건축물대장 API 호출
-        url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
         service_key = "B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l+ItDSFbeL64CxbxJORed+4LpR5uMHxebO/v7LSHBXm1FHFJ8XE6UHqA=="
 
         params = {
@@ -902,32 +901,25 @@ def get_building_info(address):
             'pageNo': '1'
         }
 
+        # 2. 먼저 총괄표제부 API 호출 (세대수가 정확함)
+        url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrRecapTitleInfo'
         response = requests.get(url, params=params, timeout=10)
+
         if response.status_code == 200:
             root = ET.fromstring(response.text)
-            # 결과 코드가 '00'(성공)인지 확인
             if root.findtext('.//resultCode') == '00':
                 items = root.findall('.//item')
                 if items:
                     total_hhld = 0
                     comp_date = ""
 
-                    # 주거용 아파트만 필터링 (주상가, 상가, 관리동 등 제외)
-                    exclude_keywords = ['주상가', '상가', '관리동', '부대시설', '커뮤니티', '관리', '근린생활']
-
                     for item in items:
-                        dong_nm = item.findtext('dongNm') or ''
-                        etc_purps = item.findtext('etcPurps') or ''
                         h_cnt = item.findtext('hhldCnt') or '0'
-                        u_date = item.findtext('useAprDay') or item.findtext('useAprvDe') or ''
+                        u_date = item.findtext('useAprDay') or ''
 
-                        # 주거용이 아닌 건물 제외 (동명칭 또는 기타용도에 제외 키워드 포함)
-                        is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
-
-                        if not is_excluded and h_cnt.isdigit():
+                        if h_cnt.isdigit():
                             total_hhld += int(h_cnt)
 
-                        # 가장 먼저 발견되는 사용승인일을 대표 날짜로 사용
                         if u_date and not comp_date:
                             comp_date = u_date
 
@@ -937,11 +929,47 @@ def get_building_info(address):
                     if len(comp_date) == 8:
                         result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
 
-                    print(f"[건축물대장] 조회 성공: {total_hhld}세대 (주거용만), 준공일 {result['completion_date']}")
+                    print(f"[건축물대장] 총괄표제부 조회 성공: {total_hhld}세대, 준공일 {result['completion_date']}")
+                    return result
+
+        # 3. 총괄표제부에서 못 찾으면 표제부 API 호출 (fallback)
+        url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code == 200:
+            root = ET.fromstring(response.text)
+            if root.findtext('.//resultCode') == '00':
+                items = root.findall('.//item')
+                if items:
+                    total_hhld = 0
+                    comp_date = ""
+                    exclude_keywords = ['주상가', '상가', '관리동', '부대시설', '커뮤니티', '관리', '근린생활']
+
+                    for item in items:
+                        dong_nm = item.findtext('dongNm') or ''
+                        etc_purps = item.findtext('etcPurps') or ''
+                        h_cnt = item.findtext('hhldCnt') or '0'
+                        u_date = item.findtext('useAprDay') or ''
+
+                        is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
+
+                        if not is_excluded and h_cnt.isdigit():
+                            total_hhld += int(h_cnt)
+
+                        if u_date and not comp_date:
+                            comp_date = u_date
+
+                    result['success'] = True
+                    result['total_households'] = total_hhld
+                    result['raw_completion_date'] = comp_date
+                    if len(comp_date) == 8:
+                        result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
+
+                    print(f"[건축물대장] 표제부 조회 성공: {total_hhld}세대, 준공일 {result['completion_date']}")
             else:
                 msg = root.findtext('.//resultMsg')
                 print(f"[건축물대장] API 응답 오류: {msg}")
-        
+
     except Exception as e:
         print(f"[건축물대장 조회 오류] {e}")
     return result
