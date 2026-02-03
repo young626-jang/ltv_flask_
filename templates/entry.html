@@ -102,7 +102,10 @@
             </div>
 
             <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
+                <div class="mb-2 d-flex gap-2">
+                    <input type="text" class="form-control form-field md-input" id="address" placeholder="주소" style="flex: 1;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="convert-road-address-btn" title="도로명 주소로 변환" style="white-space: nowrap;">도로명</button>
+                </div>
 
                 <!-- 물건유형 + 면적 라인 -->
                 <div class="row g-2 mb-2">
