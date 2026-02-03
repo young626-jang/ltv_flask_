@@ -98,12 +98,13 @@ LTV_STANDARDS = {
 }
 
 
-def get_region_grade(address):
+def get_region_grade(address, is_meritz_pledge=False):
     """
     주소에서 급지(1군, 2군, 3군) 자동 판단
 
     Args:
         address (str): 주소 문자열
+        is_meritz_pledge (bool): 메리츠 질권 적용 여부 (True일 때만 광역시 3군 인정)
 
     Returns:
         str: '1군', '2군', '3군', 또는 '미분류'
@@ -144,17 +145,16 @@ def get_region_grade(address):
                     continue
                 return "2군"
 
-    # ✅ 3. 3군 확인 (경기 3군 + 광역시)
-    for city, districts in REGION_CLASSIFICATION.get("3군", {}).items():
-        if city == "광역시":
-            # 광역시는 도시명만 체크 (대전, 세종, 대구, 부산, 광주, 울산)
-            for metro_city in districts:
-                if metro_city in address:
-                    return "3군"
-        else:
-            for district in districts:
-                if district.upper() in address_upper:
-                    return "3군"
+    # ✅ 3. 3군 확인 (경기 3군)
+    for district in REGION_CLASSIFICATION.get("3군", {}).get("경기", []):
+        if district.upper() in address_upper:
+            return "3군"
+
+    # ✅ 4. 광역시는 메리츠 질권 적용 시에만 3군 인정
+    if is_meritz_pledge:
+        for metro_city in REGION_CLASSIFICATION.get("3군", {}).get("광역시", []):
+            if metro_city in address:
+                return "3군"
 
     return "미분류"
 
