@@ -163,7 +163,10 @@ def fetch_all_customers() -> List[Dict]:
     next_cursor = None
     
     while has_more:
-        payload = {"page_size": 100}
+        payload = {
+            "page_size": 100,
+            "sorts": [{"timestamp": "created_time", "direction": "descending"}]
+        }
         if next_cursor:
             payload["start_cursor"] = next_cursor
             
@@ -578,17 +581,3 @@ def validate_notion_config() -> bool:
 # 초기화 시 설정 검증
 if __name__ == "__main__":
     validate_notion_config()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
