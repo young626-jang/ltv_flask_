@@ -522,22 +522,30 @@
     // ========================================================
     // 6. 대출 항목 관련 함수
     // ========================================================
-    // createLoanItemHTML 함수 - 드래그 핸들 추가
+    // createLoanItemHTML 함수 - 드래그 핸들 추가, 설정일자/채무자 필드 추가
     function createLoanItemHTML(index, loan = {}) {
         const formatValue = (val) => {
             if (!val) return '';
             const numValue = Number(String(val).replace(/,/g, ''));
             return numValue ? numValue.toLocaleString() : '';
         };
-        
+
         return `
         <div id="loan-item-${index}" class="loan-item py-2 border-bottom" draggable="false">
             <div class="loan-col loan-col-drag">
                 <div class="drag-handle md-drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
             </div>
+            <div class="loan-col loan-col-date">
+                <div class="mobile-label">설정일자</div>
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="setup_date" placeholder="설정일자" value="${loan.setup_date || ''}" style="width: 90px;">
+            </div>
             <div class="loan-col loan-col-lender">
                 <div class="mobile-label">설정자</div>
                 <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="lender" placeholder="설정자" value="${loan.lender || ''}">
+            </div>
+            <div class="loan-col loan-col-debtor">
+                <div class="mobile-label">채무자</div>
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="debtor" placeholder="채무자" value="${loan.debtor || ''}" style="width: 70px;">
             </div>
             <div class="loan-col loan-col-max-amount">
                 <div class="mobile-label">채권최고액(만)</div>
@@ -876,7 +884,9 @@ function collectAllData() {
     const regionSelect = document.getElementById('deduction_region');
     const selectedRegionText = regionSelect.options[regionSelect.selectedIndex].text;
     const loanItems = Array.from(document.querySelectorAll('.loan-item')).map(item => ({
+        setup_date: item.querySelector('[name="setup_date"]').value,
         lender: item.querySelector('[name="lender"]').value,
+        debtor: item.querySelector('[name="debtor"]').value,
         status: item.querySelector('[name="status"]').value,
         max_amount: item.querySelector('[name="max_amount"]').value,
         principal: item.querySelector('[name="principal"]').value,
@@ -1417,9 +1427,13 @@ async function handleFileUpload(file) {
 
                     const maxAmount = amountMatch ? amountMatch[1] : ''; // e.g., '238,800,000'
                     const lender = lenderMatch ? lenderMatch[1] : '';   // e.g., '신한은행'
+                    const setupDate = mortgage.설정일자 || '';  // e.g., '2015-06-30'
+                    const debtor = mortgage.채무자 || '';       // e.g., '홍길동'
 
                     addLoanItem({
+                        setup_date: setupDate,
                         lender: lender,
+                        debtor: debtor,
                         max_amount: maxAmount,
                         status: '유지' // 기본 상태는 '유지'로 설정
                     });
