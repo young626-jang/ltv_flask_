@@ -649,7 +649,30 @@ def generate_memo(data):
         valid_loans = []
         if loans and isinstance(loans, list):
             valid_loans = [l for l in loans if isinstance(l, dict) and (parse_korean_number(l.get('max_amount', '0')) > 0 or parse_korean_number(l.get('principal', '0')) > 0)]
-            loan_memo = [f"{i}. {item.get('lender', '/')} | 설정금액: {format_manwon(item.get('max_amount', '0'))} | {item.get('ratio', '') + '%' if item.get('ratio', '') and item.get('ratio', '') != '/' else '/'} | 원금: {format_manwon(item.get('principal', '0'))} | {item.get('status', '/')}" for i, item in enumerate(valid_loans, 1)]
+            loan_memo = []
+            for i, item in enumerate(valid_loans, 1):
+                # 설정일자, 설정자, 채무자, 설정금액, 비율, 원금, 구분 순서로 표시
+                setup_date = item.get('setup_date', '')
+                lender = item.get('lender', '/')
+                debtor = item.get('debtor', '')
+                max_amount = format_manwon(item.get('max_amount', '0'))
+                ratio = item.get('ratio', '')
+                ratio_str = f"{ratio}%" if ratio and ratio != '/' else '/'
+                principal = format_manwon(item.get('principal', '0'))
+                status = item.get('status', '/')
+
+                # 포맷: 1. 2015-06-30 | 신한은행 | 홍길동 | 설정금액: 1,000만 | 120% | 원금: 833만 | 유지
+                parts = [f"{i}."]
+                if setup_date:
+                    parts.append(setup_date)
+                parts.append(lender)
+                if debtor:
+                    parts.append(debtor)
+                parts.append(f"설정금액: {max_amount}")
+                parts.append(ratio_str)
+                parts.append(f"원금: {principal}")
+                parts.append(status)
+                loan_memo.append(" | ".join(parts))
             if loan_memo:
                 memo_lines.extend(loan_memo)
                 memo_lines.append("")
