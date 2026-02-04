@@ -799,8 +799,8 @@ def generate_memo(data):
                                 apply_rate = 12.9
                             ltv_line += f" 적용 금리 {apply_rate}%"
 
-                    # 메리츠 질권 체크 + 선순위 + 10억 초과 시 경고 추가
-                    if meritz_collateral_checked and loan_type == "선순위" and limit > 100000:
+                    # 메리츠 질권 체크 + 10억 초과 시 경고 추가 (선순위/후순위 모두)
+                    if meritz_collateral_checked and limit > 100000:
                         ltv_line += " 이나 10억 초과 메리츠 질권 진행불가"
 
                     ltv_memo.append(ltv_line)
