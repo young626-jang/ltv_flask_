@@ -31,6 +31,9 @@ def extract_address(text):
         if match:
             # 줄바꿈을 공백으로 치환하고 연속 공백 제거
             address = re.sub(r'\s+', ' ', match.group(1)).strip()
+            # "열 람 용", "열람일시" 등 불필요한 텍스트 제거
+            address = re.sub(r'\s*열\s*람\s*용.*$', '', address).strip()
+            address = re.sub(r'\s*열람일시.*$', '', address).strip()
             # 가장 짧은 완전한 주소 선택 (불필요한 데이터 제외)
             if not best_address or len(address) < len(best_address):
                 best_address = address
@@ -44,7 +47,11 @@ def extract_address(text):
         # "제~호"로 끝나는 주소 우선, 없으면 가장 긴 것
         complete = [m.strip() for m in matches if re.search(r'제\d+호', m)]
         if complete:
-            return min(complete, key=len)  # 가장 짧은 완전한 주소
+            result = min(complete, key=len)  # 가장 짧은 완전한 주소
+            # "열 람 용", "열람일시" 등 불필요한 텍스트 제거
+            result = re.sub(r'\s*열\s*람\s*용.*$', '', result).strip()
+            result = re.sub(r'\s*열람일시.*$', '', result).strip()
+            return result
         return max([m.strip() for m in matches], key=len)
 
     # 패턴 3: 소재지 패턴
@@ -461,75 +468,166 @@ def extract_owner_shares_with_birth(full_text):
     
 # <<< 여기에 근저당권 분석 함수를 추가합니다 >>>
 def extract_rights_info(full_text):
-    
-    # 1. '시작/종료 마커'로 테이블 영역을 정확히 추출
-    table_match = re.search(
-        r'3\.\s*\([근|전].*?대상소유자([\s\S]*?)\[\s*참\s*고\s*사\s*항\s*\]',
-        full_text,
-        re.DOTALL
-    )
-    if not table_match:
-        return {"근저당권": []}
-    
-    table_text = table_match.group(1)
+    """
+    말소된 등기(삭제된 권리)를 자동으로 제외하고, 현재 유효한 근저당권만 추출합니다.
+    순위번호 N(M) 형태 (예: 2(1), 2(2))를 별개로 처리합니다.
+    """
 
-    # 2. 테이블 내용을 '순위번호' 기준으로 모든 항목을 임시 리스트에 저장
-    entries = re.split(r'\n\s*(?=(?:\d{1,2}-\d{1,2}|\d{1,2})\s)', table_text)
-    
-    all_entries = []
-    for entry_text in entries:
-        clean_text = ' '.join(entry_text.split())
-        if not clean_text: continue
+    # 1. 을구 또는 주요 등기사항 영역 추출
+    eul_gu_match = re.search(r'【\s*을\s*구\s*】([\s\S]*?)(?:【|주요\s*등기사항|$)', full_text)
+    target_text = eul_gu_match.group(1) if eul_gu_match else ""
 
-        seq_match = re.search(r'^\s*(\d{1,2}(?:-\d{1,2})?)', entry_text)
-        if not seq_match: continue
-        
-        seq = seq_match.group(1)
-        main_key = seq.split('-')[0]
+    if not target_text:
+        target_text = full_text
 
-        date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_text)
-        amount_match = re.search(r'채권최고액\s*금\s*([\d,]+)원', clean_text)
-        creditor_match = re.search(r'근저당권자\s*(\S+)', clean_text)
+    # 2. [핵심] '말소'된 순위 번호 미리 찾기 (Kill List 생성)
+    killed_ranks = set()
+    clean_all = re.sub(r'\s+', '', target_text)
 
-        info_parts = []
-        if amount_match:
-            info_parts.append(f"채권최고액 금{amount_match.group(1)}원")
-        if creditor_match:
-            info_parts.append(f"근저당권자 {creditor_match.group(1)}")
-        
-        if info_parts:
-            all_entries.append({
-                'main_key': main_key,
-                '접수일': date_match.group(1).strip() if date_match else "",
+    # 패턴1: "N번근저당권설정등기...기말소" (전체 말소)
+    malso_full = re.findall(r'\d(\d+)번근저당권설정등\d{4}년\d{1,2}월\d{1,2}일\d{4}년\d{1,2}월\d{1,2}일기말소', clean_all)
+    for rank in malso_full:
+        killed_ranks.add(rank)
+
+    # 패턴2: "N번(M)근저당권설정...일부말소" 또는 "기말소" (부분 말소)
+    malso_partial = re.findall(r'\d(\d+)번\((\d+)\)근저당권설정[등기]*.*?(?:일부말소|기말소)', clean_all)
+    for main, sub in malso_partial:
+        killed_ranks.add(f"{main}({sub})")
+
+    # 3. 순위번호 단위로 텍스트 분리 (N, N-M 형태 모두 포함)
+    entries = re.split(r'\n(?=\d+(?:-\d+)?\n)', target_text)
+
+    mortgage_map = {}
+
+    for entry in entries:
+        clean_entry = re.sub(r'\s+', ' ', entry).strip()
+        if not clean_entry:
+            continue
+
+        # 순위번호 파싱: "2 (1)근저당권설정" 또는 "2 근저당권설정" 또는 "2-2 2번(1)근저당권변경"
+        rank_match = re.match(r'^(\d+)(?:-(\d+))?\s+(?:\((\d+)\))?', clean_entry)
+        if not rank_match:
+            continue
+
+        main_rank = rank_match.group(1)
+        dash_sub = rank_match.group(2)  # N-M의 M (변경등기 순번)
+        paren_sub = rank_match.group(3)  # (N)의 N
+
+        # 변경등기인 경우 (N-M 형태): 대상 순위번호 추출
+        if dash_sub and '변경' in clean_entry:
+            # "2-2 2번(1)근저당권변경" -> target_key = "2(1)"
+            target_match = re.search(r'(\d+)번(?:\((\d+)\))?근저당권변경', clean_entry)
+            if target_match:
+                target_main = target_match.group(1)
+                target_sub = target_match.group(2)
+                target_key = f"{target_main}({target_sub})" if target_sub else target_main
+
+                # 해당 키가 존재하면 금액 업데이트
+                if target_key in mortgage_map and target_key not in killed_ranks:
+                    amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+                    if amount_match:
+                        mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
+            continue  # 변경등기는 여기서 처리 완료
+
+        # 키 생성: "2" 또는 "2(1)"
+        rank_key = f"{main_rank}({paren_sub})" if paren_sub else main_rank
+
+        # [필터링 1] 말소된 순위 건너뜀
+        if rank_key in killed_ranks:
+            continue
+        if main_rank in killed_ranks and not paren_sub:
+            continue
+
+        # [필터링 2] 말소 등기 건너뜀
+        if '말소' in clean_entry:
+            continue
+
+        # 근저당권/질권만 처리
+        if "근저당" not in clean_entry and "질권" not in clean_entry:
+            continue
+
+        # --- 데이터 추출 ---
+        amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+        current_amount = amount_match.group(1) if amount_match else None
+
+        debtor_match = re.search(r'채무자\s+([가-힣a-zA-Z주식회사]+)', clean_entry)
+        current_debtor = debtor_match.group(1) if debtor_match else None
+
+        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z\s주식회사]+?)(?=\d{6}-|서울|경기|인천|전북|부산|대구|광주|대전|울산|세종|$)', clean_entry)
+        current_creditor = creditor_match.group(1).strip() if creditor_match else None
+
+        date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_entry)
+        formatted_date = ""
+        if date_match:
+            nums = re.findall(r'\d+', date_match.group(1))
+            if len(nums) >= 3:
+                formatted_date = f"{nums[0]}-{nums[1].zfill(2)}-{nums[2].zfill(2)}"
+
+        # --- 병합 로직 ---
+        if rank_key not in mortgage_map:
+            mortgage_map[rank_key] = {
+                'main_key': main_rank,
+                'sub_key': paren_sub,
+                'rank_key': rank_key,
+                'amount_str': '',
+                'debtor': '',
+                'creditor': '',
+                'date': ''
+            }
+
+        if current_amount:
+            mortgage_map[rank_key]['amount_str'] = f"금{current_amount}원"
+        # 채무자는 최초 설정 값만 사용 (변경등기에서 덮어쓰지 않음)
+        if current_debtor and not mortgage_map[rank_key]['debtor']:
+            mortgage_map[rank_key]['debtor'] = current_debtor
+        # 근저당권자도 최초 설정 값만 사용 (채권자 변경등기에서 덮어쓰지 않음)
+        if current_creditor and not mortgage_map[rank_key]['creditor']:
+            mortgage_map[rank_key]['creditor'] = current_creditor
+        if formatted_date and not mortgage_map[rank_key]['date']:
+            mortgage_map[rank_key]['date'] = formatted_date
+
+    # 4. 변경등기 반영 (N-M 형태)
+    for entry in entries:
+        clean_entry = re.sub(r'\s+', ' ', entry).strip()
+
+        # "2-2 2번(1)근저당권변경" 패턴
+        change_match = re.match(r'^(\d+)-(\d+)\s+(\d+)번(?:\((\d+)\))?근저당권변경', clean_entry)
+        if change_match:
+            target_main = change_match.group(3)
+            target_sub = change_match.group(4)
+            target_key = f"{target_main}({target_sub})" if target_sub else target_main
+
+            if target_key in mortgage_map and target_key not in killed_ranks:
+                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+                if amount_match:
+                    mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
+
+    # --- 결과 반환 ---
+    results = []
+
+    def sort_key(k):
+        data = mortgage_map[k]
+        main = int(data['main_key'])
+        sub = int(data['sub_key']) if data['sub_key'] else 0
+        return (main, sub)
+
+    for key in sorted(mortgage_map.keys(), key=sort_key):
+        data = mortgage_map[key]
+        if data['amount_str'] or data['creditor']:
+            info_parts = []
+            if data['amount_str']:
+                info_parts.append(f"채권최고액 {data['amount_str']}")
+            if data['creditor']:
+                info_parts.append(f"근저당권자 {data['creditor']}")
+
+            results.append({
+                'main_key': data['rank_key'],
+                '설정일자': data['date'],
+                '채무자': data['debtor'],
                 '주요등기사항': " ".join(info_parts)
             })
 
-    # 3. [수정됨] 이력 덮어쓰기 로직: 누락된 정보를 원본에서 가져와 병합
-    final_mortgages = {}
-    for entry in reversed(all_entries):
-        if entry['main_key'] not in final_mortgages:
-            # 원본 항목(보통 채권최고액이 명시된 첫 항목)을 찾음
-            original_info = next((item for item in all_entries if item['main_key'] == entry['main_key'] and '채권최고액' in item['주요등기사항']), None)
-            
-            if original_info:
-                # 현재 항목에 '채권최고액'이 없으면 원본에서 가져와 맨 앞에 추가
-                if '채권최고액' not in entry['주요등기사항']:
-                    amount_part = re.search(r'채권최고액\s*금[\d,]+원', original_info['주요등기사항'])
-                    if amount_part:
-                        entry['주요등기사항'] = amount_part.group(0) + " " + entry['주요등기사항']
-                
-                # 현재 항목에 '근저당권자'가 없으면 원본에서 가져와 뒤에 추가
-                if '근저당권자' not in entry['주요등기사항']:
-                    creditor_part = re.search(r'근저당권자\s*\S+', original_info['주요등기사항'])
-                    if creditor_part:
-                        entry['주요등기사항'] += " " + creditor_part.group(0)
-
-            final_mortgages[entry['main_key']] = entry
-            
-    # 4. 원래 순서대로 정렬하여 반환
-    sorted_final_list = sorted(list(final_mortgages.values()), key=lambda x: int(x['main_key']))
-
-    return {"근저당권": sorted_final_list}
+    return {"근저당권": results}
 
 
 def extract_construction_date(text):
@@ -765,6 +863,64 @@ import xml.etree.ElementTree as ET
 from urllib.parse import unquote
 import re
 
+def get_legal_code_from_juso_api(address):
+    """행정안전부 도로명주소 API를 통해 주소를 10자리 법정동코드로 변환합니다."""
+    JUSO_API_KEY = "U01TX0FVVEgyMDI2MDEyMTE0MjUwMzExNzQ3MTg="
+
+    # 주소에서 건물명 추출 (아파트명 등)
+    building_pattern = r'([가-힣a-zA-Z0-9]+(?:아파트|파크|타운|빌|캐슬|스카이뷰|힐스테이트|자이|푸르지오|래미안|e편한세상|센트럴|더샵|롯데캐슬|트리풀시티|시티|타워|하이츠|빌라|맨션|팰리스|프라자)[가-힣a-zA-Z0-9]*)'
+    building_match = re.search(building_pattern, address)
+    building_name = building_match.group(1) if building_match else ''
+
+    # 시군구 추출
+    sigungu_match = re.search(r'([가-힣]+시\s+[가-힣]+구|[가-힣]+시|[가-힣]+군)', address)
+    sigungu = sigungu_match.group(1) if sigungu_match else ''
+
+    # 검색 키워드: 시군구 + 건물명
+    search_keyword = f"{sigungu} {building_name}".strip() if building_name else address.split()[0:3]
+    if isinstance(search_keyword, list):
+        search_keyword = ' '.join(search_keyword)
+
+    print(f"[행정안전부 API] 검색 키워드: {search_keyword}")
+
+    params = {
+        'keyword': search_keyword,
+        'confmKey': JUSO_API_KEY,
+        'countPerPage': '5',
+        'resultType': 'json'
+    }
+
+    try:
+        response = requests.post('https://business.juso.go.kr/addrlink/addrLinkApi.do',
+                                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                data=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('results', {}).get('juso'):
+                juso = data['results']['juso'][0]
+                # admCd가 10자리 행정동코드
+                adm_cd = juso.get('admCd', '')
+                # bdMgtSn에서 법정동코드 추출 (앞 10자리가 시군구+법정동)
+                bd_mgt_sn = juso.get('bdMgtSn', '')
+
+                if bd_mgt_sn and len(bd_mgt_sn) >= 10:
+                    # bdMgtSn 구조: 시군구(5) + 법정동(5) + 대지구분(1) + 번(4) + 지(4) + 기타
+                    legal_code = bd_mgt_sn[:10]
+                    print(f"[행정안전부 API] 법정동코드 추출 성공: {legal_code}")
+                    return legal_code
+
+                print(f"[행정안전부 API] bdMgtSn 없음 또는 형식 오류")
+            else:
+                print(f"[행정안전부 API] 검색 결과 없음")
+        else:
+            print(f"[행정안전부 API] 응답 오류: {response.status_code}")
+
+    except Exception as e:
+        print(f"[행정안전부 API 오류] {e}")
+
+    return ""
+
 def get_legal_code_from_kakao(address):
     """카카오 API를 통해 주소를 10자리 법정동코드로 변환합니다."""
     # 사용자님의 카카오 REST API 키
@@ -881,27 +1037,16 @@ def get_building_info(address):
         'raw_completion_date': '',
         'buildings': []
     }
-    try:
-        # 1. 주소 파싱 실행
-        parsed = parse_address_for_building_api(address)
-        if not parsed['success']:
-            print(f"[건축물대장] 주소 분석 실패: {address}")
-            return result
 
+    def call_building_api(params):
+        """건축물대장 API 호출 헬퍼 함수"""
         service_key = "B6F8mdWu8MpnYUwgzs84AWBmkZG3B2l+ItDSFbeL64CxbxJORed+4LpR5uMHxebO/v7LSHBXm1FHFJ8XE6UHqA=="
+        params['serviceKey'] = unquote(service_key)
+        params['platGbCd'] = '0'
+        params['numOfRows'] = '100'
+        params['pageNo'] = '1'
 
-        params = {
-            'serviceKey': unquote(service_key),
-            'sigunguCd': parsed['sigunguCd'],
-            'bjdongCd': parsed['bjdongCd'],
-            'platGbCd': '0',
-            'bun': parsed['bun'],
-            'ji': parsed['ji'],
-            'numOfRows': '100',
-            'pageNo': '1'
-        }
-
-        # 2. 먼저 총괄표제부 API 호출 (세대수가 정확함)
+        # 총괄표제부 API 호출
         url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrRecapTitleInfo'
         response = requests.get(url, params=params, timeout=10)
 
@@ -912,27 +1057,16 @@ def get_building_info(address):
                 if items:
                     total_hhld = 0
                     comp_date = ""
-
                     for item in items:
                         h_cnt = item.findtext('hhldCnt') or '0'
                         u_date = item.findtext('useAprDay') or ''
-
                         if h_cnt.isdigit():
                             total_hhld += int(h_cnt)
-
                         if u_date and not comp_date:
                             comp_date = u_date
+                    return {'success': True, 'households': total_hhld, 'date': comp_date}
 
-                    result['success'] = True
-                    result['total_households'] = total_hhld
-                    result['raw_completion_date'] = comp_date
-                    if len(comp_date) == 8:
-                        result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
-
-                    print(f"[건축물대장] 총괄표제부 조회 성공: {total_hhld}세대, 준공일 {result['completion_date']}")
-                    return result
-
-        # 3. 총괄표제부에서 못 찾으면 표제부 API 호출 (fallback)
+        # 표제부 API fallback
         url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
         response = requests.get(url, params=params, timeout=10)
 
@@ -944,32 +1078,81 @@ def get_building_info(address):
                     total_hhld = 0
                     comp_date = ""
                     exclude_keywords = ['주상가', '상가', '관리동', '부대시설', '커뮤니티', '관리', '근린생활']
-
                     for item in items:
                         dong_nm = item.findtext('dongNm') or ''
                         etc_purps = item.findtext('etcPurps') or ''
                         h_cnt = item.findtext('hhldCnt') or '0'
                         u_date = item.findtext('useAprDay') or ''
-
                         is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
-
                         if not is_excluded and h_cnt.isdigit():
                             total_hhld += int(h_cnt)
-
                         if u_date and not comp_date:
                             comp_date = u_date
+                    if total_hhld > 0:
+                        return {'success': True, 'households': total_hhld, 'date': comp_date}
 
-                    result['success'] = True
-                    result['total_households'] = total_hhld
-                    result['raw_completion_date'] = comp_date
-                    if len(comp_date) == 8:
-                        result['completion_date'] = f"{comp_date[:4]}-{comp_date[4:6]}-{comp_date[6:8]}"
+        return {'success': False, 'households': 0, 'date': ''}
 
-                    print(f"[건축물대장] 표제부 조회 성공: {total_hhld}세대, 준공일 {result['completion_date']}")
-            else:
-                msg = root.findtext('.//resultMsg')
-                print(f"[건축물대장] API 응답 오류: {msg}")
+    try:
+        # 1. 주소 파싱 실행
+        parsed = parse_address_for_building_api(address)
+        if not parsed['success']:
+            print(f"[건축물대장] 주소 분석 실패: {address}")
+            return result
+
+        params = {
+            'sigunguCd': parsed['sigunguCd'],
+            'bjdongCd': parsed['bjdongCd'],
+            'bun': parsed['bun'],
+            'ji': parsed['ji'],
+        }
+
+        # 2. 첫 번째 시도: 파싱된 법정동 코드로 조회
+        api_result = call_building_api(params.copy())
+
+        if api_result['success']:
+            result['success'] = True
+            result['total_households'] = api_result['households']
+            result['raw_completion_date'] = api_result['date']
+            if len(api_result['date']) == 8:
+                result['completion_date'] = f"{api_result['date'][:4]}-{api_result['date'][4:6]}-{api_result['date'][6:8]}"
+            print(f"[건축물대장] 조회 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
+            return result
+
+        # 3. 두 번째 시도: 행정안전부 도로명주소 API로 정확한 법정동코드 가져와서 재시도
+        print(f"[건축물대장] 첫 번째 시도 실패, 행정안전부 API로 법정동코드 재조회...")
+        b_code = get_legal_code_from_juso_api(address)
+
+        # 행정안전부 API 실패 시 카카오 API 시도
+        if not b_code or len(b_code) != 10:
+            print(f"[건축물대장] 행정안전부 API 실패, 카카오 API로 재시도...")
+            b_code = get_legal_code_from_kakao(address)
+
+        if b_code and len(b_code) == 10:
+            # 카카오 API의 10자리 법정동코드에서 시군구(5자리)와 법정동(5자리) 추출
+            kakao_sigungu = b_code[:5]
+            kakao_bjdong = b_code[5:]
+
+            print(f"[건축물대장] 카카오 API 법정동코드: 시군구={kakao_sigungu}, 법정동={kakao_bjdong}")
+
+            params['sigunguCd'] = kakao_sigungu
+            params['bjdongCd'] = kakao_bjdong
+
+            api_result = call_building_api(params.copy())
+
+            if api_result['success']:
+                result['success'] = True
+                result['total_households'] = api_result['households']
+                result['raw_completion_date'] = api_result['date']
+                if len(api_result['date']) == 8:
+                    result['completion_date'] = f"{api_result['date'][:4]}-{api_result['date'][4:6]}-{api_result['date'][6:8]}"
+                print(f"[건축물대장] 카카오 API 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
+                return result
+
+        print(f"[건축물대장] 조회 실패: {address}")
 
     except Exception as e:
         print(f"[건축물대장 조회 오류] {e}")
+        import traceback
+        traceback.print_exc()
     return result
