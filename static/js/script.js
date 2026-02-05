@@ -537,7 +537,7 @@
             </div>
             <div class="loan-col loan-col-date">
                 <div class="mobile-label">설정일자</div>
-                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="setup_date" placeholder="설정일자" value="${loan.setup_date || ''}" style="width: 90px;">
+                <input type="text" class="form-control form-control-sm loan-input form-field md-loan-input" name="setup_date" placeholder="설정일자" value="${loan.setup_date || ''}">
             </div>
             <div class="loan-col loan-col-lender">
                 <div class="mobile-label">설정자</div>
