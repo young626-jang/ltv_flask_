@@ -267,7 +267,9 @@ def fetch_customer_details(page_id: str) -> Optional[Dict]:
     for item in loan_response.json().get("results", []):
         loan_props = item.get("properties", {})
         loan_items.append({
+            "setup_date": get_rich_text(loan_props, "설정일자"),
             "lender": get_title(loan_props, "설정자"),
+            "debtor": get_rich_text(loan_props, "채무자"),
             "status": get_rich_text(loan_props, "진행구분"),
             "max_amount": get_number(loan_props, "채권최고액"),
             "principal": get_number(loan_props, "원금"),
@@ -416,6 +418,12 @@ def save_loan_items(customer_page_id: str, loans_data: List[Dict]) -> bool:
             "properties": {
                 "설정자": {
                     "title": [{"text": {"content": lender}}]
+                },
+                "설정일자": {
+                    "rich_text": [{"text": {"content": loan.get("setup_date", "")}}]
+                },
+                "채무자": {
+                    "rich_text": [{"text": {"content": loan.get("debtor", "")}}]
                 },
                 "채권최고액": {
                     "number": parse_korean_number(loan.get("max_amount", "0"))
