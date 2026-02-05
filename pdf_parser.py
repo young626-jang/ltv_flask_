@@ -473,26 +473,54 @@ def extract_rights_info(full_text):
     순위번호 N(M) 형태 (예: 2(1), 2(2))를 별개로 처리합니다.
     """
 
-    # 1. 을구 또는 주요 등기사항 영역 추출
-    eul_gu_match = re.search(r'【\s*을\s*구\s*】([\s\S]*?)(?:【|주요\s*등기사항|$)', full_text)
-    target_text = eul_gu_match.group(1) if eul_gu_match else full_text
+    # 1. 주요 등기사항 요약 > 을구 테이블 우선 사용 (가장 정확 - 말소된 것 이미 제외)
+    # 형식: "3. (근)저당권 및 전세권 등 ( 을구 )" 섹션
+    summary_eul_match = re.search(
+        r'3\.\s*\(?근?\)?저당권\s*및\s*전세권\s*등\s*\(\s*을구\s*\)([\s\S]*?)(?:\[\s*참\s*고|$)',
+        full_text
+    )
+
+    # 을구 본문도 함께 추출 (채무자 정보용)
+    eul_gu_body_match = re.search(r'【\s*을\s*구\s*】([\s\S]*?)(?:【|주요\s*등기사항|$)', full_text)
+    if not eul_gu_body_match:
+        eul_gu_body_match = re.search(r'을\s+구[\s\S]*?소유권\s*이외의\s*권리에\s*관한\s*사항\s*\)([\s\S]*?)(?:주요\s*등기사항\s*요약|$)', full_text)
+    eul_gu_body = eul_gu_body_match.group(1) if eul_gu_body_match else ""
+
+    if summary_eul_match:
+        # 주요 등기사항 요약 테이블에서 추출 (말소된 것은 이미 제외됨)
+        target_text = summary_eul_match.group(1)
+        use_summary_mode = True
+    else:
+        # 을구 본문에서 추출 (말소 필터링 필요)
+        target_text = eul_gu_body if eul_gu_body else full_text
+        use_summary_mode = False
 
     if not target_text:
         target_text = full_text
+        use_summary_mode = False
 
-    # 2. [핵심] '말소'된 순위 번호 미리 찾기 (Kill List 생성)
+    # 2. [핵심] '말소'된 순위 번호 미리 찾기 (Kill List 생성) - 요약 모드가 아닐 때만
     killed_ranks = set()
-    clean_all = re.sub(r'\s+', '', target_text)
 
-    # 패턴1: "N번근저당권설정등기...기말소" (전체 말소)
-    malso_full = re.findall(r'\d(\d+)번근저당권설정등\d{4}년\d{1,2}월\d{1,2}일\d{4}년\d{1,2}월\d{1,2}일기말소', clean_all)
-    for rank in malso_full:
-        killed_ranks.add(rank)
+    if not use_summary_mode:
+        clean_all = re.sub(r'\s+', '', target_text)
 
-    # 패턴2: "N번(M)근저당권설정...일부말소" 또는 "기말소" (부분 말소)
-    malso_partial = re.findall(r'\d(\d+)번\((\d+)\)근저당권설정[등기]*.*?(?:일부말소|기말소)', clean_all)
-    for main, sub in malso_partial:
-        killed_ranks.add(f"{main}({sub})")
+        # 패턴1: "N번근저당권설정등기...기말소" (전체 말소)
+        malso_full = re.findall(r'\d(\d+)번근저당권설정등\d{4}년\d{1,2}월\d{1,2}일\d{4}년\d{1,2}월\d{1,2}일기말소', clean_all)
+        for rank in malso_full:
+            killed_ranks.add(rank)
+
+        # 패턴2: "N번(M)근저당권설정...일부말소" 또는 "기말소" (부분 말소)
+        malso_partial = re.findall(r'\d(\d+)번\((\d+)\)근저당권설정[등기]*.*?(?:일부말소|기말소)', clean_all)
+        for main, sub in malso_partial:
+            killed_ranks.add(f"{main}({sub})")
+
+        # 패턴3: 전체 텍스트에서 "N번근저당권설정" 뒤에 "말소"가 나오는 경우
+        malso_blocks = re.findall(r'((?:\d+번근저당권설정[,]*)+)(?:등기)?말소', clean_all)
+        for block in malso_blocks:
+            ranks_in_block = re.findall(r'(\d+)번근저당권설정', block)
+            for rank in ranks_in_block:
+                killed_ranks.add(rank)
 
     # 3. 순위번호 단위로 텍스트 분리 (N, N-M 형태 모두 포함)
     entries = re.split(r'\n(?=\d+(?:-\d+)?\n)', target_text)
@@ -513,20 +541,16 @@ def extract_rights_info(full_text):
         dash_sub = rank_match.group(2)  # N-M의 M (변경등기 순번)
         paren_sub = rank_match.group(3)  # (N)의 N
 
-        # 변경등기인 경우 (N-M 형태): 대상 순위번호 추출
+        # 변경등기인 경우 (N-M 형태): 대상 순위번호(N)의 금액 업데이트
+        # 예: "6-2 근저당권변경" -> main_rank=6의 금액을 업데이트
         if dash_sub and '변경' in clean_entry:
-            # "2-2 2번(1)근저당권변경" -> target_key = "2(1)"
-            target_match = re.search(r'(\d+)번(?:\((\d+)\))?근저당권변경', clean_entry)
-            if target_match:
-                target_main = target_match.group(1)
-                target_sub = target_match.group(2)
-                target_key = f"{target_main}({target_sub})" if target_sub else target_main
+            target_key = main_rank  # N-M에서 N이 대상 순위번호
 
-                # 해당 키가 존재하면 금액 업데이트
-                if target_key in mortgage_map and target_key not in killed_ranks:
-                    amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
-                    if amount_match:
-                        mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
+            # 해당 키가 존재하면 금액 업데이트 (감액/증액 반영)
+            if target_key in mortgage_map and target_key not in killed_ranks:
+                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+                if amount_match:
+                    mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
             continue  # 변경등기는 여기서 처리 완료
 
         # 키 생성: "2" 또는 "2(1)"
@@ -550,7 +574,12 @@ def extract_rights_info(full_text):
         amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
         current_amount = amount_match.group(1) if amount_match else None
 
+        # 채무자 추출: "채무자 홍길동" 또는 요약 테이블의 "대상소유자" 컬럼
         debtor_match = re.search(r'채무자\s+([가-힣a-zA-Z주식회사]+)', clean_entry)
+        if not debtor_match:
+            # 주요등기사항 요약 테이블: 마지막 한글 이름이 대상소유자(채무자)
+            # 패턴: "근저당권자 OOO  홍길동" (채권자 뒤에 이름)
+            debtor_match = re.search(r'근저당권자\s+\S+\s+([가-힣]{2,4})(?:\s|$)', clean_entry)
         current_debtor = debtor_match.group(1) if debtor_match else None
 
         creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z\s주식회사]+?)(?=\d{6}-|서울|경기|인천|전북|부산|대구|광주|대전|울산|세종|$)', clean_entry)
@@ -601,6 +630,19 @@ def extract_rights_info(full_text):
                 amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
                 if amount_match:
                     mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
+
+    # 5. 채무자가 비어있으면 을구 본문에서 찾기
+    if eul_gu_body:
+        for rank_key, data in mortgage_map.items():
+            if not data['debtor']:
+                # 을구 본문에서 해당 순위번호의 채무자 찾기
+                # 패턴: "순위번호 근저당권설정 ... 채무자 홍길동"
+                main_rank = data['main_key']
+                # 순위번호 N으로 시작하는 블록에서 채무자 찾기
+                debtor_pattern = rf'\n{main_rank}\n[\s\S]*?채무자\s+([가-힣]{{2,4}})'
+                debtor_match = re.search(debtor_pattern, eul_gu_body)
+                if debtor_match:
+                    data['debtor'] = debtor_match.group(1)
 
     # --- 결과 반환 ---
     results = []
