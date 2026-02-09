@@ -1121,6 +1121,13 @@
             border-color: #8ab4c8;
         }
 
+        /* 메모 textarea 고정폭 폰트 적용 (정렬 유지) */
+        #generated-memo {
+            font-family: 'D2Coding', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
         /* 희망담보대부 체크박스 테두리 굵게 */
         #hope-collateral-loan {
             border: 2px solid #333 !important;
