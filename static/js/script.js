@@ -738,6 +738,14 @@
         const ratioInput = loanItem.querySelector('[name="ratio"]');
         const principalInput = loanItem.querySelector('[name="principal"]');
 
+        // ✅ [수정] 값이 변경되지 않았으면 API 호출 건너뛰기 (마우스 커서만 올린 경우)
+        const currentValue = maxAmountInput.value;
+        const lastValue = maxAmountInput.dataset.lastValue || '';
+        if (currentValue === lastValue) {
+            return; // 값이 같으면 아무것도 하지 않음
+        }
+        maxAmountInput.dataset.lastValue = currentValue;
+
         const loanData = {
             max_amount: maxAmountInput.value,
             ratio: ratioInput.value
@@ -755,13 +763,16 @@
 
             if (result.success && result.converted_data) {
                 const data = result.converted_data;
-                maxAmountInput.value = data.max_amount ? parseInt(data.max_amount).toLocaleString() : '0';
-                principalInput.value = data.principal ? parseInt(data.principal).toLocaleString() : '0';
+                const newMaxAmount = data.max_amount ? parseInt(data.max_amount).toLocaleString() : '0';
+                const newPrincipal = data.principal ? parseInt(data.principal).toLocaleString() : '0';
+                maxAmountInput.value = newMaxAmount;
+                maxAmountInput.dataset.lastValue = newMaxAmount; // 변환된 값도 저장
+                principalInput.value = newPrincipal;
             }
         } catch (error) {
             console.error('Error during loan conversion:', error);
             // API 호출 실패 시, 클라이언트 사이드 계산으로 대체
-            handleAutoLoanCalc(event); 
+            handleAutoLoanCalc(event);
         } finally {
             triggerMemoGeneration();
         }
