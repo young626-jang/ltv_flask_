@@ -119,7 +119,8 @@ def calculate_principal_from_ratio(max_amount, ratio):
             return 0
             
         # 원금 = 채권최고액 / (비율/100)
-        principal = int(max_amt / (ratio_val / 100))
+        # int() 대신 round()를 사용하여 부동소수점 오류 방지 (17600/1.10 = 15999.999... → 16000)
+        principal = round(max_amt / (ratio_val / 100))
         return principal
     except (ValueError, TypeError, ZeroDivisionError):
         return 0
