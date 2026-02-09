@@ -1,5 +1,5 @@
         :root {
-            /* Durekt ?��????�상 ?�레??*/
+            /* Durekt 스타일 색상 팔레트 */
             --primary-dark: #2D3748;
             --primary-accent: #D946EF;
             --primary-cyan: #06FFA5;
@@ -13,11 +13,11 @@
         }
         
         html, body {
-            height: 100%; /* <-- ????줄이 모든 문제 ?�결???�작?�니?? */
+            height: 100%; /* <-- 이 한 줄이 모든 문제 해결의 시작입니다. */
             margin: 0;
             padding: 0;
-            overflow: hidden; /* <-- ?�체 ?�이지??불필?�한 ?�크롤바가 ?�기??것을 막아줍니?? */
-            overflow-x: hidden; /* 가�??�크�?방�? */
+            overflow: hidden; /* <-- 전체 페이지에 불필요한 스크롤바가 생기는 것을 막아줍니다. */
+            overflow-x: hidden; /* 가로 스크롤 방지 */
             font-family: 'Inter', 'Malgun Gothic', sans-serif; 
             background: var(--background-light) !important;
             background-color: #F7FAFC !important;
@@ -28,7 +28,7 @@
             box-sizing: border-box;
         }
         
-        /* 기존 ?��????��? - 리사?�즈 �?추�? */
+        /* 기존 스타일 유지 - 리사이즈 바 추가 */
         .main-container { 
             display: flex; 
             height: 100vh; 
@@ -38,21 +38,21 @@
             gap: 0.5rem;
         }
         .pdf-viewer-column { 
-            flex: 2; /* <-- 변�? 2/5 비율 (기존 40% ??��) */
+            flex: 2; /* <-- 변경: 2/5 비율 (기존 40% 역할) */
             display: flex; 
             flex-direction: column; 
-            transition: flex 0.3s ease; /* <-- 변�? width ?�??flex??transition ?�용 */
+            transition: flex 0.3s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: #F2EDD7;
             border-radius: 12px;
             padding: 0;
             box-shadow: var(--shadow-soft);
         }
         
-        /* PDF ?�로?????�태 - ?�래그앤?�롭�?보이??컴팩??모드 */
+        /* PDF 업로드 전 상태 - 드래그앤드롭만 보이는 컴팩트 모드 */
         .pdf-viewer-column.compact {
             flex: 1;
             min-width: 200px;
-            /* max-width ?�거?�여 리사?�즈 가?�하�???*/
+            /* max-width 제거하여 리사이즈 가능하게 함 */
         }
         
         .pdf-viewer-column.compact #upload-section {
@@ -63,19 +63,19 @@
             display: none !important;
         }
         .form-column { 
-            flex: 3; /* <-- 변�? 3/5 비율 (기존 60% ??��) */
+            flex: 3; /* <-- 변경: 3/5 비율 (기존 60% 역할) */
             height: 100%; 
             overflow-y: scroll; 
-            transition: flex 0.1s ease; /* <-- 변�? width ?�??flex??transition ?�용 */
+            transition: flex 0.1s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: var(--background-white);
             border-radius: 12px;
             padding: 0.5rem;
             box-shadow: var(--shadow-soft);
         }
         
-        /* 리사?�즈 �??��???*/
+        /* 리사이즈 바 스타일 */
         .resize-bar {
-            width: 8px; /* ?�로모드?�서???�치 ?�역 ?�간 ?��? */
+            width: 8px; /* 세로모드에서도 터치 영역 약간 확대 */
             background: linear-gradient(to bottom, #e9ecef, #dee2e6, #e9ecef);
             cursor: col-resize;
             position: relative;
@@ -83,10 +83,10 @@
             user-select: none;
             z-index: 10;
             transition: all 0.3s ease;
-            touch-action: none; /* ?�치 ?�크�?방�? */
+            touch-action: none; /* 터치 스크롤 방지 */
         }
         
-        /* PDF 컴팩???�태?�서 리사?�즈 바는 ?�상 ?�작 */
+        /* PDF 컴팩트 상태에서 리사이즈 바는 정상 동작 */
         
         .resize-bar:hover {
             background: linear-gradient(to bottom, #6c757d, #495057, #6c757d);
@@ -120,30 +120,6 @@
             background: rgba(0,0,0,0.1);
             border-radius: 2px;
         }
-        /* 가�?모드 (?�하 분할 ?�이?�웃) */
-        .main-container.horizontal-layout {
-            flex-direction: column;
-        }
-
-        .main-container.horizontal-layout .pdf-viewer-column {
-            flex: 2;
-            width: 100%;
-            height: auto;
-        }
-
-        .main-container.horizontal-layout .resize-bar {
-            width: 100%;
-            height: 8px;
-            cursor: row-resize;
-            background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
-        }
-
-        .main-container.horizontal-layout .form-column {
-            flex: 3;
-            width: 100%;
-            height: auto;
-        }
-
         .pdf-iframe-container { flex-grow: 1; position: relative; }
         #pdf-viewer { 
             width: 100%; 
@@ -166,28 +142,6 @@
             color: var(--text-muted);
             flex-direction: column; /* Added */
         }
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#007bff">
-    <meta name="description" content="부?�산 LTV 계산 �?메모 ?�성 ?�구">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="LTV계산�?>
-    <meta name="mobile-web-app-capable" content="yes">
-    <title> 부?�산 LTV 계산 �?메모 ?�성 ?�구 : 만든?�람 ?�서??/title>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/69/69524.png" type="image/png">
-    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-192x192.png">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
         .upload-content { /* Added */
             flex-grow: 1;
@@ -213,11 +167,8 @@
             color: var(--text-dark);
             font-size: 0.875rem;
         }
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
 
-        /* Durekt ?��???버튼 ?�버?�이??*/
+        /* Durekt 스타일 버튼 오버라이드 */
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-accent) 0%, #c026d3 100%);
             border: none;
@@ -272,7 +223,7 @@
             border-color: var(--text-muted);
         }
         
-        /* ??컨트�??��??�링 */
+        /* 폼 컨트롤 스타일링 */
         .form-control, .form-select {
             border: 2px solid var(--border-light);
             border-radius: 8px;
@@ -290,27 +241,8 @@
         .form-control::placeholder {
             color: var(--text-muted);
         }
-<div class="main-container" id="main-layout-wrapper">
-    <div class="pdf-viewer-column" id="pdf-column">
-        <div id="upload-section">
-            <div class="upload-content">
-                <i class="bi bi-cloud-arrow-up-fill" style="font-size: 6rem; color: #6c757d;"></i>
-                <h3 class="mt-4">PDF ?�일???�래�????�롭 ?�는 ?�릭</h4>
-                <p class="text-muted" id="upload-text">?�기부?�본 ?�일???�려주시�?주요 ?�보가 ?�동 ?�력?�니??</p>
-                <div id="upload-spinner" class="spinner-border mt-3" role="status" style="display: none;"></div>
-            </div>
-        </div>
-        <input type="file" id="file-input" accept=".pdf">
-        <div id="viewer-section" style="display: none;" class="h-100 d-flex flex-column">
-            <div class="d-flex justify-content-between align-items-center mb-0 flex-shrink-0" style="padding: 0.25rem 0;">
-                <h6 id="file-name-display" class="mb-0 small text-muted"></h6>
-                <button class="btn btn-sm md-btn md-btn-secondary" id="reupload-btn" type="button" style="font-size: 12px; padding: 4px 8px;">?�� ?�기 ?�업로드</button>
-            </div>
-            <div class="pdf-iframe-container"><iframe id="pdf-viewer"></iframe></div>
-        </div>
-    </div>
 
-        /* ???�래�??�들 ?��???*/
+        /* ✨ 드래그 핸들 스타일 */
         .drag-handle {
             width: 24px;
             height: 40px;
@@ -344,9 +276,8 @@
             border-top: 4px solid var(--primary-accent);
             background-color: rgba(212, 70, 239, 0.15);
         }
-    <div class="resize-bar" id="resize-bar"></div>
 
-        /* 가�?모드 ?�이?�웃 ?��???- 반응??flex 기반 */
+        /* 가로 모드 레이아웃 스타일 - 반응형 flex 기반 */
         .main-container.horizontal-mode { 
             flex-direction: column; 
             gap: 0;
@@ -355,34 +286,34 @@
         }
         .main-container.horizontal-mode .pdf-viewer-column { 
             width: 100% !important; 
-            flex: 3; /* PDF ?�역??3/5 비율�??�동 조정 */
-            min-height: 150px; /* 최소 ?�이 축소 */
+            flex: 3; /* PDF 영역이 3/5 비율로 자동 조정 */
+            min-height: 150px; /* 최소 높이 축소 */
             max-height: none;
             overflow: hidden;
         }
         .main-container.horizontal-mode .form-column { 
             width: 100% !important; 
-            flex: 2; /* ???�역??2/5 비율�??�동 조정 */
+            flex: 2; /* 폼 영역이 2/5 비율로 자동 조정 */
             min-height: 150px;
             max-height: none;
             overflow-y: auto;
         }
         .main-container.horizontal-mode .resize-bar {
             width: 100% !important;
-            height: 8px; /* PC?�서 ?�백 ?�약 */
+            height: 8px; /* PC에서 여백 절약 */
             cursor: row-resize;
             position: relative;
-            z-index: 999; /* z-index 증�? */
-            touch-action: none; /* ?�치 ?�작 ?�한 */
+            z-index: 999; /* z-index 증가 */
+            touch-action: none; /* 터치 동작 제한 */
         }
         
-        /* 모바?�에?�만 ?�치 ?�역 ?��? */
+        /* 모바일에서만 터치 영역 확대 */
         @media (max-width: 768px) {
             .main-container.horizontal-mode .resize-bar {
                 height: 12px !important;
             }
             
-            /* 가로모??모바?�에???�로???�역 컴팩?�화 */
+            /* 가로모드 모바일에서 업로드 영역 컴팩트화 */
             .main-container.horizontal-mode #upload-section {
                 min-height: 120px;
             }
@@ -404,26 +335,10 @@
             width: 4px;
             height: 20px;
         }
-    <div class="form-column" id="form-column-wrapper">
-        <div class="p-0">
-            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="d-flex gap-2 mb-0 align-items-center">
-                    <select class="form-select md-input" id="customer-history" style="flex: 2;"><option value="" selected>기존 고객 불러?�기...</option></select>
-                    <button class="btn md-btn md-btn-primary" id="load-customer-btn" type="button" style="flex: 0 0 auto;">불러?�기</button>
-                    <button class="btn md-btn md-btn-danger" id="delete-customer-btn" type="button" style="flex: 0 0 auto;">??��</button>
-                    <button class="btn md-btn md-btn-warning" type="button" id="reset-btn" style="flex: 0 0 auto;">???�체 초기??/button>
-                </div>
-                <div class="form-check mt-2 d-flex justify-content-end">
-                    <input class="form-check-input" type="checkbox" id="hope-collateral-loan">
-                    <label class="form-check-label" for="hope-collateral-loan">
-                        ?�망?�보?�부 ?�용
-                    </label>
-                </div>
-            </div>
 
-        /* ============= ?�� 모바??반응??개선 ============= */
+        /* ============= 📱 모바일 반응형 개선 ============= */
         
-        /* ?�블�?(768px ?�하) */
+        /* 태블릿 (768px 이하) */
         @media (max-width: 768px) {
             body {
                 font-size: 0.85rem;
@@ -456,10 +371,10 @@
                 margin: 0;
             }
             
-            /* 모바?�에?�도 리사?�즈 �??�시?�되 ?�치??최적??*/
+            /* 모바일에서도 리사이즈 바 표시하되 터치에 최적화 */
             .resize-bar {
                 width: 100% !important;
-                height: 12px; /* ?�치?�기 ?�도�??�이 ?��? */
+                height: 12px; /* 터치하기 쉽도록 높이 확대 */
                 cursor: row-resize;
                 background: linear-gradient(to right, #e9ecef, #dee2e6, #e9ecef);
                 touch-action: none;
@@ -468,7 +383,7 @@
             }
             
             .resize-bar::before {
-                width: 40px !important; /* ?�치 ?�역 ?��? */
+                width: 40px !important; /* 터치 영역 확대 */
                 height: 3px !important;
                 background: rgba(0,0,0,0.3) !important;
             }
@@ -479,9 +394,9 @@
                 background: rgba(255,255,255,0.8) !important;
             }
             
-            /* 버튼?�을 ?�치?�기 ?�하�??�게 */
+            /* 버튼들을 터치하기 편하게 크게 */
             .btn {
-                min-height: 44px; /* ?�플 가?�드?�인 44px */
+                min-height: 44px; /* 애플 가이드라인 44px */
                 font-size: 0.9rem;
             }
             
@@ -490,10 +405,10 @@
                 font-size: 0.8rem;
             }
             
-            /* ?�력 ?�드?�을 ?�치?�기 ?�하�?*/
+            /* 입력 필드들을 터치하기 편하게 */
             .form-control, .form-select {
                 min-height: 44px;
-                font-size: 16px; /* iOS �?방�? */
+                font-size: 16px; /* iOS 줌 방지 */
             }
             
             .form-control-sm, .form-select-sm {
@@ -501,14 +416,14 @@
                 font-size: 14px;
             }
             
-            /* ?�서 조정 버튼 모바??최적??*/
+            /* 순서 조정 버튼 모바일 최적화 */
             .order-btn {
                 width: 28px;
                 height: 24px;
                 font-size: 12px;
             }
             
-            /* ?��???�� 모바??최적??*/
+            /* 대출 항목 모바일 최적화 */
             .loan-item {
                 display: block !important;
                 padding: 0.75rem;
@@ -522,14 +437,14 @@
                 margin-bottom: 0.5rem;
             }
             
-            /* ?��??�더 ?�이�??�태 ?�기�?*/
+            /* 대출 헤더 테이블 형태 숨기기 */
             .loan-row-header {
                 display: none !important;
             }
             
-            /* 모바?�에?�는 불필?�한 ?�벨 ?�거 - placeholder�?충분 */
+            /* 모바일에서는 불필요한 라벨 제거 - placeholder로 충분 */
             
-            /* ?�로???�역 모바??최적??*/
+            /* 업로드 영역 모바일 최적화 */
             #upload-section {
                 min-height: 150px;
             }
@@ -538,13 +453,13 @@
                 font-size: 1.1rem;
             }
             
-            /* ?�스???�역 모바??최적??*/
+            /* 텍스트 영역 모바일 최적화 */
             #generated-memo {
                 min-height: 300px;
                 font-size: 0.85rem;
             }
             
-            /* ??버튼??모바?�에???�크�?가?�하�?*/
+            /* 탭 버튼들 모바일에서 스크롤 가능하게 */
             .nav-tabs {
                 flex-wrap: nowrap;
                 overflow-x: auto;
@@ -557,7 +472,7 @@
             }
         }
         
-        /* 모바??(576px ?�하) */
+        /* 모바일 (576px 이하) */
         @media (max-width: 576px) {
             body {
                 font-size: 0.8rem;
@@ -572,13 +487,13 @@
                 min-height: 180px;
             }
             
-            /* 모바?�에?????�역 ??많�? 공간 ?�보 */
+            /* 모바일에서 폼 영역 더 많은 공간 확보 */
             .form-column {
                 flex: 1;
                 padding: 0.25rem;
             }
             
-            /* ???��? ?�면?�서??버튼?�을 ?�로�?*/
+            /* 더 작은 화면에서는 버튼들을 세로로 */
             .d-grid.gap-2.d-md-flex {
                 display: flex !important;
                 flex-direction: column;
@@ -591,7 +506,7 @@
                 font-size: 0.9rem;
             }
             
-            /* 모바???�??row ?�소??*/
+            /* 모바일 대응 row 요소들 */
             .row.g-2 {
                 --bs-gutter-x: 0.5rem;
                 margin: 0;
@@ -603,7 +518,7 @@
                 margin-bottom: 0.75rem;
             }
             
-            /* 고객 ?�택 ?�역 모바??최적??*/
+            /* 고객 선택 영역 모바일 최적화 */
             .input-group {
                 flex-direction: column;
                 gap: 0.75rem;
@@ -616,7 +531,7 @@
                 border-radius: 0.5rem !important;
             }
             
-            /* LTV 비율 컬트�?모바??최적??*/
+            /* LTV 비율 컬트롤 모바일 최적화 */
             .d-flex.align-items-center.gap-2 {
                 flex-wrap: wrap;
                 gap: 0.5rem !important;
@@ -632,7 +547,7 @@
                 min-height: 36px !important;
             }
             
-            /* 링크 버튼??모바?�에???�로 배치 */
+            /* 링크 버튼들 모바일에서 세로 배치 */
             .btn-group.w-100 {
                 flex-direction: column;
                 gap: 0.75rem;
@@ -643,7 +558,7 @@
                 min-height: 48px;
             }
             
-            /* ???�비게이??모바??최적??*/
+            /* 탭 네비게이션 모바일 최적화 */
             .nav-tabs {
                 border: none !important;
                 margin-bottom: 0.5rem;
@@ -656,12 +571,12 @@
                 margin-right: 0.25rem;
             }
             
-            /* ?��???�� ?�더 ?�기�?(모바?�에?�는 ?�벨�??��? */
+            /* 대출 항목 헤더 숨기기 (모바일에서는 라벨로 대체) */
             .loan-tab-pane .d-flex.border-bottom {
                 display: none !important;
             }
             
-            /* 모든 컨테?�너??모바?�에???� ?�비 */
+            /* 모든 컨테이너들 모바일에서 풀 너비 */
             [style*="background: #F2EDD7"],
             [style*="background: #6E6E6D"] {
                 margin: 0 !important;
@@ -669,12 +584,12 @@
                 border-radius: 0.5rem !important;
             }
             
-            /* ?�스???�력 ?�드??간격 조정 */
+            /* 텍스트 입력 필드들 간격 조정 */
             .mb-2 {
                 margin-bottom: 0.75rem !important;
             }
             
-            /* ?�이�?최적??*/
+            /* 레이블 최적화 */
             label {
                 display: block;
                 margin-bottom: 0.5rem;
@@ -684,7 +599,7 @@
         }
         
         
-        /* 가로모??모바??최적??*/
+        /* 가로모드 모바일 최적화 */
         @media (max-width: 768px) and (orientation: landscape) {
             .main-container {
                 flex-direction: row;
@@ -700,28 +615,28 @@
             }
         }
         
-        /* ?�치 ?�바?�스 최적??*/
+        /* 터치 디바이스 최적화 */
         @media (hover: none) and (pointer: coarse) {
-            /* ?�치 ?�바?�스?�서 ?�버 ?�과 ?�거 */
+            /* 터치 디바이스에서 호버 효과 제거 */
             .btn:hover {
                 transform: none;
                 box-shadow: none;
             }
             
-            /* ?�치 ?�드�?추�? */
+            /* 터치 피드백 추가 */
             .btn:active {
                 transform: scale(0.96);
                 transition: transform 0.1s;
             }
             
-            /* 모든 ?�터?�티�??�소 ?�치 최적??*/
+            /* 모든 인터랙티브 요소 터치 최적화 */
             .form-control, .form-select, .btn, .md-btn, .md-ltv-btn {
                 min-height: 44px;
                 -webkit-tap-highlight-color: rgba(0,0,0,0.1);
                 touch-action: manipulation;
             }
             
-            /* ?�크롤바 ?��??�링 (모바?? */
+            /* 스크롤바 스타일링 (모바일) */
             .form-column::-webkit-scrollbar {
                 width: 4px;
             }
@@ -736,14 +651,14 @@
                 border-radius: 4px;
             }
             
-            /* ?�치 ?�크�?개선 */
+            /* 터치 스크롤 개선 */
             .form-column {
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior-y: contain;
             }
         }
         
-        /* PWA ?�태�?고려 (iOS Safari) */
+        /* PWA 상태바 고려 (iOS Safari) */
         @supports (padding-top: env(safe-area-inset-top)) {
             .main-container {
                 padding-top: max(0.5rem, env(safe-area-inset-top));
@@ -753,108 +668,108 @@
             }
         }
         
-        /* PWA ?�체?�면 모드 ?�??*/
+        /* PWA 전체화면 모드 대응 */
         @media all and (display-mode: standalone) {
             .main-container {
-                /* PWA 모드?�서 ?�태�??�역 ?�보 */
+                /* PWA 모드에서 상태바 영역 확보 */
                 padding-top: max(1rem, env(safe-area-inset-top, 1rem));
                 padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
             }
             
-            /* PWA?�서 ???�다???�낌???�한 ?�더 ?��???*/
+            /* PWA에서 더 앱다운 느낌을 위한 헤더 스타일 */
             body {
                 background: #F7FAFC;
                 -webkit-user-select: none;
                 user-select: none;
             }
             
-            /* ?�택 가?�한 ?�스???�역�??�택 ?�용 */
+            /* 선택 가능한 텍스트 영역만 선택 허용 */
             input, textarea, [contenteditable] {
                 -webkit-user-select: text;
                 user-select: text;
             }
         }
         
-        /* 추�? 모바??개선?�항 */
+        /* 추가 모바일 개선사항 */
         @media (max-width: 768px) {
-            /* 뷰포???�위 최적??*/
+            /* 뷰포트 단위 최적화 */
             .main-container {
                 min-height: 100vh;
                 min-height: -webkit-fill-available;
-                min-height: 100svh; /* 최신 뷰포???�위 */
+                min-height: 100svh; /* 최신 뷰포트 단위 */
             }
             
-            /* 가�??�크�??�전 방�? */
+            /* 가로 스크롤 완전 방지 */
             body {
                 overflow-x: hidden !important;
                 max-width: 100vw !important;
                 position: relative;
             }
             
-            /* 모든 ?�소 최�? ?�비 ?�한 */
+            /* 모든 요소 최대 너비 제한 */
             * {
                 max-width: 100% !important;
                 box-sizing: border-box;
             }
             
-            /* ?�력 ?�드 �?방�? (iOS) */
+            /* 입력 필드 줌 방지 (iOS) */
             input[type="text"], input[type="number"], select, textarea {
                 font-size: 16px !important;
                 -webkit-appearance: none;
                 appearance: none;
                 border-radius: 0.5rem;
-                /* iOS ?�보??관??개선 */
+                /* iOS 키보드 관련 개선 */
                 -webkit-transform: translateZ(0);
                 transform: translateZ(0);
             }
             
-            /* 모바?�에??pull-to-refresh 방�? */
+            /* 모바일에서 pull-to-refresh 방지 */
             .main-container {
                 overscroll-behavior-y: contain;
                 touch-action: pan-y;
             }
             
-            /* ?�크�??�능 개선 */
+            /* 스크롤 성능 개선 */
             .form-column {
                 -webkit-overflow-scrolling: touch;
                 scroll-behavior: smooth;
                 will-change: scroll-position;
             }
             
-            /* ?�치 ?�역 ?��? */
+            /* 터치 영역 확대 */
             .btn, .form-control, .form-select {
                 min-height: 48px;
                 min-width: 48px;
             }
             
-            /* 모바???�보???�??*/
+            /* 모바일 키보드 대응 */
             .form-control:focus, .form-select:focus {
-                /* ?�보?��? ?�라????뷰포??조정 방�? */
+                /* 키보드가 올라올 때 뷰포트 조정 방지 */
                 position: relative;
                 z-index: 1;
             }
             
-            /* PDF 뷰어 모바??최적??*/
+            /* PDF 뷰어 모바일 최적화 */
             .pdf-viewer-column {
-                /* ?�치 ?�크�?개선 */
+                /* 터치 스크롤 개선 */
                 -webkit-overflow-scrolling: touch;
                 overflow: hidden;
             }
             
             .pdf-iframe-container {
-                /* iframe ?�치 개선 */
+                /* iframe 터치 개선 */
                 -webkit-overflow-scrolling: touch;
                 overflow: auto;
             }
             
-            /* ?�로???�역 ?�치 개선 */
+            /* 업로드 영역 터치 개선 */
             #upload-section {
-                /* ?�치 ?�드�?개선 */
+                /* 터치 피드백 개선 */
                 -webkit-tap-highlight-color: rgba(212, 70, 239, 0.2);
                 cursor: pointer;
             }
             
-            /* 모바?�에???�버 ?�과 ?�거?�고 ?�치 ?�과�??��?*/
+            /* 모바일에서 호버 효과 제거하고 터치 효과로 대체 */
             .btn:hover, .form-control:hover, .md-btn:hover {
                 transform: none;
                 box-shadow: initial;
@@ -867,21 +782,21 @@
             }
         }
         
-        /* 모바?�용 ?��???�� ?�벨 ?��???*/
+        /* 모바일용 대출 항목 라벨 스타일 */
         .mobile-label {
             display: none;
         }
         
         @media (max-width: 576px) {
             .mobile-label {
-                display: none !important; /* 모바?�에???�벨 ?�기�?*/
+                display: none !important; /* 모바일에서 라벨 숨기기 */
                 margin-bottom: 0.25rem;
                 color: #495057;
                 font-size: 0.8rem;
             }
         }
         
-        /* Material Design ?�일 ?��???*/
+        /* Material Design 통일 스타일 */
         .md-btn {
             border: 1px solid #ddd !important;
             border-radius: 4px !important;
@@ -971,7 +886,7 @@
             color: white !important;
         }
         
-        /* LTV 컨트�??��???*/
+        /* LTV 컨트롤 스타일 */
         .md-input {
             border: 1px solid #757575 !important;
             border-radius: 4px !important;
@@ -1019,7 +934,7 @@
             color: white !important;
         }
         
-        /* ?�래�??�들�??��???�� ?��???*/
+        /* 드래그 핸들과 대출 항목 스타일 */
         .md-drag-handle {
             border: 1px solid #ddd !important;
             border-radius: 4px !important;
@@ -1099,79 +1014,43 @@
             color: white !important;
         }
         /* ================================== */
-        /* ???��???�� ?�렬???�한 CSS ?�래??*/
+        /* ✅ 대출 항목 정렬을 위한 CSS 클래스 */
         /* ================================== */
         .loan-row-header, .loan-item {
             display: flex;
             align-items: center;
         }
-            <!-- ?�기 경고 ?�역 -->
-            <div id="registration-warning" class="alert alert-warning" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
-                    <div>
-                        <div class="fw-bold text-danger" id="warning-title">?�️ 주의: ?�래???�기 ?�이??/div>
-                        <div class="small" id="warning-message">???�기???�래???�이?�입?�다</div>
-                        <div class="small text-muted" id="warning-datetime">?�람?�시: -</div>
-                    </div>
-                </div>
-            </div>
 
         .loan-col {
-            padding: 0 0.25rem; /* 좌우 ?�백 추�? */
+            padding: 0 0.25rem; /* 좌우 여백 추가 */
         }
-            <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <div class="mb-2"><input type="text" class="form-control form-field md-input" id="address" placeholder="주소"></div>
-                <div class="row g-2 mb-2">
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name" placeholder="공유??1 고객�?& ?�년?�일"></div>
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="customer_name_2" placeholder="공유??2 고객�?& ?�년?�일"></div>
-                </div>
 
         .loan-col-drag { flex: 0 0 32px; }
-        .loan-col-lender { flex: 1 1 30%; min-width: 120px; }
-        .loan-col-max-amount { flex: 1 1 15%; min-width: 90px; }
-        .loan-col-ratio { flex: 1 1 7%; min-width: 60px; }
-        .loan-col-principal { flex: 1 1 15%; min-width: 90px; }
-        .loan-col-status { flex: 1 1 12%; min-width: 80px; }
+        .loan-col-date { flex: 1 1 12%; min-width: 85px; }
+        .loan-col-lender { flex: 1 1 22%; min-width: 100px; }
+        .loan-col-debtor { flex: 0 0 75px; min-width: 75px; }
+        .loan-col-max-amount { flex: 1 1 12%; min-width: 85px; }
+        .loan-col-ratio { flex: 0 0 55px; min-width: 55px; }
+        .loan-col-principal { flex: 1 1 12%; min-width: 85px; }
+        .loan-col-status { flex: 0 0 85px; min-width: 85px; }
         .loan-col-action { flex: 0 0 40px; display: flex; justify-content: flex-end; }
-                <div class="row g-2 mb-2">
-                    <div class="col-md-6"><label for="deduction_region">방공??지??/label><select class="form-select form-field md-loan-select" id="deduction_region">
-                        <option value="0" selected>지???�택...</option>
-                        {% for region, amount in region_map.items() %}<option value="{{ amount }}">{{ region }}</option>{% endfor %}
-                    </select></div>
-                    <div class="col-md-6"><label for="price_type_field">?�세?�용</label><input type="text" class="form-control form-field md-input fw-bold" id="price_type_field" readonly></div>
-                </div>
 
-        /* ?�망?�보?�부 KB?�세 경고 ?��???*/
+        /* 희망담보대부 KB시세 경고 스타일 */
         .kb-price-warning {
             background-color: #ff6b6b !important;
             color: white;
             border-color: #c92a2a !important;
             font-weight: 600;
         }
-                <div class="row g-2 mb-2">
-                    <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="kb_price" placeholder="KB ?�세(�?"></div>
-                    <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="deduction_amount" placeholder="방공??�?"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(??"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="ownership_transfer_date" placeholder="?�유권이?�일"></div>
-                    <div class="col"><input type="text" class="form-control form-field md-input" id="unit_count" placeholder="?��???></div>
-                </div>
 
         .kb-price-warning::placeholder {
             color: rgba(255, 255, 255, 0.7);
         }
-                <!-- ?�망?�보?�부 지???�택 버튼 -->
-                <div id="hope-loan-region-buttons" class="d-flex gap-2 mb-2" style="display: none;">
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="?�울" data-ltv="80">?�울</button>
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="경기" data-ltv="75">경기</button>
-                    <button type="button" class="btn md-btn hope-loan-region-btn" data-region="?�천" data-ltv="70">?�천</button>
-                </div>
 
         .kb-price-warning:focus {
             background-color: #ff5252 !important;
             box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
         }
-                <div class="d-flex gap-2 w-100 mt-3"><a href="https://kbland.kr/map?xy=37.5205559,126.9265729,17" target="_blank" class="btn md-btn md-btn-warning flex-fill">KB?�세</a><a href="https://rtech.or.kr/main/main.do" target="_blank" class="btn md-btn flex-fill" style="background-color: #422057; color: white; border-color: #422057;">부?�산?�크</a><a href="https://www.howsmuch.com" target="_blank" class="btn md-btn md-btn-info flex-fill">?�우?�머�?/a><a href="http://www.iros.go.kr" target="_blank" class="btn md-btn flex-fill" style="background-color: #4a5dc6; color: white; border-color: #4a5dc6;">?�터?�등기소</a></div>
 
         .ownership-transfer-warning {
             background-color: #ff6b6b !important;
@@ -1179,95 +1058,15 @@
             border-color: #c92a2a !important;
             font-weight: 600;
         }
-            </div>
-            
-            <!-- LTV 비율????밖으�??�출 -->
-            <div style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem;">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="ltv1" class="mb-0" style="white-space: nowrap;">?�� LTV 비율 ??/label>
-                            <div class="d-flex gap-1">
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', -5)">-</button>
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv1', 5)">+</button>
-                                <input type="text" class="form-control form-field text-center md-input" id="ltv1" value="80" style="flex: 1;">
-                                <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('ltv1')">×</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="ltv2" class="mb-0" style="white-space: nowrap;">?�� LTV 비율 ??/label>
-                            <div class="d-flex gap-1">
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv2', -5)">-</button>
-                                <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('ltv2', 5)">+</button>
-                                <input type="text" class="form-control form-field text-center md-input" id="ltv2" value="" style="flex: 1;">
-                                <button class="md-ltv-btn danger" type="button" onclick="clearLtvValue('ltv2')">×</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
         .ownership-transfer-warning::placeholder {
             color: rgba(255, 255, 255, 0.7);
         }
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설??브릿지</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">?�자 계산�?/button></li>
-                    <li class="nav-item" role="presentation">
-                      <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
-                        지�??�도 계산�?
-                      </button>
-                    </li>
-                </ul>
-            </div>
 
         .ownership-transfer-warning:focus {
             background-color: #ff5252 !important;
             box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
         }
-            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0;">
-                <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
-                    <div class="row g-2">
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설??�?"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="(%)"></div>
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="브릿지(�?"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="(%)"></div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <input type="text" class="form-control md-input" id="interest-loan-amount" placeholder="?�출금??(만원)">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control md-input" id="interest-annual-rate" placeholder="?�이??(%)">
-                        </div>
-                    </div>
-                    <div class="row g-3 mt-3">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-daily-result" placeholder="?�루 ?�자 (??" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-monthly-result" placeholder="?�달 ?�자 (??" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <input type="text" class="form-control md-input" id="interest-yearly-result" placeholder="1???�자 (??" readonly>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h6 class="mb-3 text-success">?�금 분할·만기?�시 ?��?계산�?/h6>
-                    <!-- ?�출금, ?�이???�드 ??��?�고 바로 ?�금 분할 비율부???�작 -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <input type="number" class="form-control md-input" id="balloon-principal-pct" placeholder="분할??(%)" min="0" max="100" step="0.1">
-                        </div>
-                        <div class="col-md-6">
-                            <input type="number" class="form-control md-input" id="balloon-months" placeholder="개월?? min="1" step="1">
-                        </div>
-                    </div>
 
         .unit-count-warning {
             background-color: #ff6b6b !important;
@@ -1275,101 +1074,24 @@
             border-color: #c92a2a !important;
             font-weight: 600;
         }
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <input type="text" class="form-control bg-light md-input" id="balloon-monthly-principal" placeholder="매월 ?�금" readonly>
-                            <small class="text-muted">?? 3?? 7%, 60개월 ??350,000??/small>
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control bg-light md-input" id="balloon-first-payment" placeholder="�????�입??(?�금 0 + ?�자 0)" readonly>
-                            <small class="text-muted" id="balloon-first-breakdown"></small>
-                        </div>
-                    </div>
-                </div>
-                <!-- ====================================================== -->
-                <!-- ??[?�정] 지�??�도 계산�????�용 ?�작 -->
-                <!-- ====================================================== -->
-                <div class="tab-pane fade" id="share-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem 0.5rem 0;">
-                    
-                    <!-- 공유??1 ?�보 ?�력 -->
-                    <div class="row mb-2 align-items-center g-2">
-                        <div class="col-auto">
-                          <input type="radio" name="share-borrower" value="1" id="share-borrower-1" style="transform: scale(1.3);">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-name-1" placeholder="공유??1 고객�?& ?�년?�일">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-birth-1" placeholder="지분율">
-                        </div>
-                    </div>
 
         .unit-count-warning::placeholder {
             color: rgba(255, 255, 255, 0.7);
         }
-                    <!-- 공유??2 ?�보 ?�력 -->
-                    <div class="row mb-2 align-items-center g-2">
-                        <div class="col-auto">
-                          <input type="radio" name="share-borrower" value="2" id="share-borrower-2" style="transform: scale(1.3);">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-name-2" placeholder="공유??1 고객�?& ?�년?�일">
-                        </div>
-                        <div class="col">
-                          <input type="text" class="form-control md-input" id="share-customer-birth-2" placeholder="지분율">
-                        </div>
-                    </div>
-                </div>
-                <!-- ====================================================== -->
-                <!-- ??[?�정] 지�??�도 계산�????�용 ??-->
-                <!-- ====================================================== -->
-            </div>                
-            
-            <!-- ??공통 ?�출항�??�역 -->
-            <div id="loan-section" class="mt-3" style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
-                <div id="loan-items-container"></div>
-            </div>
 
         .unit-count-warning:focus {
             background-color: #ff5252 !important;
             box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25);
         }
-            <hr class="my-2">
-            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
-                <textarea class="form-control md-input" id="generated-memo" rows="15" placeholder="?�력/?�정 ???�시 ???�시간으�??�약 메모�??�데?�트?�니??.."></textarea>
-            </div>
-            
-            <div style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
-                <div class="d-grid gap-2 d-md-flex">
-                    <button id="layout-toggle-btn" class="btn md-btn md-btn-secondary me-auto"><i class="bi bi-distribute-horizontal"></i> 가�?모드</button>
-                    <button class="btn md-btn md-btn-primary" id="save-new-btn" type="button">?�규 고객?�로 ?�??/button>
-                    <button class="btn md-btn md-btn-success" id="update-btn" type="button">기존 고객 ?�보 ?�정</button>
-                </div>
-            </div>
 
-        /* ?�망?�보?�부 지???�택 버튼 ?��???*/
+        /* 희망담보대부 지역 선택 버튼 스타일 */
         #hope-loan-region-buttons {
             display: none !important;
         }
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
         #hope-loan-region-buttons:not(.hidden) {
             display: flex !important;
         }
-<script>
-// PWA Service Worker ?�록
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js')
-            .then(function(registration) {
-                console.log('Service Worker registered successfully:', registration);
-            })
-            .catch(function(error) {
-                console.log('Service Worker registration failed:', error);
-            });
-    });
-}
 
         .hope-loan-region-btn {
             flex: 1;
@@ -1382,109 +1104,31 @@ if ('serviceWorker' in navigator) {
             cursor: pointer;
             transition: all 0.3s ease;
         }
-// PWA ?�치 ?�롬?�트 처리
-let deferredPrompt;
-const installButton = document.createElement('button');
-installButton.innerHTML = '?�� ???�치';
-installButton.className = 'btn btn-primary btn-sm position-fixed';
-installButton.style.cssText = 'top: 10px; right: 10px; z-index: 1000; display: none; border-radius: 20px; padding: 5px 15px; font-size: 12px;';
-installButton.id = 'install-button';
-document.body.appendChild(installButton);
 
         .hope-loan-region-btn:hover {
             background-color: #e0e0e0;
             border-color: #555;
         }
-window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('PWA install prompt triggered');
-    e.preventDefault(); // 기본 ?�치 배너 ?�기�?
-    deferredPrompt = e;
-    installButton.style.display = 'block'; // 커스?� 버튼 ?�시
-});
 
         .hope-loan-region-btn.active {
             background-color: #9CC3D5;
             color: #0063B2;
             border-color: #9CC3D5;
         }
-// ?�치 버튼 ?�릭 ?�벤??
-installButton.addEventListener('click', async () => {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log('User choice:', outcome);
-        if (outcome === 'accepted') {
-            console.log('User accepted install');
-        }
-        deferredPrompt = null;
-        installButton.style.display = 'none';
-    }
-});
 
         .hope-loan-region-btn.active:hover {
             background-color: #8ab4c8;
             border-color: #8ab4c8;
         }
-// ?��? ?�치??경우 버튼 ?�기�?
-window.addEventListener('appinstalled', () => {
-    console.log('PWA was installed');
-    installButton.style.display = 'none';
-    deferredPrompt = null;
-});
 
-        /* ?�망?�보?�부 체크박스 ?�두�?굵게 */
+        /* 희망담보대부 체크박스 테두리 굵게 */
         #hope-collateral-loan {
             border: 2px solid #333 !important;
             cursor: pointer;
         }
-// ?�치 ?�료 ??처리
-window.addEventListener('appinstalled', (evt) => {
-    console.log('PWA was installed');
-    // ?�치 ?�료 ??추�? 로직
-});
-
-// ?�라???�프?�인 ?�태 감�?
-window.addEventListener('online', function() {
-    console.log('?�이 ?�라???�태?�니??');
-});
-
-window.addEventListener('offline', function() {
-    console.log('?�이 ?�프?�인 ?�태?�니??');
-});
-</script>
-
-</body>
-</html>
 
         #hope-collateral-loan:focus {
             border-color: #333 !important;
             box-shadow: 0 0 0 0.2rem rgba(51, 51, 51, 0.25);
         }
 
-        /* Select2 고객 검색 스타일 */
-        .select2-container--default .select2-selection--single {
-            height: 38px !important;
-            border: 1px solid #757575 !important;
-            border-radius: 4px !important;
-            background: #fff !important;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 36px !important;
-            padding-left: 12px !important;
-            color: #333 !important;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 36px !important;
-        }
-        .select2-container--default .select2-search--dropdown .select2-search__field {
-            border: 1px solid #757575 !important;
-            border-radius: 4px !important;
-            padding: 8px !important;
-        }
-        .select2-container--default .select2-results__option--highlighted[aria-selected] {
-            background-color: #2BAE66 !important;
-        }
-        .select2-dropdown {
-            border: 1px solid #757575 !important;
-            border-radius: 4px !important;
-        }
