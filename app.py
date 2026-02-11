@@ -1128,24 +1128,25 @@ def convert_to_road_address():
 
         logger.info(f"[도로명 변환] 원본: {address}")
 
-        # 주소에서 건물명 추출 (아파트, 오피스텔 등)
-        building_pattern = r'([가-힣a-zA-Z0-9]+(?:아파트|파크|타운|빌|캐슬|자이|힐스테이트|푸르지오|래미안|e편한세상|센트럴|스카이뷰|위브|센텀|시티|프라자|오피스텔|빌라|맨션|하이츠|노블랜드|더시그니처|센트레빌|트레비앙|아이파크|롯데캐슬|자연앤|대방노블랜드)[가-힣a-zA-Z0-9]*)'
-        building_match = re.search(building_pattern, address)
+        # 동/호수 정보 미리 추출 (나중에 사용)
+        dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)층?\s*제?(\d+)호', address)
+        if not dong_ho_match:
+            dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
 
-        # 검색 키워드: 건물명이 있으면 "시군구 + 건물명", 없으면 원본 주소
-        if building_match:
-            building_name = building_match.group(1)
-            # 시/군/구 추출
-            region_match = re.search(r'([가-힣]+시)\s*([가-힣]+[구군])?', address)
-            if region_match:
-                region = region_match.group(1)
-                if region_match.group(2):
-                    region += ' ' + region_match.group(2)
-                search_keyword = f"{region} {building_name}"
-            else:
-                search_keyword = building_name
+        # 검색 키워드: 지번 주소 부분만 추출 (동/호수 제외)
+        # "경기도 고양시 덕양구 행신동 796 소만마을아파트 제102동 제11층 제1101호"
+        # → "경기도 고양시 덕양구 행신동 796" (지번까지만)
+
+        # 패턴: 시/도 + 시/군/구 + 동/읍/면/리 + 번지
+        jibun_pattern = r'^(.*?[동읍면리가로]\s*\d+(?:-\d+)?)'
+        jibun_match = re.search(jibun_pattern, address)
+
+        if jibun_match:
+            # 지번 주소로 검색 (가장 정확함)
+            search_keyword = jibun_match.group(1).strip()
         else:
-            search_keyword = address
+            # 지번 패턴이 없으면 원본 주소에서 동/호수 부분만 제거
+            search_keyword = re.sub(r'\s*제?\d+동.*$', '', address).strip()
 
         logger.info(f"[도로명 변환] 검색 키워드: {search_keyword}")
 
@@ -1168,10 +1169,14 @@ def convert_to_road_address():
 
             juso_list = result.get('results', {}).get('juso', [])
             if juso_list and len(juso_list) > 0:
-                # 동/호수 정보 추출
-                dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
-                dong_num = dong_ho_match.group(1) if dong_ho_match else None
-                ho_num = dong_ho_match.group(2) if dong_ho_match else None
+                # 동/호수 정보는 위에서 이미 추출됨 (dong_ho_match)
+                if dong_ho_match:
+                    dong_num = dong_ho_match.group(1)
+                    # 3개 그룹이면 (동, 층, 호), 2개 그룹이면 (동, 호)
+                    ho_num = dong_ho_match.group(3) if dong_ho_match.lastindex >= 3 else dong_ho_match.group(2)
+                else:
+                    dong_num = None
+                    ho_num = None
 
                 road_addr = juso_list[0].get('roadAddr', '')
 
