@@ -974,9 +974,9 @@ function calculateDatesFromIssueDate(issueDate) {
     const businessRegDate = new Date(issueDate);
     businessRegDate.setDate(issueDate.getDate() - 20);
 
-    // 2. 대출가능일 = 사업자등록일로부터 30일 후
+    // 2. 대출가능일 = 사업자등록일로부터 1개월 후 (정확히 동일 일자)
     let loanAvailableDate = new Date(businessRegDate);
-    loanAvailableDate.setDate(businessRegDate.getDate() + 30);
+    loanAvailableDate.setMonth(businessRegDate.getMonth() + 1);
 
     // 3. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
     loanAvailableDate = getNextBusinessDay(loanAvailableDate);
@@ -996,9 +996,9 @@ function calculateFromRegistrationDate(registrationDate) {
     // 1. 사업자 발급일 리셋 (역계산하지 않음)
     businessIssueDateField.value = '';
 
-    // 2. 대출가능일 = 사업자등록일로부터 30일 후
+    // 2. 대출가능일 = 사업자등록일로부터 1개월 후 (정확히 동일 일자)
     let loanAvailableDate = new Date(registrationDate);
-    loanAvailableDate.setDate(registrationDate.getDate() + 30);
+    loanAvailableDate.setMonth(registrationDate.getMonth() + 1);
 
     // 3. 대출가능일이 주말/공휴일이면 다음 영업일로 조정
     loanAvailableDate = getNextBusinessDay(loanAvailableDate);
