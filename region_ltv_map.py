@@ -11,20 +11,24 @@ REGION_CLASSIFICATION = {
         ],
         "인천": ["계양구", "부평구", "연수구", "미추홀구"],
         "경기": [
-            "용인", "과천", "광명", "구리", "군포", "부천", "성남",
+            "과천", "광명", "구리", "군포", "부천", "성남",
             "수원", "안양", "의왕", "하남", "김포", "남양주"
-        ]
+        ],
+        "경기_용인": ["수지구", "기흥구"],  # 용인시 중 1군
+        "광역시": ["광주"]  # 광주광역시 1군
     },
     "2군": {
         "인천": ["남동구", "서구", "동구", "중구"],
         "경기": [
             "시흥", "안산", "화성", "의정부", "양주", "고양",
             "광주", "동두천", "오산", "이천", "파주"
-        ]
+        ],
+        "경기_용인": ["처인구"],  # 용인시 중 2군
+        "광역시": ["부산", "울산"]  # 부산, 울산 2군
     },
     "3군": {
         "경기": ["평택", "안성", "여주", "포천"],
-        "광역시": ["대전", "세종", "대구", "부산", "광주", "울산"]
+        "광역시": ["대전", "세종", "대구"]  # 대전, 대구, 세종만 3군
     }
 }
 
@@ -33,6 +37,7 @@ CAUTION_REGIONS = {
     "서울": ["중랑구", "관악구", "강북구", "성북구", "노원구", "도봉구"],
     "경기": ["구리", "남양주"],
     "인천": ["계양구", "부평구", "연수구", "미추홀구"],
+    "광역시": ["광주"],  # 광주광역시도 유의지역
 }
 
 # 2. LTV 기준 테이블 (급지별, 물건유형별, 면적별, 선후순위별)
@@ -104,7 +109,7 @@ def get_region_grade(address, is_meritz_pledge=False):
 
     Args:
         address (str): 주소 문자열
-        is_meritz_pledge (bool): 메리츠 질권 적용 여부 (True일 때만 광역시 3군 인정)
+        is_meritz_pledge (bool): 메리츠 질권 적용 여부 (현재 미사용, 호환성 유지)
 
     Returns:
         str: '1군', '2군', '3군', 또는 '미분류'
@@ -127,17 +132,43 @@ def get_region_grade(address, is_meritz_pledge=False):
     if has_gun and not is_new_town:
         return "미분류"
 
+    # ✅ 1. 용인시 특별 처리 (수지구/기흥구는 1군, 처인구는 2군)
+    if "용인" in address:
+        for district in REGION_CLASSIFICATION.get("1군", {}).get("경기_용인", []):
+            if district in address:
+                return "1군"
+        for district in REGION_CLASSIFICATION.get("2군", {}).get("경기_용인", []):
+            if district in address:
+                return "2군"
+        # 용인인데 구가 명시 안되면 2군으로 처리
+        return "2군"
+
+    # ✅ 2. 광역시 처리 (1군: 광주, 2군: 부산/울산, 3군: 대전/대구/세종)
+    for metro_city in REGION_CLASSIFICATION.get("1군", {}).get("광역시", []):
+        if metro_city in address and "광역시" in address:
+            return "1군"
+    for metro_city in REGION_CLASSIFICATION.get("2군", {}).get("광역시", []):
+        if metro_city in address:
+            return "2군"
+    for metro_city in REGION_CLASSIFICATION.get("3군", {}).get("광역시", []):
+        if metro_city in address:
+            return "3군"
+
     address_upper = address.upper()
 
-    # ✅ 1. 1군부터 가장 먼저 확인
+    # ✅ 3. 서울/인천/경기 1군 확인
     for city, districts in REGION_CLASSIFICATION.get("1군", {}).items():
+        if city in ["경기_용인", "광역시"]:
+            continue  # 이미 위에서 처리함
         if city.upper() in address_upper:
             for district in districts:
                 if district.upper() in address_upper:
                     return "1군"
 
-    # ✅ 2. 그 다음 2군 확인 (서구 오판정 방지)
+    # ✅ 4. 인천/경기 2군 확인 (서구 오판정 방지)
     for city, districts in REGION_CLASSIFICATION.get("2군", {}).items():
+        if city in ["경기_용인", "광역시"]:
+            continue  # 이미 위에서 처리함
         for district in districts:
             if district.upper() in address_upper:
                 # '서구'가 검색되었는데 주소에 '강서구'가 있으면 무시하고 넘어감
@@ -145,16 +176,10 @@ def get_region_grade(address, is_meritz_pledge=False):
                     continue
                 return "2군"
 
-    # ✅ 3. 3군 확인 (경기 3군)
+    # ✅ 5. 경기 3군 확인
     for district in REGION_CLASSIFICATION.get("3군", {}).get("경기", []):
         if district.upper() in address_upper:
             return "3군"
-
-    # ✅ 4. 광역시는 메리츠 질권 적용 시에만 3군 인정
-    if is_meritz_pledge:
-        for metro_city in REGION_CLASSIFICATION.get("3군", {}).get("광역시", []):
-            if metro_city in address:
-                return "3군"
 
     return "미분류"
 
@@ -171,7 +196,20 @@ def is_caution_region(address):
     if not address:
         return False
 
+    # 인천 1군 전체가 유의지역
+    if "인천" in address:
+        for district in CAUTION_REGIONS.get("인천", []):
+            if district in address:
+                return True
+
+    # 광주광역시 전체가 유의지역
+    if "광주" in address and "광역시" in address:
+        return True
+
+    # 서울, 경기 유의지역
     for city, districts in CAUTION_REGIONS.items():
+        if city in ["인천", "광역시"]:
+            continue  # 위에서 처리함
         if city in address:
             for district in districts:
                 if district in address:
