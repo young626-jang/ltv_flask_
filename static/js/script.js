@@ -3011,7 +3011,7 @@ function calculateBalloonLoan() {
 
 // 가이드 팝업 윈도우 열기
 function openGuidePopup() {
-    const guideUrl = 'https://young626-jang.github.io/heuimang-loan-consulting-guide/';
+    const guideUrl = '/static/heuimang-loan-guide.html';
     const popupWidth = 1000;
     const popupHeight = 800;
 
