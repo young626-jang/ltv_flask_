@@ -1056,11 +1056,21 @@ def parse_address_for_building_api(address):
 
         # 3. 번지 추출
         # 패턴: "동1가 46-8", "동 123-45", "리 67" 등
-        # - [리동가로]: 리, 동, 가, 로 로 끝나는 법정동 뒤의 번지
-        # - \s+: 공백 필수 (동1가46 같은 경우 방지)
-        # - (\d+): 본번
-        # - (?:-(\d+))?: 부번 (선택)
-        bungi_match = re.search(r'[리동가로]\s+(\d+)(?:-(\d+))?', address)
+        # - 법정동명 뒤의 번지를 추출
+        # - 법정동명이 정확히 매칭된 위치 이후에서 번지 찾기
+        bungi_match = None
+
+        # 매칭된 법정동 이후 위치에서 번지 찾기
+        if matched_dong:
+            dong_pos = address.find(matched_dong)
+            if dong_pos != -1:
+                after_dong = address[dong_pos + len(matched_dong):]
+                # 법정동 바로 뒤의 번지 추출 (공백 + 숫자)
+                bungi_match = re.search(r'^\s+(\d+)(?:-(\d+))?', after_dong)
+
+        # fallback: 기존 방식 (리/동/가/로 뒤의 번지)
+        if not bungi_match:
+            bungi_match = re.search(r'[리동가로]\s+(\d+)(?:-(\d+))?', address)
         if bungi_match:
             result['bun'] = bungi_match.group(1).zfill(4)
             result['ji'] = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
