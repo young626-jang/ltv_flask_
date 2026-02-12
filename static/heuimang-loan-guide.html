@@ -111,17 +111,17 @@
         padding: 12px; font-size: 18px; font-weight: bold; margin-bottom: 5px;
     }
     .style-imcap .date-text { text-align: right; font-size: 11px; margin-bottom: 10px; color: #555; }
-
+    
     .style-imcap table, .style-imcap th, .style-imcap td { border: 1px solid #000; }
-
+    
     .style-imcap .bg-green { background-color: #e2efda; font-weight: bold; }
     .style-imcap .bg-pink { background-color: #ffccff; font-weight: bold; }
     .style-imcap .bg-purple-light { background-color: #e4dfec; font-weight: bold; }
     .style-imcap .bg-blue-light { background-color: #ddebf7; font-weight: bold; }
-
+    
     .style-imcap .inner-table { border: none; margin: 0; width: 100%; }
     .style-imcap .inner-table th, .style-imcap .inner-table td { border: 1px solid #000; }
-
+    
     .style-imcap ul { margin: 0; padding-left: 15px; list-style: none; text-align: left; }
     .style-imcap li { position: relative; padding-left: 15px; margin-bottom: 4px; }
     .style-imcap li::before { content: "▶"; position: absolute; left: 0; top: 1px; font-size: 10px; color: #333; }
@@ -132,31 +132,31 @@
        ========================================= */
     .style-biz table { border: 2px solid #000; table-layout: fixed; }
     .style-biz th, .style-biz td { border: 1px solid #000; padding: 6px 2px; }
-
+    
     .style-biz .section-title {
         font-size: 15px; font-weight: bold; margin-top: 30px; margin-bottom: 10px;
         border-left: 5px solid #000; padding-left: 10px; color: #000;
         display: flex; align-items: center;
     }
-
+    
     .style-biz .bg-yellow { background-color: #ffff00; font-weight: bold; }
     .style-biz .bg-gray { background-color: #e7e6e6; font-weight: bold; }
     .style-biz .bg-blue-group { background-color: #b4c6e7; font-weight: bold; }
     .style-biz .bg-purple { background-color: #ccc0da; font-weight: bold; }
     .style-biz .bg-header-blue { background-color: #dce6f1; font-weight: bold; }
     .style-biz .bg-orange { background-color: #fcd5b4; }
-
+    
     .style-biz .diagonal-cell {
         background: linear-gradient(to top right, #dce6f1 49%, #000 50%, #dce6f1 51%);
         position: relative; height: 50px;
     }
     .style-biz .text-tr { position: absolute; top: 3px; right: 5px; font-weight: bold; }
     .style-biz .text-bl { position: absolute; bottom: 3px; left: 5px; font-weight: bold; }
-
+    
     .style-biz .border-dotted-r { border-right: 1px dotted #000; }
     .style-biz .border-solid-r { border-right: 1px solid #000; }
     .style-biz .border-thick-b { border-bottom: 2px solid #000; }
-
+    
     .style-biz .info-box { border: 1px solid #000; padding: 12px; margin-bottom: 20px; background: #fff; }
     .style-biz .red-box { border: 2px solid red; padding: 12px; margin-bottom: 20px; background: #fff; }
     .style-biz ul { margin: 0; padding-left: 20px; list-style-type: disc; text-align: left; }
@@ -171,7 +171,7 @@
         border-radius: 4px; color: white;
     }
     .style-hope h2:first-child { margin-top: 0; }
-
+    
     .style-hope .info-grid {
         display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 12px; margin-bottom: 20px;
@@ -182,7 +182,7 @@
     }
     .style-hope .info-label { font-weight: 700; display: block; font-size: 12px; color: #555; margin-bottom: 6px; }
     .style-hope .info-value { font-weight: 600; font-size: 14px; color: #000; }
-
+    
     /* 희망-아이엠 테마 */
     .theme-iam h2 { background-color: #34495e; }
     .theme-iam .info-item { border-left-color: #3498db; background-color: #f8fbfd; }
@@ -200,7 +200,7 @@
     .theme-meritz .highlight-green { background-color: #e6f9e6; font-weight: bold; color: #006400; }
     .theme-meritz .highlight-yellow { background-color: #fff3cd; font-weight: bold; color: #856404; }
     .theme-meritz .highlight-blue { background-color: #e0f2f7; font-weight: bold; color: #003d82; }
-
+    
     .theme-meritz .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .theme-meritz .info-card {
         background: #fff; border: 1px solid #ddd; border-left: 4px solid #003d82;
@@ -222,7 +222,7 @@
 <script>
     function openTab(evt, tabId) {
         var i, tabcontent, tablinks;
-
+        
         // 1. 모든 탭 콘텐츠 숨김
         tabcontent = document.getElementsByClassName("tab-content");
         for (i = 0; i < tabcontent.length; i++) {
@@ -242,7 +242,7 @@
         setTimeout(function() {
             document.getElementById(tabId).className += " active";
         }, 10);
-
+        
         evt.currentTarget.className += " active";
     }
 </script>
@@ -391,7 +391,7 @@
          [TAB 2] 사업자담보채권 기준 (LTV 테이블 상세)
          ================================================================================== -->
     <div id="Tab2" class="tab-content style-biz">
-
+        
         <!-- 1. 적용금리 섹션 -->
         <div class="section-title">▣ 사업자담보채권_적용금리 기준</div>
         <table>
@@ -808,7 +808,7 @@
                 대출가능액 = [평가액 × LTV × 지분율(%)] − 선순위 채권최고액
             </div>
         </div>
-
+        
         <div style="text-align:right; margin-top:20px; color:#999; font-size:11px;">메리츠캐피탈 가이드라인</div>
     </div>
 
