@@ -582,7 +582,10 @@ def extract_rights_info(full_text):
             debtor_match = re.search(r'근저당권자\s+\S+\s+([가-힣]{2,4})(?:\s|$)', clean_entry)
         current_debtor = debtor_match.group(1) if debtor_match else None
 
-        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z\s주식회사]+?)(?=\d{6}-|서울|경기|인천|전북|부산|대구|광주|대전|울산|세종|$)', clean_entry)
+        # 근저당권자/채권자 추출 (은행명에 포함된 지역명은 종료 조건에서 제외)
+        # 패턴: "근저당권자 주식회사부산은행" → "주식회사부산은행" 전체 추출
+        # 종료 조건: 주민번호(6자리-), 지역명+시/구/동, 또는 문자열 끝
+        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z0-9\s주식회사은행농협신협새마을금고캐피탈저축]+?)(?=\s+\d{6}-|\s+[가-힣]+[시구동]\s|$)', clean_entry)
         current_creditor = creditor_match.group(1).strip() if creditor_match else None
 
         date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_entry)
@@ -1052,7 +1055,12 @@ def parse_address_for_building_api(address):
         result['bjdongCd'] = bjdong_cd
 
         # 3. 번지 추출
-        bungi_match = re.search(r'[리동]\s*(\d+)(?:-(\d+))?', address)
+        # 패턴: "동1가 46-8", "동 123-45", "리 67" 등
+        # - [리동가로]: 리, 동, 가, 로 로 끝나는 법정동 뒤의 번지
+        # - \s+: 공백 필수 (동1가46 같은 경우 방지)
+        # - (\d+): 본번
+        # - (?:-(\d+))?: 부번 (선택)
+        bungi_match = re.search(r'[리동가로]\s+(\d+)(?:-(\d+))?', address)
         if bungi_match:
             result['bun'] = bungi_match.group(1).zfill(4)
             result['ji'] = bungi_match.group(2).zfill(4) if bungi_match.group(2) else '0000'
