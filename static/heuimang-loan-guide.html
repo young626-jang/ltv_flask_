@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합 대출 가이드라인 (전체본)</title>
+<style>
+    /* =========================================
+       [공통] 기본 레이아웃 및 탭 스타일
+       ========================================= */
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Noto Sans KR', 'Malgun Gothic', 'Dotum', sans-serif;
+        font-size: 12px;
+        color: #333;
+        margin: 0;
+        padding: 20px;
+        line-height: 1.5;
+        background-color: #f4f6f8;
+    }
+
+    .main-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        padding: 20px;
+        min-height: 800px;
+    }
+
+    /* 탭 네비게이션 */
+    .tab-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        border-bottom: 2px solid #333;
+        margin-bottom: 25px;
+    }
+    .tab-button {
+        flex: 1;
+        min-width: 140px;
+        padding: 14px 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        color: #666;
+        border-radius: 5px 5px 0 0;
+        transition: all 0.2s;
+    }
+    .tab-button:hover {
+        background-color: #e9ecef;
+        color: #333;
+    }
+    .tab-button.active {
+        background-color: #333;
+        color: #fff;
+        border-color: #333;
+    }
+
+    /* 탭별 포인트 컬러 (선택사항) */
+    .tab-btn-1.active { background-color: #008080; border-color: #008080; } /* iM캐피탈 */
+    .tab-btn-2.active { background-color: #555; border-color: #555; }       /* 사업자담보 */
+    .tab-btn-3.active { background-color: #3498db; border-color: #3498db; } /* 희망-아이엠 */
+    .tab-btn-4.active { background-color: #27ae60; border-color: #27ae60; } /* 희망-메리츠 */
+
+    /* 탭 콘텐츠 영역 */
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease-in-out;
+        padding: 10px 5px;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 공통 테이블 리셋 */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 12px;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: middle;
+        text-align: center;
+        word-break: keep-all;
+    }
+
+    /* 유틸리티 클래스 */
+    .text-left { text-align: left !important; padding-left: 10px !important; }
+    .text-bold { font-weight: bold; }
+    .text-red { color: red; font-weight: bold; }
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 5px; vertical-align: middle;}
+
+
+    /* =========================================
+       [스타일] 탭1: iM캐피탈 운영자금
+       ========================================= */
+    .style-imcap .title-box {
+        background-color: #dce6f1; border: 2px solid #000; text-align: center;
+        padding: 12px; font-size: 18px; font-weight: bold; margin-bottom: 5px;
+    }
+    .style-imcap .date-text { text-align: right; font-size: 11px; margin-bottom: 10px; color: #555; }
+
+    .style-imcap table, .style-imcap th, .style-imcap td { border: 1px solid #000; }
+
+    .style-imcap .bg-green { background-color: #e2efda; font-weight: bold; }
+    .style-imcap .bg-pink { background-color: #ffccff; font-weight: bold; }
+    .style-imcap .bg-purple-light { background-color: #e4dfec; font-weight: bold; }
+    .style-imcap .bg-blue-light { background-color: #ddebf7; font-weight: bold; }
+
+    .style-imcap .inner-table { border: none; margin: 0; width: 100%; }
+    .style-imcap .inner-table th, .style-imcap .inner-table td { border: 1px solid #000; }
+
+    .style-imcap ul { margin: 0; padding-left: 15px; list-style: none; text-align: left; }
+    .style-imcap li { position: relative; padding-left: 15px; margin-bottom: 4px; }
+    .style-imcap li::before { content: "▶"; position: absolute; left: 0; top: 1px; font-size: 10px; color: #333; }
+
+
+    /* =========================================
+       [스타일] 탭2: 사업자담보채권 기준 (복잡한 LTV표)
+       ========================================= */
+    .style-biz table { border: 2px solid #000; table-layout: fixed; }
+    .style-biz th, .style-biz td { border: 1px solid #000; padding: 6px 2px; }
+
+    .style-biz .section-title {
+        font-size: 15px; font-weight: bold; margin-top: 30px; margin-bottom: 10px;
+        border-left: 5px solid #000; padding-left: 10px; color: #000;
+        display: flex; align-items: center;
+    }
+
+    .style-biz .bg-yellow { background-color: #ffff00; font-weight: bold; }
+    .style-biz .bg-gray { background-color: #e7e6e6; font-weight: bold; }
+    .style-biz .bg-blue-group { background-color: #b4c6e7; font-weight: bold; }
+    .style-biz .bg-purple { background-color: #ccc0da; font-weight: bold; }
+    .style-biz .bg-header-blue { background-color: #dce6f1; font-weight: bold; }
+    .style-biz .bg-orange { background-color: #fcd5b4; }
+
+    .style-biz .diagonal-cell {
+        background: linear-gradient(to top right, #dce6f1 49%, #000 50%, #dce6f1 51%);
+        position: relative; height: 50px;
+    }
+    .style-biz .text-tr { position: absolute; top: 3px; right: 5px; font-weight: bold; }
+    .style-biz .text-bl { position: absolute; bottom: 3px; left: 5px; font-weight: bold; }
+
+    .style-biz .border-dotted-r { border-right: 1px dotted #000; }
+    .style-biz .border-solid-r { border-right: 1px solid #000; }
+    .style-biz .border-thick-b { border-bottom: 2px solid #000; }
+
+    .style-biz .info-box { border: 1px solid #000; padding: 12px; margin-bottom: 20px; background: #fff; }
+    .style-biz .red-box { border: 2px solid red; padding: 12px; margin-bottom: 20px; background: #fff; }
+    .style-biz ul { margin: 0; padding-left: 20px; list-style-type: disc; text-align: left; }
+    .style-biz li { margin-bottom: 3px; }
+
+
+    /* =========================================
+       [스타일] 탭3 & 4: 희망담보 (카드/그리드 디자인)
+       ========================================= */
+    .style-hope h2 {
+        font-size: 16px; font-weight: 700; padding: 12px 15px; margin-bottom: 15px; margin-top: 30px;
+        border-radius: 4px; color: white;
+    }
+    .style-hope h2:first-child { margin-top: 0; }
+
+    .style-hope .info-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px; margin-bottom: 20px;
+    }
+    .style-hope .info-item {
+        padding: 15px; border-radius: 6px; border-left: 4px solid #ccc; background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .style-hope .info-label { font-weight: 700; display: block; font-size: 12px; color: #555; margin-bottom: 6px; }
+    .style-hope .info-value { font-weight: 600; font-size: 14px; color: #000; }
+
+    /* 희망-아이엠 테마 */
+    .theme-iam h2 { background-color: #34495e; }
+    .theme-iam .info-item { border-left-color: #3498db; background-color: #f8fbfd; }
+    .theme-iam .info-value { color: #2980b9; }
+    .theme-iam table thead th { background-color: #34495e; color: white; border-color: #2c3e50; }
+
+    /* 희망-메리츠 테마 */
+    .theme-meritz h1 { color: #003d82; text-align: center; font-size: 24px; margin-bottom: 5px; }
+    .theme-meritz .subtitle { text-align: center; color: #666; margin-bottom: 25px; }
+    .theme-meritz .section-title {
+        background-color: #003d82; color: white; padding: 12px; border-radius: 4px;
+        margin-bottom: 15px; margin-top: 30px; font-weight: bold; font-size: 16px;
+    }
+    .theme-meritz table thead th { background-color: #e8eef5; color: #333; font-weight: bold; }
+    .theme-meritz .highlight-green { background-color: #e6f9e6; font-weight: bold; color: #006400; }
+    .theme-meritz .highlight-yellow { background-color: #fff3cd; font-weight: bold; color: #856404; }
+    .theme-meritz .highlight-blue { background-color: #e0f2f7; font-weight: bold; color: #003d82; }
+
+    .theme-meritz .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .theme-meritz .info-card {
+        background: #fff; border: 1px solid #ddd; border-left: 4px solid #003d82;
+        padding: 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .theme-meritz .warning-box {
+        background-color: #fff8e1; border-left: 4px solid #ffc107; padding: 15px;
+        margin: 15px 0; border-radius: 4px; color: #856404; font-size: 13px; line-height: 1.6;
+    }
+    .theme-meritz .region-box {
+        background: #f0f7ff; border-left: 4px solid #3aa0e8; padding: 10px 15px;
+        margin-bottom: 10px; border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+        .theme-meritz .grid-2 { grid-template-columns: 1fr; }
+    }
+</style>
+<script>
+    function openTab(evt, tabId) {
+        var i, tabcontent, tablinks;
+
+        // 1. 모든 탭 콘텐츠 숨김
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].className = tabcontent[i].className.replace(" active", "");
+            tabcontent[i].style.display = "none";
+        }
+
+        // 2. 모든 탭 버튼 비활성화 상태로 변경
+        tablinks = document.getElementsByClassName("tab-button");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+
+        // 3. 선택된 탭 활성화 및 표시
+        document.getElementById(tabId).style.display = "block";
+        // 약간의 딜레이를 주어 애니메이션 효과 적용
+        setTimeout(function() {
+            document.getElementById(tabId).className += " active";
+        }, 10);
+
+        evt.currentTarget.className += " active";
+    }
+</script>
+</head>
+<body onload="document.getElementById('defaultOpen').click();">
+
+<div class="main-container">
+
+    <!-- [상단] 탭 네비게이션 버튼 -->
+    <div class="tab-nav">
+        <button class="tab-button tab-btn-1" onclick="openTab(event, 'Tab1')" id="defaultOpen">iM캐피탈질권가이드</button>
+        <button class="tab-button tab-btn-2" onclick="openTab(event, 'Tab2')">메리츠질권가이드</button>
+        <button class="tab-button tab-btn-3" onclick="openTab(event, 'Tab3')">희망담보(아이엠)</button>
+        <button class="tab-button tab-btn-4" onclick="openTab(event, 'Tab4')">희망담보(메리츠)</button>
+    </div>
+
+
+    <!-- ==================================================================================
+         [TAB 1] iM캐피탈 운영자금 (PDF 원본 내용)
+         ================================================================================== -->
+    <div id="Tab1" class="tab-content style-imcap">
+        <div class="title-box">◈ iM캐피탈 운영자금 상품운용 ◈</div>
+        <div class="date-text">(2025.12.01 기준)</div>
+
+        <table>
+            <colgroup>
+                <col style="width: 15%;">
+                <col style="width: 60%;">
+                <col style="width: 25%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="bg-green">구분</th>
+                    <th class="bg-green">내용</th>
+                    <th class="bg-green">비고</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="bg-green">대출기간</td>
+                    <td>12개월</td>
+                    <td>1년 단위 연장</td>
+                </tr>
+                <tr>
+                    <td class="bg-green">대출대상</td>
+                    <td>아파트 및 주상복합아파트</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="bg-green">상환방식</td>
+                    <td>만기일시</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="bg-green">연체금리</td>
+                    <td>대출금리 + 3.0%</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="bg-green">중도상환수수료</td>
+                    <td>상환금액의 1%</td>
+                    <td style="font-size:11px;">제3채무자 중도상환시 면제,<br>납입3회차 초과시 면제</td>
+                </tr>
+                <tr>
+                    <td class="bg-green">시세적용</td>
+                    <td style="padding:0;">
+                        <table class="inner-table">
+                            <tr><th colspan="2" class="bg-green" style="border-top:0; border-left:0; border-right:0;">부동산 시세적용</th></tr>
+                            <tr><th class="bg-pink" style="border-left:0;">하한가</th><th class="bg-purple-light" style="border-right:0;">일반거래가</th></tr>
+                            <tr><td style="border-left:0; border-bottom:0;">1 ~ 2층</td><td style="border-right:0; border-bottom:0;">그 외층</td></tr>
+                        </table>
+                    </td>
+                    <td>KB시세 우선 적용<br>부동산테크 적용</td>
+                </tr>
+                <tr>
+                    <td class="bg-green">취급지역</td>
+                    <td>서울특별시, 경기도, 인천광역시 (군이하 제외)</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td class="bg-green">LTV 및<br>기본금리</td>
+                    <td style="padding:0;">
+                        <table class="inner-table">
+                            <tr>
+                                <th colspan="2" class="bg-blue-light" style="border-top:0; border-left:0;">선순위</th>
+                                <th colspan="2" class="bg-blue-light" style="border-top:0; border-right:0;">후순위 <span style="font-weight:normal; font-size:10px;">(LTV 85%-채권최고액)</span></th>
+                            </tr>
+                            <tr>
+                                <th class="bg-pink" style="border-left:0;">LTV</th><th class="bg-pink">기본금리</th>
+                                <th class="bg-pink">LTV</th><th class="bg-pink" style="border-right:0;">기본금리</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="4" style="border-left:0; border-bottom:0;">70% 이하</td><td rowspan="4" style="border-bottom:0;">6.4%</td>
+                                <td>70% 이하</td><td style="border-right:0;">6.4%</td>
+                            </tr>
+                            <tr><td>70%~75%</td><td style="border-right:0;">6.6%</td></tr>
+                            <tr><td>75%~80%</td><td style="border-right:0;">7.0%</td></tr>
+                            <tr><td style="border-bottom:0;">80%~85%</td><td style="border-right:0; border-bottom:0;">사전협의</td></tr>
+                        </table>
+                    </td>
+                    <td>KB시세 우선 적용<br>부동산테크 적용</td>
+                </tr>
+                <tr>
+                    <td class="bg-green">사업자<br>자격조건</td>
+                    <td colspan="2" class="text-left">
+                        <ul>
+                            <li>사업자 개업연월일로부터 <span style="color:blue; font-weight:bold;">3개월 경과</span>한 휴·폐업 아닌 개인사업자</li>
+                            <li>부동산임대/매매업, 사치향략 등 불건전업종(도박, 매춘, 유흥업종 등)이 아닐 것</li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="bg-green">인정부동산<br>조건</td>
+                    <td colspan="2" class="text-left">
+                        <ul>
+                            <li>소유권이전 3개월 이후 부동산</li>
+                            <li>준공후 45년 미만 및 시세 3억 초과 부동산</li>
+                            <li>총 세대수 100세대 이상 부동산</li>
+                            <li>후순위 취급시 선순위 채권자 : 금융기관에 한함</li>
+                        </ul>
+                        <div style="padding-left: 20px; font-size: 11px; margin-bottom: 3px; color:#555;">
+                            ※ 금융기관 : 금융소비자 보호에 관한 법률 제2조 제6호 가목 내지 마목 적용
+                        </div>
+                        <ul><li>물상보증인(배우자 및 직계존비속) 가능</li></ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="bg-green">취급불가</td>
+                    <td colspan="2" class="text-left">
+                        <ul>
+                            <li>연체 및 채무불이행 중인 고객</li>
+                            <li>차주 및 담보제공자가 법인 또는 외국인 경우</li>
+                            <li>소유권에 대한 권리침해의 소지가 있는 경우</li>
+                            <li>세대 전입이 없는 경우</li>
+                        </ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="text-align:center; font-weight:bold; color:#008080; font-size:18px; margin-top:20px;">iM캐피탈</div>
+        <div style="text-align:right; font-size:11px; color:#666; margin-top:10px;">2025.12.01 17:11 / 박현정 / 10223 / iMCapital</div>
+    </div>
+
+
+    <!-- ==================================================================================
+         [TAB 2] 사업자담보채권 기준 (LTV 테이블 상세)
+         ================================================================================== -->
+    <div id="Tab2" class="tab-content style-biz">
+
+        <!-- 1. 적용금리 섹션 -->
+        <div class="section-title">▣ 사업자담보채권_적용금리 기준</div>
+        <table>
+            <colgroup>
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="bg-gray">구분</th>
+                    <th colspan="3" class="bg-gray">LTV 구간별 적용금리</th>
+                </tr>
+                <tr>
+                    <th class="bg-gray">LTV / 담보형태</th>
+                    <th class="bg-yellow">75% 이하</th>
+                    <th class="bg-yellow">75% 초과 ~ 85% 이하</th>
+                    <th class="bg-yellow">85% 초과</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="bg-gray">APT</td>
+                    <td class="text-red">6.50%</td>
+                    <td class="text-red">7.50%</td>
+                    <td>9.00%</td>
+                </tr>
+                <tr>
+                    <td class="bg-gray">Non-APT</td>
+                    <td class="text-red">8.70%</td>
+                    <td>9.70%</td>
+                    <td>11.20%</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="info-box">
+            <div class="text-bold" style="margin-bottom:5px;">◈ 가산금리</div>
+            <ul>
+                <li>2군 지역: + 0.5% / 3군 지역: + 1.0%</li>
+                <li>아파트 100세대 이하: + 0.5% / 군(읍) 단위 소재: + 0.5%</li>
+                <li>NPL 전환, 유입 채권: + 1.0%</li>
+                <li><strong>지분대출: + 1.0%</strong></li>
+            </ul>
+        </div>
+
+        <div class="red-box">
+            <div class="text-red text-bold">* 인센티브 운영안 (신규 취급에 한정)</div>
+            <div class="text-red">- 전월 실적에 따라 4억당 10bp 금리 인센티브 제공 (max 70bp)</div>
+            <div style="color: #666; font-size: 11px; margin-top:3px;">- 채권 연장건 및 NPL 채권(유입, 전환)은 실적 적용 및 인센티브 제외</div>
+        </div>
+
+        <!-- 2. LTV 기준 섹션 -->
+        <div class="section-title">
+            ▣ 사업자담보채권_LTV 기준 (1군 지역 중 <span class="text-red" style="margin-left:5px;">유의지역은 max LTV 80% 한정</span>)
+        </div>
+
+        <table>
+            <colgroup>
+                <col style="width:7%"><col style="width:6%">
+                <col span="4" style="width:7.25%"><col span="4" style="width:7.25%"><col span="4" style="width:7.25%">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th colspan="2" rowspan="2" class="bg-blue-group">구분</th>
+                    <th colspan="12" class="bg-purple">지역별 LTV</th>
+                </tr>
+                <tr>
+                    <th colspan="4" class="bg-blue-group">1군 지역</th>
+                    <th colspan="4" class="bg-blue-group">2군 지역</th>
+                    <th colspan="4" class="bg-blue-group">3군 지역</th>
+                </tr>
+                <tr>
+                    <th colspan="2" class="diagonal-cell">
+                        <span class="text-tr">면적</span><span class="text-bl">형태</span>
+                    </th>
+                    <!-- 1군 헤더 -->
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">62.8㎡<br>이하</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~95.9㎡</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~135㎡</th>
+                    <th class="bg-header-blue border-solid-r" style="font-size:11px;">135㎡초과</th>
+                    <!-- 2군 헤더 -->
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">62.8㎡<br>이하</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~95.9㎡</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~135㎡</th>
+                    <th class="bg-header-blue border-solid-r" style="font-size:11px;">135㎡초과</th>
+                    <!-- 3군 헤더 -->
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">62.8㎡<br>이하</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~95.9㎡</th>
+                    <th class="bg-header-blue border-dotted-r" style="font-size:11px;">~135㎡</th>
+                    <th class="bg-header-blue" style="font-size:11px;">135㎡초과</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- APT 선순위 -->
+                <tr>
+                    <td rowspan="2" class="bg-gray border-thick-b">APT</td>
+                    <td class="bg-gray" style="border-bottom:1px dotted #000;">선순위</td>
+                    <!-- 1군: 83, 75(통합), 60 -->
+                    <td colspan="2" class="bg-orange border-dotted-r">83.0%</td>
+                    <td class="bg-orange border-dotted-r">75.0%</td>
+                    <td class="bg-orange border-solid-r">60.0%</td>
+                    <!-- 2군: 75(통합), 70, 55 -->
+                    <td colspan="2" class="bg-orange border-dotted-r">75.0%</td>
+                    <td class="bg-orange border-dotted-r">70.0%</td>
+                    <td class="bg-orange border-solid-r">55.0%</td>
+                    <!-- 3군: 70(통합), 65, 50 -->
+                    <td colspan="2" class="bg-orange border-dotted-r">70.0%</td>
+                    <td class="bg-orange border-dotted-r">65.0%</td>
+                    <td class="bg-orange">50.0%</td>
+                </tr>
+                <!-- APT 후순위 -->
+                <tr>
+                    <td class="bg-gray border-thick-b">후순위</td>
+                    <!-- 1군: 85, 80(통합), 70 -->
+                    <td colspan="2" class="bg-orange border-thick-b border-dotted-r">85.0%</td>
+                    <td class="bg-orange border-thick-b border-dotted-r">80.0%</td>
+                    <td class="bg-orange border-thick-b border-solid-r">70.0%</td>
+                    <!-- 2군: 80(통합), 75, 65 -->
+                    <td colspan="2" class="bg-orange border-thick-b border-dotted-r">80.0%</td>
+                    <td class="bg-orange border-thick-b border-dotted-r">75.0%</td>
+                    <td class="bg-orange border-thick-b border-solid-r">65.0%</td>
+                    <!-- 3군: 75(통합), 70, 60 -->
+                    <td colspan="2" class="bg-orange border-thick-b border-dotted-r">75.0%</td>
+                    <td class="bg-orange border-thick-b border-dotted-r">70.0%</td>
+                    <td class="bg-orange border-thick-b">60.0%</td>
+                </tr>
+                <!-- Non-APT -->
+                <tr>
+                    <td class="bg-gray">Non-APT</td>
+                    <td class="bg-gray">선/후</td>
+                    <!-- 1군: 개별 -->
+                    <td class="bg-orange border-dotted-r">75.0%</td>
+                    <td class="bg-orange border-dotted-r">70.0%</td>
+                    <td class="bg-orange border-dotted-r">60.0%</td>
+                    <td class="bg-orange border-solid-r">50.0%</td>
+                    <!-- 2군: 취급불가 -->
+                    <td colspan="4" class="bg-orange border-solid-r">취급 불가</td>
+                    <!-- 3군: 취급불가 -->
+                    <td colspan="4" class="bg-orange">취급 불가</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 3. 상세 내용 -->
+        <table style="border: 2px solid #000; text-align: left;">
+            <tr>
+                <td class="text-left" style="vertical-align: top; width: 60%; padding:15px;">
+                    <div class="text-bold" style="margin-bottom:10px;">세부 상세</div>
+                    <ul class="small-text">
+                        <li><strong>APT / Non APT:</strong> 300세대 이하 Apt는 Non-Apt 기준 적용 (100세대 이상 예외 가능)</li>
+                        <li><strong>차주 신용평점:</strong> 350점 미만 LTV -5% (290점 미만 취급불가)</li>
+                        <li><strong>후순위 LTV 80% 초과:</strong> 아파트 대상, NICE 350점 이상만 가능</li>
+                        <li><strong>선순위 채권자:</strong> 금융기관에 한함</li>
+                        <li><strong>취급 제한:</strong><br>
+                            - 전용 135㎡ 초과: 선순위 Max 60%, 후순위 Max 70%<br>
+                            - 시세 15억 초과: 기본 LTV에서 5% 차감<br>
+                            - 40년 이상 노후주택: Max 60% (재건축 조합설립인가 전까지만 가능)<br>
+                            - 군 단위 지역 불가 (대규모 택지개발/신도시는 5% 차감 후 가능)
+                        </li>
+                        <li><strong>지분 대출:</strong><br>
+                            - 한도: [평가액 × LTV × 지분율] - 선순위최고액<br>
+                            - LTV: Min(최대 80%, 기존 LTV 기준)<br>
+                            - 대상: 수도권 1군 아파트, 지분권자(개인사업자)<br>
+                            - 공동소유: 부부 또는 직계존비속 한정 (형제자매 불가)
+                        </li>
+                    </ul>
+                </td>
+                <td class="text-left" style="vertical-align: top; width: 40%; border-left: 1px solid #000; background-color: #f9f9f9; padding:15px;">
+                    <div class="text-bold">※ 사업자 취급 업종 주의</div>
+                    <ul class="small-text" style="margin-top:10px;">
+                        <li><strong>취급불가:</strong> 부동산 매매·임대업, 종교·무속인</li>
+                        <li><strong>유의업종:</strong> 숙박, 음식, 서비스(교육/예술/스포츠), 정보통신(영상)</li>
+                        <li class="text-red"> * 유의업종은 아파트만 취급 가능</li>
+                    </ul>
+                    <hr style="margin:15px 0;">
+                    <div class="text-bold">▶ 취급 불가 고객 및 담보물건</div>
+                    <ul class="small-text" style="margin-top:5px;">
+                        <li>- 주택구입자금 (소유권 이전 3개월 이내)</li>
+                        <li>- 연체 및 채무불이행, 권리침해(압류 등)</li>
+                        <li>- 차주/담보제공자가 외국인 또는 법인</li>
+                        <li>- 담보시세 1억 미만 (신탁건은 가능)</li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+
+        <!-- 4. 지역 구분 및 유의지역 -->
+        <div class="section-title">※ 지역 구분</div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="bg-gray">구분</th>
+                    <th class="bg-gray">1군 지역</th>
+                    <th class="bg-gray">2군 지역</th>
+                    <th class="bg-gray">3군 지역</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>지역</td>
+                    <td>서울, 인천1군, 경기1군, 광주</td>
+                    <td>부산, 울산, 인천2군, 경기2군</td>
+                    <td>대전, 대구, 세종, 경기3군</td>
+                </tr>
+                <tr>
+                    <td>상세</td>
+                    <td class="text-left" style="font-size:11px;">
+                        <strong>인천1:</strong> 계양, 부평, 연수, 미추홀<br>
+                        <strong>경기1:</strong> 용인(수지/기흥), 과천, 광명, 구리, 군포, 부천, 성남, 수원, 안양, 의왕, 하남, 김포, 남양주
+                    </td>
+                    <td class="text-left" style="font-size:11px;">
+                        <strong>인천2:</strong> 남동, 서구, 동구, 중구<br>
+                        <strong>경기2:</strong> 시흥, 안산, 화성, 용인(처인), 의정부, 양주, 고양, 광주, 동두천, 오산, 이천, 파주
+                    </td>
+                    <td class="text-left" style="font-size:11px;">
+                        <strong>경기3:</strong> 평택, 안성, 여주, 포천
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="red-box">
+            <div class="text-red text-bold">* 1군 지역 중 유의지역 (max LTV 80% 운영)</div>
+            <ul class="text-red small-text" style="margin-top:5px;">
+                <li>서울: 중랑구, 관악구, 강북구, 성북구, 노원구, 도봉구</li>
+                <li>경기: 구리시, 남양주시</li>
+                <li>인천광역시 1군, 광주광역시 전체</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <!-- ==================================================================================
+         [TAB 3] 희망담보 - 아이엠질권 (가이드라인)
+         ================================================================================== -->
+    <div id="Tab3" class="tab-content style-hope theme-iam">
+        <h2>🔷 아이엠질권 가이드 - 기본 상품 정보</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">상품명</span>
+                <span class="info-value">희망담보</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">대출기간</span>
+                <span class="info-value">2년 (만기일시상환)</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">대출대상</span>
+                <span class="info-value">아파트 및 주상복합</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">취급지역</span>
+                <span class="info-value">서울, 경기도, 인천</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">신용점수</span>
+                <span class="info-value">커트라인 없음 <span class="tag" style="background:#ffdada; color:red;">연체자불가</span></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">대출금리</span>
+                <span class="info-value">10.9% ~ 14.9%</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">중도상환수수료</span>
+                <span class="info-value">3%</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">연체금리</span>
+                <span class="info-value text-red">대출금리 + 3.0%</span>
+            </div>
+        </div>
+
+        <h2>📊 급지 기준 금리 (연이율)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60%;">지역 및 LTV 기준</th>
+                    <th>적용 금리</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="text-left">A. 서울지역 LTV 75% 미만</td><td>10.9% / 11.9%</td></tr>
+                <tr><td class="text-left">B. 서울 LTV 80% 미만 / 경기·인천 LTV 75% 미만</td><td>11.9% / 12.9%</td></tr>
+                <tr><td class="text-left">C. 경기·인천 LTV 80% 미만</td><td>12.9% / 13.9%</td></tr>
+                <tr><td class="text-left">D. 서울·경기·인천 LTV 83% 미만</td><td>13.9% / 14.9%</td></tr>
+                <tr><td class="text-left"><span class="tag" style="background:#ffcccc; color:red;">예외</span> 서울지역 LTV 70% 미만</td><td>9.9% / 10.9%</td></tr>
+            </tbody>
+        </table>
+        <div style="font-size:11px; text-align:right; color:#666; margin-bottom:20px;">* 신용점수 및 소득확인 후 금리/한도 결정</div>
+
+        <h2>📍 시세 적용 및 비용</h2>
+        <div class="info-grid">
+            <div class="info-item"><span class="info-label">하한가 적용</span><span class="info-value">1 ~ 2층</span></div>
+            <div class="info-item"><span class="info-label">일반가 적용</span><span class="info-value">그 외층</span></div>
+            <div class="info-item"><span class="info-label">시세 출처</span><span class="info-value">KB시세 우선, 부동산테크</span></div>
+            <div class="info-item"><span class="info-label">사업자</span><span class="info-value">즉발 가능 (폐업상태 불가)</span></div>
+            <div class="info-item"><span class="info-label">비용 안내</span><span class="info-value">사업자발급비/용도증빙비 없음</span></div>
+            <div class="info-item"><span class="info-label">환수조건</span><span class="info-value">92일 / 50%</span></div>
+        </div>
+
+        <h2>❌ 취급 불가 사항</h2>
+        <div style="background:#fff; border:1px solid #ddd; padding:15px; border-radius:4px;">
+            <ul style="margin:0; padding-left:20px;">
+                <li>부동산 매매/임대업, 사치향략 등 불건전 업종 (도박, 유흥 등)</li>
+                <li><strong>연체 및 채무불이행 중인 고객</strong></li>
+                <li>차주 및 담보제공자가 법인 또는 외국인인 경우</li>
+                <li>압류, 가압류 등 소유권 권리침해 소지가 있는 경우</li>
+                <li>세대 전입이 없는 경우</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <!-- ==================================================================================
+         [TAB 4] 희망담보 - 메리츠질권 (가이드라인)
+         ================================================================================== -->
+    <div id="Tab4" class="tab-content style-hope theme-meritz">
+        <h1>메리츠캐피탈 사업자담보 가이드 (APT 한정)</h1>
+        <p class="subtitle">대상지역: 서울·경기·인천 1~3군 / 최대 LTV 80%</p>
+
+        <div class="section-title">1. 적용금리 기준 (LTV 구간별)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 55%;">지역 및 LTV 기준</th>
+                    <th style="width: 45%;">적용 금리 (연이율)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="text-left">A. 서울지역 LTV 75% 미만</td><td class="highlight-green">10.9% / 11.9%</td></tr>
+                <tr><td class="text-left">B. 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만</td><td class="highlight-yellow">11.9% / 12.9%</td></tr>
+                <tr><td class="text-left">C. 경기/인천 LTV 80% 미만</td><td class="highlight-yellow">12.9% / 13.9%</td></tr>
+                <tr><td class="text-left">D. 서울/경기/인천 LTV 83% 미만</td><td class="highlight-yellow">13.9% / 14.9%</td></tr>
+                <tr><td class="text-left"><span class="tag" style="background:#e0f2f7; color:#003d82;">예외</span> 서울지역 LTV 70% 미만</td><td class="highlight-green">9.9% / 10.9%</td></tr>
+            </tbody>
+        </table>
+        <div class="warning-box">
+            <strong>🚨 금리 할증 기준:</strong> 연체이력 및 권리침해사항(압류, 가압류 등) 발견 시 <strong>1% 할증</strong> 적용
+        </div>
+
+        <div class="section-title">2. 지역별 LTV 기준 (APT 한정 / Max 80%)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="2" rowspan="2">구분</th>
+                    <th colspan="3" style="background:#e8eef5;">1군 지역</th>
+                    <th colspan="3" style="background:#e8eef5;">2군 지역</th>
+                    <th colspan="3" style="background:#e8eef5;">3군 지역</th>
+                </tr>
+                <tr>
+                    <th style="font-size:11px;">~95.9㎡</th><th style="font-size:11px;">~135㎡</th><th style="font-size:11px;">135㎡↑</th>
+                    <th style="font-size:11px;">~95.9㎡</th><th style="font-size:11px;">~135㎡</th><th style="font-size:11px;">135㎡↑</th>
+                    <th style="font-size:11px;">~95.9㎡</th><th style="font-size:11px;">~135㎡</th><th style="font-size:11px;">135㎡↑</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td rowspan="2">APT</td><td>선순위</td>
+                    <td class="highlight-blue">80.0%</td><td class="highlight-yellow">75.0%</td><td>60.0%</td>
+                    <td class="highlight-yellow">75.0%</td><td>70.0%</td><td>55.0%</td>
+                    <td class="highlight-yellow">70.0%</td><td>65.0%</td><td>50.0%</td>
+                </tr>
+                <tr>
+                    <td>후순위</td>
+                    <td class="highlight-blue">80.0%</td><td class="highlight-blue">80.0%</td><td>70.0%</td>
+                    <td class="highlight-blue">80.0%</td><td>75.0%</td><td>65.0%</td>
+                    <td class="highlight-yellow">75.0%</td><td>70.0%</td><td>60.0%</td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="font-size:12px; color:#555; padding:5px; background:#f9f9f9; border:1px solid #eee;">
+            * 135㎡ 초과: 선순위 Max 60%, 후순위 Max 70%<br>
+            * 시세 15억 초과: 5% 차감 / 40년 이상 노후주택: 60% 제한
+        </div>
+
+        <div class="section-title">3. 지역 및 상세 기준</div>
+        <div class="grid-2">
+            <div class="info-card">
+                <h4 style="margin-top:0; color:#003d82;">지역 분류</h4>
+                <div class="region-box"><strong>1군:</strong> 서울 전역, 인천1군, 경기1군, 광주광역시</div>
+                <div class="region-box"><strong>2군:</strong> 부산, 울산, 인천2군, 경기2군</div>
+                <div class="region-box"><strong>3군:</strong> 대전, 대구, 세종, 경기3군 (평택, 안성, 여주, 포천)</div>
+                <div style="font-size:11px; margin-top:5px; color:red;">
+                    * 1군 내 유의지역(서울 일부, 구리, 남양주, 인천1군, 광주)은 LTV 80% 제한
+                </div>
+            </div>
+            <div class="info-card">
+                <h4 style="margin-top:0; color:#003d82;">취급 유의사항</h4>
+                <ul style="padding-left:20px; font-size:12px;">
+                    <li><strong>가능:</strong> 신용 350점 이상 (미만 시 LTV -5%), 시세 1억 이상</li>
+                    <li><strong>불가:</strong> 신용 290점 미만, 매매/임대업, 연체중, 외국인, 법인담보</li>
+                    <li><strong>유의업종:</strong> 숙박, 음식, 서비스 등은 아파트만 가능</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="info-card" style="margin-top:15px; border-left-color:#27ae60;">
+            <h4 style="margin-top:0; color:#27ae60;">후순위 및 지분대출 기준</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                <div style="flex:1; min-width:200px;">
+                    <strong>[후순위]</strong><br>
+                    - NICE 350점 이상 필수<br>
+                    - 선순위가 금융기관인 경우만 가능
+                </div>
+                <div style="flex:1; min-width:200px;">
+                    <strong>[지분대출]</strong><br>
+                    - 수도권 1군 아파트, 지분권자(사업자)<br>
+                    - 부부 또는 직계존비속 관계만 가능
+                </div>
+            </div>
+            <div style="background:#f0f0f0; padding:10px; margin-top:10px; font-family:monospace; font-size:12px; border-radius:4px;">
+                대출가능액 = [평가액 × LTV × 지분율(%)] − 선순위 채권최고액
+            </div>
+        </div>
+
+        <div style="text-align:right; margin-top:20px; color:#999; font-size:11px;">메리츠캐피탈 가이드라인</div>
+    </div>
+
+</div>
+
+</body>
+</html>
