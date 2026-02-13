@@ -1150,6 +1150,14 @@ def convert_to_road_address():
 
         logger.info(f"[도로명 변환] 검색 키워드: {search_keyword}")
 
+        # 원본 주소에서 건물명 추출 (지번 뒤 ~ 동/호수 앞)
+        # 예: "탄현동 1481 탄현마을아파트 제401동" → "탄현마을아파트"
+        building_name = ''
+        building_match = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+동', address)
+        if building_match:
+            building_name = building_match.group(1).strip()
+        logger.info(f"[도로명 변환] 추출된 건물명: {building_name}")
+
         # 행정안전부 도로명주소 API 호출
         JUSO_API_KEY = "U01TX0FVVEgyMDI2MDEyMTE0MjUwMzExNzQ3MTg="
         url = 'https://business.juso.go.kr/addrlink/addrLinkApi.do'
@@ -1178,7 +1186,53 @@ def convert_to_road_address():
                     dong_num = None
                     ho_num = None
 
-                road_addr = juso_list[0].get('roadAddr', '')
+                # 건물명이 있으면 가장 일치하는 결과 선택
+                selected_juso = juso_list[0]  # 기본값: 첫 번째 결과
+
+                if building_name and len(juso_list) > 1:
+                    # 건물명 유사도 비교하여 가장 일치하는 항목 선택
+                    best_match_score = -1
+                    building_name_normalized = building_name.replace(' ', '').lower()
+
+                    # 핵심 키워드 추출 (숫자/단지 제외한 기본 건물명)
+                    # "탄현마을아파트" → "탄현마을", "아파트"
+                    # "탄현마을4단지아파트" → "탄현마을", "아파트"
+                    import re as re_inner
+                    core_keywords = re_inner.sub(r'\d+단지|\d+차|제?\d+동', '', building_name_normalized).strip()
+
+                    for juso in juso_list:
+                        api_building_name = juso.get('bdNm', '').replace(' ', '').lower()
+
+                        # 완전 일치 (최우선)
+                        if building_name_normalized == api_building_name:
+                            selected_juso = juso
+                            logger.info(f"[도로명 변환] 건물명 완전 일치: {juso.get('bdNm')}")
+                            break
+
+                        score = 0
+
+                        # 1. 원본이 API 결과에 포함됨
+                        if building_name_normalized in api_building_name:
+                            score = len(building_name_normalized) * 100
+                        # 2. API 결과가 원본에 포함됨
+                        elif api_building_name in building_name_normalized:
+                            score = len(api_building_name) * 10
+                        # 3. 핵심 키워드 포함 여부 (숫자/단지 제외하고 비교)
+                        # "탄현마을아파트" vs "탄현마을4단지아파트" → 둘 다 "탄현마을"과 "아파트" 포함
+                        elif core_keywords:
+                            # "아파트"가 원본에 있고 API 결과에도 있으면 가산점
+                            if '아파트' in building_name_normalized and '아파트' in api_building_name:
+                                # 원본의 기본명이 API 결과에 포함되는지 확인
+                                base_name = core_keywords.replace('아파트', '').strip()
+                                if base_name and base_name in api_building_name:
+                                    score = len(base_name) * 50
+
+                        if score > best_match_score:
+                            best_match_score = score
+                            selected_juso = juso
+                            logger.info(f"[도로명 변환] 건물명 부분 일치 (점수 {score}): {juso.get('bdNm')}")
+
+                road_addr = selected_juso.get('roadAddr', '')
 
                 if road_addr:
                     # 도로명 주소 형식: "도로명 번지, 동호수 (법정동, 건물명)"
