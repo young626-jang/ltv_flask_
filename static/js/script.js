@@ -1905,13 +1905,17 @@ function attachAllEventListeners() {
     document.getElementById('required_amount')?.addEventListener('change', calculateLTVFromRequiredAmount);
     document.getElementById('required_amount')?.addEventListener('blur', calculateLTVFromRequiredAmount);
     
-    // 3. LTV1 변경 시 (수동 입력 또는 +/- 버튼): 메모/지분 계산 및 희망담보대부 검증
+    // 3. LTV1 변경 시 (수동 입력 또는 +/- 버튼): 필요금액 역계산 후 메모/지분 재계산
     document.getElementById('ltv1')?.addEventListener('change', function() {
+        // LTV 수동 변경 시 필요금액 역계산
+        calculateRequiredAmountFromLTV();
         calculateIndividualShare();
         validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
         updateCollateralRateDisplay();
     });
     document.getElementById('ltv1')?.addEventListener('blur', function() {
+        // LTV 수동 변경 시 필요금액 역계산
+        calculateRequiredAmountFromLTV();
         calculateIndividualShare();
         validateHopeLoanConditions();  // 아이엠 선순위 LTV 70% 검증
         updateCollateralRateDisplay();
@@ -1943,9 +1947,11 @@ function attachAllEventListeners() {
         calculateIndividualShare();
     });
     
-    // LTV1의 +/- 버튼 클릭 시에도 메모 생성 및 지분 계산을 트리거하도록 수정
+    // LTV1의 +/- 버튼 클릭 시에도 필요금액 역계산 후 메모/지분 재계산
     document.querySelectorAll('.md-ltv-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+             // LTV 수동 변경 시 필요금액 역계산
+             calculateRequiredAmountFromLTV();
              // LTV1 값이 수동으로 변경된 후, 메모 및 지분 계산 트리거 호출
              triggerMemoGeneration();
              calculateIndividualShare();
@@ -2109,13 +2115,21 @@ function attachAllEventListeners() {
                 });
 
                 if (ltv1Field) {
-                    if (!hasSubordinate) {
+                    // ✅ 필요금액이 입력되어 있으면 역계산 LTV 유지
+                    const requiredAmountField = document.getElementById('required_amount');
+                    const hasRequiredAmount = requiredAmountField && requiredAmountField.value && parseKoreanNumberString(requiredAmountField.value) > 0;
+
+                    if (hasRequiredAmount) {
+                        // 필요금액이 입력되어 있으면 역계산 LTV 유지
+                        console.log('📊 아이엠 체크 - 역계산 LTV 유지 (필요금액 입력됨)');
+                    } else if (!hasSubordinate) {
                         // 선순위: LTV 70%로 자동 설정
                         ltv1Field.value = '70';
                         console.log('📊 아이엠 선순위 - LTV 70%로 자동 설정');
                     } else {
-                        // 후순위: LTV 자동 설정 없음 (사용자가 수동 조정)
-                        console.log('📊 아이엠 후순위 - LTV 수동 조정 (70%, 75%, 80%)');
+                        // 후순위: LTV 80%로 자동 설정
+                        ltv1Field.value = '80';
+                        console.log('📊 아이엠 후순위 - LTV 80%로 자동 설정');
                     }
                 }
                 // --- ▲▲▲ 여기까지가 추가된 코드 ▲▲▲ ---
@@ -2582,6 +2596,88 @@ function clearLtvValue(inputId) {
     const input = document.getElementById(inputId);
     input.value = '';
     triggerMemoGeneration();
+}
+
+// 필요금액 +/- 조정 함수
+function adjustRequiredAmount(change) {
+    const input = document.getElementById('required_amount');
+    if (!input) return;
+
+    // 현재 값 파싱 (콤마 제거)
+    let currentValue = parseKoreanNumberString(input.value) || 0;
+
+    // 빈 값일 때 버튼별 동작
+    if (input.value === '' || currentValue === 0) {
+        if (change < 0) {
+            // - 버튼 누르면 4500으로 설정
+            input.value = '4,500';
+        } else {
+            // + 버튼 누르면 5500으로 설정
+            input.value = '5,500';
+        }
+        calculateLTVFromRequiredAmount();
+        return;
+    }
+
+    let newValue = currentValue + change;
+
+    // 0 미만이면 0으로 제한
+    newValue = Math.max(0, newValue);
+
+    // 천 단위 콤마 포맷
+    input.value = newValue.toLocaleString();
+    calculateLTVFromRequiredAmount();
+}
+
+// 필요금액 초기화 함수
+function clearRequiredAmount() {
+    const input = document.getElementById('required_amount');
+    if (input) {
+        input.value = '';
+    }
+    triggerMemoGeneration();
+}
+
+// LTV에서 필요금액 역계산 함수
+function calculateRequiredAmountFromLTV() {
+    const kbPriceField = document.getElementById('kb_price');
+    const ltv1Field = document.getElementById('ltv1');
+    const requiredAmountField = document.getElementById('required_amount');
+
+    if (!kbPriceField || !ltv1Field || !requiredAmountField) return;
+
+    const kbPrice = parseKoreanNumberString(kbPriceField.value) || 0;
+    const ltv = parseFloat(ltv1Field.value) || 0;
+
+    // KB시세나 LTV가 없으면 필요금액 비우기
+    if (kbPrice <= 0 || ltv <= 0) {
+        requiredAmountField.value = '';
+        return;
+    }
+
+    // 유지/동의/비동의 채권최고액 합산
+    const maintainStatuses = ['유지', '동의', '비동의'];
+    let maintainMaxAmountSum = 0;
+    document.querySelectorAll('.loan-item').forEach(item => {
+        const statusSelect = item.querySelector('[name="status"]');
+        const maxAmountInput = item.querySelector('[name="max_amount"]');
+        if (statusSelect && maintainStatuses.includes(statusSelect.value)) {
+            maintainMaxAmountSum += parseKoreanNumberString(maxAmountInput?.value) || 0;
+        }
+    });
+
+    // 방공제 금액
+    const deductionAmount = parseKoreanNumberString(document.getElementById('deduction_amount')?.value) || 0;
+
+    // 필요금액 = KB시세 × LTV% - 유지 채권최고액 - 방공제
+    const requiredAmount = Math.round((kbPrice * ltv / 100) - maintainMaxAmountSum - deductionAmount);
+
+    // 0 이하면 비우기, 아니면 콤마 포맷으로 표시
+    if (requiredAmount <= 0) {
+        requiredAmountField.value = '';
+    } else {
+        requiredAmountField.value = requiredAmount.toLocaleString();
+    }
 }
 
 // 고객명 & 생년월일 자동 파싱 기능
