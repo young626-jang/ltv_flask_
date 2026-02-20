@@ -1183,20 +1183,15 @@ def get_building_info(address):
         print(f"[건축물대장] 첫 번째 시도 실패, 행정안전부 API로 법정동코드 재조회...")
         b_code = get_legal_code_from_juso_api(address)
 
-        # 행정안전부 API 실패 시 카카오 API 시도
-        if not b_code or len(b_code) != 10:
-            print(f"[건축물대장] 행정안전부 API 실패, 카카오 API로 재시도...")
-            b_code = get_legal_code_from_kakao(address)
-
         if b_code and len(b_code) == 10:
-            # 카카오 API의 10자리 법정동코드에서 시군구(5자리)와 법정동(5자리) 추출
-            kakao_sigungu = b_code[:5]
-            kakao_bjdong = b_code[5:]
+            # 행정안전부 API의 10자리 법정동코드에서 시군구(5자리)와 법정동(5자리) 추출
+            juso_sigungu = b_code[:5]
+            juso_bjdong = b_code[5:]
 
-            print(f"[건축물대장] 카카오 API 법정동코드: 시군구={kakao_sigungu}, 법정동={kakao_bjdong}")
+            print(f"[건축물대장] 행정안전부 API 법정동코드: 시군구={juso_sigungu}, 법정동={juso_bjdong}")
 
-            params['sigunguCd'] = kakao_sigungu
-            params['bjdongCd'] = kakao_bjdong
+            params['sigunguCd'] = juso_sigungu
+            params['bjdongCd'] = juso_bjdong
 
             api_result = call_building_api(params.copy())
 
@@ -1206,7 +1201,7 @@ def get_building_info(address):
                 result['raw_completion_date'] = api_result['date']
                 if len(api_result['date']) == 8:
                     result['completion_date'] = f"{api_result['date'][:4]}-{api_result['date'][4:6]}-{api_result['date'][6:8]}"
-                print(f"[건축물대장] 카카오 API 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
+                print(f"[건축물대장] 행정안전부 API 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
                 return result
 
         print(f"[건축물대장] 조회 실패: {address}")
