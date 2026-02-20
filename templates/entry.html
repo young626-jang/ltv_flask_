@@ -205,7 +205,12 @@
                     <div class="col-6">
                         <div class="d-flex align-items-center gap-2">
                             <label for="required_amount" class="mb-0" style="white-space: nowrap;">필요금액(만)</label>
-                            <input type="text" class="form-control form-field manwon-format md-input" id="required_amount" placeholder="필요금액 입력" style="flex: 1;">
+                            <div class="d-flex gap-1">
+                                <button class="md-ltv-btn" type="button" onclick="adjustRequiredAmount(-500)">-</button>
+                                <button class="md-ltv-btn" type="button" onclick="adjustRequiredAmount(500)">+</button>
+                                <input type="text" class="form-control form-field manwon-format md-input" id="required_amount" placeholder="필요금액 입력" style="flex: 1;">
+                                <button class="md-ltv-btn danger" type="button" onclick="clearRequiredAmount()">×</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -497,6 +502,14 @@ async function updateAutoLTV() {
             reasonsContainer.style.display = 'none';
         }
         return; // 함수 종료
+    }
+
+    // ✅ [신규] 필요금액이 입력되어 있으면 역계산 LTV 유지 (자동 LTV로 덮어쓰지 않음)
+    const requiredAmountField = document.getElementById('required_amount');
+    const hasRequiredAmount = requiredAmountField && requiredAmountField.value && parseKoreanNumberString(requiredAmountField.value) > 0;
+    if (hasRequiredAmount) {
+        console.log('📊 자동LTV 스킵 - 필요금액 입력됨, 역계산 LTV 유지');
+        return; // 필요금액이 있으면 자동 LTV 계산 스킵
     }
 
     const address = document.getElementById('address').value.trim();
