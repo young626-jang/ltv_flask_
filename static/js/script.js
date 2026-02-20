@@ -1379,10 +1379,10 @@ async function handleFileUpload(file) {
             }
 
             // 준공일자 채우기 (건축물대장 우선, 없으면 등기부등본)
-            const completionDate = (building_info && building_info.success)
+            const completionDate = (building_info && building_info.success && building_info.completion_date)
                 ? building_info.completion_date
-                : scraped.construction_date;
-            safeSetValue('completion_date', completionDate || '');
+                : (scraped.construction_date || '');
+            safeSetValue('completion_date', completionDate);
 
             // [신규] 세대수 자동 입력 (건축물대장에서 조회)
             if (building_info && building_info.success && building_info.total_households > 0) {
@@ -3059,13 +3059,13 @@ function updateCollateralRateDisplay() {
         let hopeRate = null;
         if (isSenior) {
             // 선순위: 70% 이하만 가능
-            if (ltv <= 70) hopeRate = 6.4;
+            if (ltv <= 70) hopeRate = 6.5;
             // 70% 초과는 표시 안함
         } else {
             // 후순위
-            if (ltv <= 70) hopeRate = 6.4;
-            else if (ltv <= 75) hopeRate = 6.6;
-            else if (ltv <= 80) hopeRate = 7.0;
+            if (ltv <= 70) hopeRate = 6.5;
+            else if (ltv <= 75) hopeRate = 6.7;
+            else if (ltv <= 80) hopeRate = 7.1;
         }
 
         if (hopeRate !== null) {
@@ -3754,7 +3754,8 @@ function determineMeritzRegionFromAddress(address) {
 
     // 지역 목록 (정확한 매칭을 위해 리스트 활용)
     const r3_gyeonggi = ['평택', '안성', '여주', '포천'];
-    const r3_metro = ['대전', '세종', '대구', '부산', '울산'];  // 광주는 경기 광주와 겹쳐서 별도 처리
+    const r3_metro = ['대전', '세종', '대구'];  // 3군 광역시 (광주는 경기 광주와 겹쳐서 별도 처리)
+    const r2_metro = ['부산', '울산'];  // 2군 광역시
     const r2 = ['시흥', '안산', '화성', '처인구', '의정부', '양주', '고양', '광주', '동두천', '오산', '이천', '파주', '남동구', '서구', '동구', '중구'];
     const r1 = ['강남', '서초', '송파', '강동', '마포', '서대문', '종로', '중구', '용산', '영등포', '동작', '관악', '성동', '광진', '동대문', '중랑', '성북', '강북', '노원', '도봉', '은평', '양천', '구로', '강서', '금천', '수지', '기흥', '과천', '광명', '구리', '군포', '부천', '성남', '수원', '안양', '의왕', '하남', '김포', '남양주', '계양', '부평', '연수', '미추홀'];
 
@@ -3763,7 +3764,12 @@ function determineMeritzRegionFromAddress(address) {
         if (address.includes(reg)) return '1gun';
     }
 
-    // ✅ 2. 2군 확인 (서구 예외처리)
+    // ✅ 2. 2군 광역시 확인 (부산, 울산) - 서구/동구/중구보다 먼저 체크
+    for (let reg of r2_metro) {
+        if (address.includes(reg)) return '2gun';
+    }
+
+    // ✅ 2-1. 2군 확인 (서구 예외처리)
     for (let reg of r2) {
         if (address.includes(reg)) {
             if (reg === '서구' && address.includes('강서구')) continue;
@@ -3801,8 +3807,9 @@ function getRegionGradeFromAddress(address) {
     const CLASSIFICATION = {
         "1군": ["강남구", "서초구", "송파구", "강동구", "마포구", "서대문구", "종로구", "중구", "용산구", "영등포구", "동작구", "관악구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구", "강서구", "금천구", "계양구", "부평구", "연수구", "미추홀구", "용인", "과천", "광명", "구리", "군포", "부천", "성남", "수원", "안양", "의왕", "하남", "김포", "남양주"],
         "2군": ["남동구", "서구", "동구", "중구", "시흥", "안산", "화성", "의정부", "양주", "고양", "광주", "동두천", "오산", "이천", "파주"],
+        "2군_광역시": ["부산", "울산"],  // 부산, 울산은 2군
         "3군_경기": ["평택", "안성", "여주", "포천"],
-        "3군_광역시": ["대전", "세종", "대구", "부산", "울산"]  // 광주는 경기 광주와 겹쳐서 별도 처리
+        "3군_광역시": ["대전", "세종", "대구"]  // 광주는 경기 광주와 겹쳐서 별도 처리
     };
 
     // ✅ 1. 1군 우선 확인
@@ -3810,7 +3817,12 @@ function getRegionGradeFromAddress(address) {
         if (addr.includes(dist.toUpperCase())) return "1군";
     }
 
-    // ✅ 2. 2군 확인 (서구 예외처리)
+    // ✅ 2. 2군 광역시 확인 (부산, 울산) - 서구/동구/중구보다 먼저 체크
+    for (let dist of CLASSIFICATION["2군_광역시"]) {
+        if (addr.includes(dist.toUpperCase())) return "2군";
+    }
+
+    // ✅ 2-1. 2군 확인 (서구 예외처리)
     for (let dist of CLASSIFICATION["2군"]) {
         if (addr.includes(dist.toUpperCase())) {
             if (dist === "서구" && addr.includes("강서구")) continue;
