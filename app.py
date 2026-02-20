@@ -1129,9 +1129,15 @@ def convert_to_road_address():
         logger.info(f"[도로명 변환] 원본: {address}")
 
         # 동/호수 정보 미리 추출 (나중에 사용)
-        dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)층?\s*제?(\d+)호', address)
+        # 패턴1: 동 + 층 + 호 (예: 제401동 제1층 제109호)
+        dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)층\s*제?(\d+)호', address)
+        # 패턴2: 동 + 호 (층 없음)
         if not dong_ho_match:
             dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
+        # 패턴3: 층 + 호만 (동 없음, 예: 제12층 제1204호) - 오피스텔/상가 등
+        floor_ho_match = None
+        if not dong_ho_match:
+            floor_ho_match = re.search(r'제?(\d+)층\s*제?(\d+)호', address)
 
         # 검색 키워드: 지번 주소 부분만 추출 (동/호수 제외)
         # "경기도 고양시 덕양구 행신동 796 소만마을아파트 제102동 제11층 제1101호"
@@ -1150,10 +1156,15 @@ def convert_to_road_address():
 
         logger.info(f"[도로명 변환] 검색 키워드: {search_keyword}")
 
-        # 원본 주소에서 건물명 추출 (지번 뒤 ~ 동/호수 앞)
+        # 원본 주소에서 건물명 추출 (지번 뒤 ~ 동/층/호수 앞)
         # 예: "탄현동 1481 탄현마을아파트 제401동" → "탄현마을아파트"
+        # 예: "서초동 1327-27 강남역한화오벨리스크 제12층" → "강남역한화오벨리스크"
         building_name = ''
+        # 패턴1: 지번 뒤 ~ 제X동 앞
         building_match = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+동', address)
+        if not building_match:
+            # 패턴2: 지번 뒤 ~ 제X층 앞 (동 없이 층부터 시작하는 경우)
+            building_match = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+층', address)
         if building_match:
             building_name = building_match.group(1).strip()
         logger.info(f"[도로명 변환] 추출된 건물명: {building_name}")
@@ -1177,14 +1188,23 @@ def convert_to_road_address():
 
             juso_list = result.get('results', {}).get('juso', [])
             if juso_list and len(juso_list) > 0:
-                # 동/호수 정보는 위에서 이미 추출됨 (dong_ho_match)
+                # 동/호수 정보는 위에서 이미 추출됨 (dong_ho_match 또는 floor_ho_match)
+                dong_num = None
+                floor_num = None
+                ho_num = None
+
                 if dong_ho_match:
                     dong_num = dong_ho_match.group(1)
                     # 3개 그룹이면 (동, 층, 호), 2개 그룹이면 (동, 호)
-                    ho_num = dong_ho_match.group(3) if dong_ho_match.lastindex >= 3 else dong_ho_match.group(2)
-                else:
-                    dong_num = None
-                    ho_num = None
+                    if dong_ho_match.lastindex >= 3:
+                        floor_num = dong_ho_match.group(2)
+                        ho_num = dong_ho_match.group(3)
+                    else:
+                        ho_num = dong_ho_match.group(2)
+                elif floor_ho_match:
+                    # 동 없이 층/호만 있는 경우 (오피스텔, 상가 등)
+                    floor_num = floor_ho_match.group(1)
+                    ho_num = floor_ho_match.group(2)
 
                 # 건물명이 있으면 가장 일치하는 결과 선택
                 selected_juso = juso_list[0]  # 기본값: 첫 번째 결과
@@ -1238,18 +1258,20 @@ def convert_to_road_address():
                     # 도로명 주소 형식: "도로명 번지, 동호수 (법정동, 건물명)"
                     # 괄호 부분 분리
                     bracket_match = re.search(r'(\([^)]+\))$', road_addr)
-                    if bracket_match and (dong_num or ho_num):
+
+                    # 동/호 문자열 조합 (층 정보는 제외)
+                    unit_info = ''
+                    if dong_num and ho_num:
+                        unit_info = f"{dong_num}동 {ho_num}호"
+                    elif ho_num:
+                        unit_info = f"{ho_num}호"
+
+                    if bracket_match and unit_info:
                         bracket_part = bracket_match.group(1)
                         road_part = road_addr[:bracket_match.start()].strip()
-
-                        if dong_num and ho_num:
-                            road_addr = f"{road_part}, {dong_num}동 {ho_num}호 {bracket_part}"
-                        elif ho_num:
-                            road_addr = f"{road_part}, {ho_num}호 {bracket_part}"
-                    elif dong_num and ho_num:
-                        road_addr = f"{road_addr}, {dong_num}동 {ho_num}호"
-                    elif ho_num:
-                        road_addr = f"{road_addr}, {ho_num}호"
+                        road_addr = f"{road_part}, {unit_info} {bracket_part}"
+                    elif unit_info:
+                        road_addr = f"{road_addr}, {unit_info}"
 
                     return jsonify({
                         "success": True,
