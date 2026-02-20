@@ -1143,8 +1143,8 @@ def convert_to_road_address():
         # "경기도 고양시 덕양구 행신동 796 소만마을아파트 제102동 제11층 제1101호"
         # → "경기도 고양시 덕양구 행신동 796" (지번까지만)
 
-        # 패턴: 시/도 + 시/군/구 + 동/읍/면/리 + 번지
-        jibun_pattern = r'^(.*?[동읍면리가로]\s*\d+(?:-\d+)?)'
+        # 패턴: 시/도 + 시/군/구 + 동/읍/면/리 + 번지 (동1가, 동2가 등 포함)
+        jibun_pattern = r'^(.*?[동읍면리가로](?:\d가)?\s*\d+(?:-\d+)?)'
         jibun_match = re.search(jibun_pattern, address)
 
         if jibun_match:
