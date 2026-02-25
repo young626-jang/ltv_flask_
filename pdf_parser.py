@@ -541,17 +541,25 @@ def extract_rights_info(full_text):
         dash_sub = rank_match.group(2)  # N-M의 M (변경등기 순번)
         paren_sub = rank_match.group(3)  # (N)의 N
 
-        # 변경등기인 경우 (N-M 형태): 대상 순위번호(N)의 금액 업데이트
+        # 변경/이전 등기인 경우 (N-M 형태): 대상 순위번호(N)의 정보 업데이트
         # 예: "6-2 근저당권변경" -> main_rank=6의 금액을 업데이트
-        if dash_sub and '변경' in clean_entry:
+        # 예: "18-1 근저당권이전" -> main_rank=18의 근저당권자를 업데이트
+        if dash_sub and ('변경' in clean_entry or '이전' in clean_entry):
             target_key = main_rank  # N-M에서 N이 대상 순위번호
 
-            # 해당 키가 존재하면 금액 업데이트 (감액/증액 반영)
+            # 해당 키가 존재하면 업데이트
             if target_key in mortgage_map and target_key not in killed_ranks:
+                # 금액 변경 (감액/증액 반영)
                 amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
                 if amount_match:
                     mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
-            continue  # 변경등기는 여기서 처리 완료
+
+                # 근저당권 이전 시 근저당권자 업데이트
+                if '이전' in clean_entry:
+                    creditor_match = re.search(r'근저당권자\s+([가-힣a-zA-Z0-9\s주식회사은행농협신협새마을금고캐피탈저축진흥원]+?)(?=\s+\d{6}-|\s+[가-힣]+[시구동]\s|$)', clean_entry)
+                    if creditor_match:
+                        mortgage_map[target_key]['creditor'] = creditor_match.group(1).strip()
+            continue  # 변경/이전 등기는 여기서 처리 완료
 
         # 키 생성: "2" 또는 "2(1)"
         rank_key = f"{main_rank}({paren_sub})" if paren_sub else main_rank
