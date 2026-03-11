@@ -3183,8 +3183,8 @@ function updateCollateralRateDisplay() {
         const regionGrade = getRegionGradeFromAddress(address);
         const unitCount = parseInt((document.getElementById('unit_count')?.value || '0').replace(/,/g, '')) || 0;
 
-        // 아파트 100세대 이하 → Non-APT 기준 적용
-        const effectiveApt = isApt && (unitCount === 0 || unitCount > 100);
+        // 아파트는 세대수 관계없이 APT 기준 적용 (등기부 기준)
+        const effectiveApt = isApt;
 
         // 기본 금리
         let baseRate;
