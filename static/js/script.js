@@ -3186,16 +3186,16 @@ function updateCollateralRateDisplay() {
         // 아파트는 세대수 관계없이 APT 기준 적용 (등기부 기준)
         const effectiveApt = isApt;
 
-        // 기본 금리
+        // 기본 금리 (2026.03 기준)
         let baseRate;
         if (effectiveApt) {
-            if (ltv <= 75) baseRate = 6.50;
-            else if (ltv <= 85) baseRate = 7.50;
-            else baseRate = 9.00;
+            if (ltv <= 75) baseRate = 6.70;
+            else if (ltv <= 85) baseRate = 7.70;
+            else baseRate = 9.20;
         } else {
-            if (ltv <= 75) baseRate = 8.70;
-            else if (ltv <= 85) baseRate = 9.70;
-            else baseRate = 11.20;
+            if (ltv <= 75) baseRate = 8.90;
+            else if (ltv <= 85) baseRate = 9.90;
+            else baseRate = 11.40;
         }
 
         // 가산금리
