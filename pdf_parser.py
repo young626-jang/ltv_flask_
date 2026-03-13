@@ -591,14 +591,19 @@ def extract_rights_info(full_text):
         current_debtor = debtor_match.group(1) if debtor_match else None
 
         # 근저당권자/채권자 추출
-        # 패턴1: 금융기관 (주식회사은행, 새마을금고 등)
-        # 패턴2: 개인 (한글 2~4자 + 주민번호)
-        # 종료 조건: 주민번호(6자리-), 지역명+시/구/동, 또는 문자열 끝
-        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z0-9\s주식회사은행농협신협새마을금고캐피탈저축진흥원대부]+?)(?=\s+\d{6}-|\s+[가-힣]+[시구동]\s|$)', clean_entry)
-        if not creditor_match:
-            # 개인 근저당권자: "근저당권자 홍길동 123456-" 패턴
-            creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣]{2,4})\s+\d{6}-', clean_entry)
-        current_creditor = creditor_match.group(1).strip() if creditor_match else None
+        # 패턴1: 개인 근저당권자 (한글 2~4자) - 요약테이블/본문 공통
+        # 패턴2: 금융기관 (주식회사, 은행, 새마을금고 등)
+        current_creditor = None
+
+        # 개인: "근저당권자 양순희" (뒤에 주민번호 있거나 없거나)
+        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣]{2,4})(?:\s+\d{6}-|\s*$)', clean_entry)
+        if creditor_match:
+            current_creditor = creditor_match.group(1).strip()
+        else:
+            # 금융기관: "근저당권자 주식회사우리은행", "평상새마을금고" 등
+            creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z0-9주식회사은행농협신협새마을금고캐피탈저축진흥원대부]+)', clean_entry)
+            if creditor_match:
+                current_creditor = creditor_match.group(1).strip()
 
         date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_entry)
         formatted_date = ""
