@@ -590,10 +590,14 @@ def extract_rights_info(full_text):
             debtor_match = re.search(r'근저당권자\s+\S+\s+([가-힣]{2,4})(?:\s|$)', clean_entry)
         current_debtor = debtor_match.group(1) if debtor_match else None
 
-        # 근저당권자/채권자 추출 (은행명에 포함된 지역명은 종료 조건에서 제외)
-        # 패턴: "근저당권자 주식회사부산은행" → "주식회사부산은행" 전체 추출
+        # 근저당권자/채권자 추출
+        # 패턴1: 금융기관 (주식회사은행, 새마을금고 등)
+        # 패턴2: 개인 (한글 2~4자 + 주민번호)
         # 종료 조건: 주민번호(6자리-), 지역명+시/구/동, 또는 문자열 끝
-        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z0-9\s주식회사은행농협신협새마을금고캐피탈저축]+?)(?=\s+\d{6}-|\s+[가-힣]+[시구동]\s|$)', clean_entry)
+        creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣a-zA-Z0-9\s주식회사은행농협신협새마을금고캐피탈저축진흥원대부]+?)(?=\s+\d{6}-|\s+[가-힣]+[시구동]\s|$)', clean_entry)
+        if not creditor_match:
+            # 개인 근저당권자: "근저당권자 홍길동 123456-" 패턴
+            creditor_match = re.search(r'(?:근저당권자|채권자)\s+([가-힣]{2,4})\s+\d{6}-', clean_entry)
         current_creditor = creditor_match.group(1).strip() if creditor_match else None
 
         date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', clean_entry)
@@ -1114,6 +1118,8 @@ def get_building_info(address):
         params['numOfRows'] = '100'
         params['pageNo'] = '1'
 
+        recap_hhld = 0  # 총괄표제부 세대수 초기화
+
         # 총괄표제부 API 호출
         url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrRecapTitleInfo'
         response = requests.get(url, params=params, timeout=10)
@@ -1127,14 +1133,15 @@ def get_building_info(address):
                     comp_date = ""
                     for item in items:
                         h_cnt = item.findtext('hhldCnt') or '0'
-                        u_date = item.findtext('useAprDay') or ''
+                        u_date = (item.findtext('useAprDay') or '').strip()  # 공백 제거
                         if h_cnt.isdigit():
                             total_hhld += int(h_cnt)
                         if u_date and not comp_date:
                             comp_date = u_date
-                    return {'success': True, 'households': total_hhld, 'date': comp_date}
+                    # 준공일자가 없으면 표제부 API에서 준공일자 보충
+                    recap_hhld = total_hhld  # 총괄표제부의 세대수 저장
 
-        # 표제부 API fallback
+        # 표제부 API fallback (총괄표제부 실패 또는 준공일자 없음)
         url = 'https://apis.data.go.kr/1613000/BldRgstHubService/getBrTitleInfo'
         response = requests.get(url, params=params, timeout=10)
 
@@ -1143,21 +1150,24 @@ def get_building_info(address):
             if root.findtext('.//resultCode') == '00':
                 items = root.findall('.//item')
                 if items:
-                    total_hhld = 0
-                    comp_date = ""
+                    title_hhld = 0
+                    title_date = ""
                     exclude_keywords = ['주상가', '상가', '관리동', '부대시설', '커뮤니티', '관리', '근린생활']
                     for item in items:
                         dong_nm = item.findtext('dongNm') or ''
                         etc_purps = item.findtext('etcPurps') or ''
                         h_cnt = item.findtext('hhldCnt') or '0'
-                        u_date = item.findtext('useAprDay') or ''
+                        u_date = (item.findtext('useAprDay') or '').strip()  # 공백 제거
                         is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
                         if not is_excluded and h_cnt.isdigit():
-                            total_hhld += int(h_cnt)
-                        if u_date and not comp_date:
-                            comp_date = u_date
-                    if total_hhld > 0:
-                        return {'success': True, 'households': total_hhld, 'date': comp_date}
+                            title_hhld += int(h_cnt)
+                        if u_date and not title_date:
+                            title_date = u_date
+
+                    # 총괄표제부에서 세대수를 가져왔으면 그걸 사용, 아니면 표제부 세대수 사용
+                    final_hhld = recap_hhld if recap_hhld > 0 else title_hhld
+                    if final_hhld > 0 or title_date:
+                        return {'success': True, 'households': final_hhld, 'date': title_date}
 
         return {'success': False, 'households': 0, 'date': ''}
 
