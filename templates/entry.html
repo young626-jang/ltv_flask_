@@ -232,6 +232,7 @@
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
                     <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
                     <li class="nav-item" role="presentation">
                       <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
@@ -345,6 +346,68 @@
                             <small class="text-muted" id="balloon-first-breakdown"></small>
                         </div>
                     </div>
+                </div>
+                <!-- ====================================================== -->
+                <!-- ✅ 법무비용 계산기 탭 내용 -->
+                <!-- ====================================================== -->
+                <div class="tab-pane fade" id="legal-fee-tab-pane" role="tabpanel">
+                    <div class="mb-3 text-center">
+                        <label class="form-label small mb-1">채권최고액 (만원)</label>
+                        <input type="text" class="form-control md-input mx-auto" id="legal-fee-amount" placeholder="예: 4500" style="max-width: 200px;">
+                    </div>
+                    <table class="table table-bordered table-sm mb-0" style="font-size: 12px;">
+                        <tr style="background: #e8f4f8;">
+                            <td class="fw-bold text-center">보수액</td>
+                            <td class="text-center">금액</td>
+                            <td class="fw-bold text-center">공과금</td>
+                            <td class="text-center">금액</td>
+                        </tr>
+                        <tr>
+                            <td>기본보수</td>
+                            <td class="text-end" id="legal-r7">0</td>
+                            <td>등록세</td>
+                            <td class="text-end" id="legal-r1">0</td>
+                        </tr>
+                        <tr>
+                            <td>등록세대행</td>
+                            <td class="text-end" id="legal-r8">20,000</td>
+                            <td>교육세</td>
+                            <td class="text-end" id="legal-r2">0</td>
+                        </tr>
+                        <tr>
+                            <td style="background: #f5f5f5;" class="fw-bold">보수액소계</td>
+                            <td style="background: #f5f5f5;" class="text-end fw-bold" id="legal-s2">0</td>
+                            <td>증지</td>
+                            <td class="text-end" id="legal-r3">15,000</td>
+                        </tr>
+                        <tr>
+                            <td>부가가치세</td>
+                            <td class="text-end" id="legal-r9">0</td>
+                            <td>제증명대</td>
+                            <td class="text-end" id="legal-r4">20,000</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td>국민주택채권</td>
+                            <td class="text-end" id="legal-r5">0</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td>교통비</td>
+                            <td class="text-end" id="legal-r6">50,000</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td style="background: #f5f5f5;" class="fw-bold">계</td>
+                            <td style="background: #f5f5f5;" class="text-end fw-bold" id="legal-s1">0</td>
+                        </tr>
+                        <tr style="background: #2980b9; color: white;">
+                            <td colspan="4" class="fw-bold text-center">총 계 : <span id="legal-tot">0</span></td>
+                        </tr>
+                    </table>
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [신규] 중도상환수수료 계산기 탭 내용 시작 -->
@@ -1066,6 +1129,83 @@ function getNextBusinessDay(date) {
 
     return resultDate;
 }
+
+// ======================================================
+// ✅ 법무비용 계산기 함수들
+// ======================================================
+
+// 기본보수 계산 (채권최고액 기준) - 정율법무사 기준
+function getLegalBaseFee(amount) {
+    if (amount <= 5e7) return 170000;    // 5천만 이하
+    if (amount <= 1.5e8) return 210000;  // 1.5억 이하
+    if (amount <= 2.5e8) return 300000;  // 2.5억 이하
+    if (amount <= 3e8) return 330000;    // 3억 이하
+    if (amount <= 5e8) return 450000;    // 5억 이하
+    if (amount <= 5.5e8) return 460000;  // 5.5억 이하
+    if (amount <= 1e9) return 600000;    // 10억 이하
+    if (amount <= 2e9) return 800000;    // 20억 이하
+    return 1000000;
+}
+
+// 국민주택채권 요율 (채권최고액 기준) - 정율법무사 기준
+function getLegalBondRate(amount) {
+    if (amount <= 5e7) return 0.001556;   // 5천만 이하
+    if (amount <= 1.5e8) return 0.001476; // 1.5억 이하
+    if (amount <= 2.5e8) return 0.001375; // 2.5억 이하
+    if (amount <= 5e8) return 0.001333;   // 5억 이하
+    return 0.001314;                      // 5억 초과
+}
+
+// 법무비용 계산 함수
+function calculateLegalFee() {
+    const input = document.getElementById('legal-fee-amount');
+    if (!input) return;
+
+    let val = input.value.replace(/[^\d]/g, '');
+    let amount = (parseInt(val) || 0) * 10000; // 만원 → 원
+
+    // 등록세 (0.2%)
+    let regTax = Math.floor(amount * 0.002);
+    // 교육세 (등록세의 20%)
+    let eduTax = Math.floor(regTax * 0.2);
+    // 고정 비용
+    let stamp = 15000;      // 증지
+    let cert = 20000;       // 제증명대
+    let transport = 50000;  // 교통비
+    // 국민주택채권 (천원 단위 반올림)
+    let bond = Math.round(amount * getLegalBondRate(amount) / 1000) * 1000;
+    // 공과금 합계
+    let subTotal1 = regTax + eduTax + stamp + cert + bond + transport;
+
+    // 기본보수
+    let baseFee = getLegalBaseFee(amount);
+    let regAgent = 20000;   // 등록세대행
+    // 보수액 소계
+    let subTotal2 = baseFee + regAgent;
+    // 부가가치세
+    let vat = Math.floor(subTotal2 * 0.1);
+    // 총계
+    let total = subTotal1 + subTotal2 + vat;
+
+    // UI 업데이트
+    const fmt = (n) => n.toLocaleString('ko-KR') + '원';
+    document.getElementById('legal-r1').textContent = fmt(regTax);
+    document.getElementById('legal-r2').textContent = fmt(eduTax);
+    document.getElementById('legal-r5').textContent = fmt(bond);
+    document.getElementById('legal-s1').textContent = fmt(subTotal1);
+    document.getElementById('legal-r7').textContent = fmt(baseFee);
+    document.getElementById('legal-s2').textContent = fmt(subTotal2);
+    document.getElementById('legal-r9').textContent = fmt(vat);
+    document.getElementById('legal-tot').textContent = fmt(total);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 법무비용 입력 필드 이벤트
+    const legalFeeField = document.getElementById('legal-fee-amount');
+    if (legalFeeField) {
+        legalFeeField.addEventListener('input', calculateLegalFee);
+    }
+});
 
 // ======================================================
 // ✅ [수정] 중도상환수수료 계산기 함수들 (실시간 계산)
