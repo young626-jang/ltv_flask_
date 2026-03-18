@@ -2331,13 +2331,13 @@ function attachAllEventListeners() {
 
                 console.log('❌ 메리츠질권적용 - 비활성화, 지역 버튼 숨김');
             }
-            // 메리츠 조건 검증
+            // 메리츠 조건 검증 (LTV 자동 설정)
             validateMeritzLoanConditions();
-            // LTV 설정 후 금리 표시 (DOM 업데이트 대기)
+            // LTV 설정 완료 후 금리 표시 및 메모 생성 (DOM 업데이트 대기)
             setTimeout(() => {
                 updateCollateralRateDisplay();
-            }, 10);
-            triggerMemoGeneration();
+                triggerMemoGeneration();
+            }, 50);
         });
     }
 
