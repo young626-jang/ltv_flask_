@@ -3189,15 +3189,18 @@ function updateCollateralRateDisplay() {
         // 아파트는 세대수 관계없이 APT 기준 적용 (등기부 기준)
         const effectiveApt = isApt;
 
+        // 메리츠 금리 계산 시점의 최신 LTV 값을 다시 읽음 (validateMeritzLoanConditions 반영)
+        const meritzLtv = parseFloat(document.getElementById('ltv1')?.value) || 0;
+
         // 기본 금리 (2026.03 기준)
         let baseRate;
         if (effectiveApt) {
-            if (ltv <= 75) baseRate = 6.70;
-            else if (ltv <= 85) baseRate = 7.70;
+            if (meritzLtv <= 75) baseRate = 6.70;
+            else if (meritzLtv <= 85) baseRate = 7.70;
             else baseRate = 9.20;
         } else {
-            if (ltv <= 75) baseRate = 8.90;
-            else if (ltv <= 85) baseRate = 9.90;
+            if (meritzLtv <= 75) baseRate = 8.90;
+            else if (meritzLtv <= 85) baseRate = 9.90;
             else baseRate = 11.40;
         }
 
