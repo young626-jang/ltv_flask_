@@ -2333,7 +2333,10 @@ function attachAllEventListeners() {
             }
             // 메리츠 조건 검증
             validateMeritzLoanConditions();
-            updateCollateralRateDisplay();
+            // LTV 설정 후 금리 표시 (DOM 업데이트 대기)
+            setTimeout(() => {
+                updateCollateralRateDisplay();
+            }, 10);
             triggerMemoGeneration();
         });
     }
