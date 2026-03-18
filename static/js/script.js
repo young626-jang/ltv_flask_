@@ -2053,14 +2053,21 @@ function attachAllEventListeners() {
             const ltv1Field = document.getElementById('ltv1');
 
             if (e.target.checked) {
-                // 아이엠 체크 시, 메리츠 체크 해제
+                // 아이엠 체크 시, 메리츠 체크 해제 (이벤트 발생 없이 UI만 정리)
                 const meritzCheckbox = document.getElementById('meritz-collateral-loan');
+                const meritzRegionBtnsDiv = document.getElementById('meritz-loan-region-buttons');
                 if (meritzCheckbox && meritzCheckbox.checked) {
                     meritzCheckbox.checked = false;
-                    // ✅ [수정] 메리츠 해제 이벤트를 비동기로 실행 (아이엠 체크 완료 후 실행)
-                    setTimeout(() => {
-                        meritzCheckbox.dispatchEvent(new Event('change'));
-                    }, 0);
+                    // 메리츠 지역 버튼 숨김 (이벤트 없이 직접 처리)
+                    if (meritzRegionBtnsDiv) {
+                        meritzRegionBtnsDiv.style.cssText = 'display: none !important;';
+                    }
+                    document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+                        b.style.backgroundColor = '';
+                        b.style.color = '';
+                        b.style.borderColor = '';
+                    });
+                    console.log('❌ 메리츠 체크 해제 (아이엠 전환)');
                 }
                 // 체크 되면 지역 버튼 표시
                 regionButtonsDiv.style.cssText = 'display: flex !important;';
@@ -2232,14 +2239,21 @@ function attachAllEventListeners() {
     if (meritzCollateralCheckbox) {
         meritzCollateralCheckbox.addEventListener('change', (e) => {
             if (e.target.checked) {
-                // 메리츠 체크 시, 아이엠 체크 해제
+                // 메리츠 체크 시, 아이엠 체크 해제 (이벤트 발생 없이 UI만 정리)
                 const hopeCheckbox = document.getElementById('hope-collateral-loan');
+                const hopeRegionButtonsDiv = document.getElementById('hope-loan-region-buttons');
                 if (hopeCheckbox && hopeCheckbox.checked) {
                     hopeCheckbox.checked = false;
-                    // ✅ [수정] 아이엠 해제 이벤트를 비동기로 실행 (메리츠 체크 완료 후 실행)
-                    setTimeout(() => {
-                        hopeCheckbox.dispatchEvent(new Event('change'));
-                    }, 0);
+                    // 아이엠 지역 버튼 숨김 (이벤트 없이 직접 처리)
+                    if (hopeRegionButtonsDiv) {
+                        hopeRegionButtonsDiv.style.cssText = 'display: none !important;';
+                    }
+                    document.querySelectorAll('.hope-loan-region-btn').forEach(b => {
+                        b.style.backgroundColor = '';
+                        b.style.color = '';
+                        b.style.borderColor = '';
+                    });
+                    console.log('❌ 아이엠 체크 해제 (메리츠 전환)');
                 }
 
                 // 체크 되면 메리츠 지역 버튼 표시
@@ -3191,6 +3205,7 @@ function updateCollateralRateDisplay() {
 
         // 메리츠 금리 계산 시점의 최신 LTV 값을 다시 읽음 (validateMeritzLoanConditions 반영)
         const meritzLtv = parseFloat(document.getElementById('ltv1')?.value) || 0;
+        console.log(`🔍 [디버그] updateCollateralRateDisplay - meritzLtv: ${meritzLtv}, ltv1 필드값: "${document.getElementById('ltv1')?.value}"`);
 
         // 기본 금리 (2026.03 기준)
         let baseRate;
@@ -3583,7 +3598,7 @@ function validateMeritzLoanConditions() {
         }
 
         // ========================================================
-        // 7. 40년 이상 노후주택 LTV 60% 상한 적용
+        // 7. 40년 이상 노후주택 LTV 60% 상한 적용 (서버와 동일하게 월 고려)
         // ========================================================
         const completionField = document.getElementById('completion_date');
         if (completionField && completionField.value.trim()) {
@@ -3592,9 +3607,18 @@ function validateMeritzLoanConditions() {
                 const dateMatch = completionDateStr.match(/(\d{4})[.-]?(\d{2})?[.-]?(\d{2})?/);
 
                 if (dateMatch) {
-                    const year = parseInt(dateMatch[1]);
-                    const currentYear = new Date().getFullYear();
-                    const buildingAge = currentYear - year;
+                    const completionYear = parseInt(dateMatch[1]);
+                    const completionMonth = dateMatch[2] ? parseInt(dateMatch[2]) : 1;
+
+                    const today = new Date();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth() + 1; // 0-indexed
+
+                    // 경과 년수 계산 (월 고려 - 서버와 동일 로직)
+                    let buildingAge = currentYear - completionYear;
+                    if (currentMonth < completionMonth) {
+                        buildingAge -= 1;
+                    }
 
                     if (buildingAge >= 40) {
                         const currentLtv = parseFloat(ltv1Field.value) || baseLtv;
