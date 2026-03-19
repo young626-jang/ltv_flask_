@@ -797,8 +797,15 @@ async function updateAutoLTV() {
 
             // 질권이 하나라도 체크되어 있을 때만 자동으로 LTV 설정
             if (isHopeChecked || isMeritzChecked) {
-                document.getElementById("ltv1").value = ltv;
-                console.log(`📊 자동LTV 설정: ${ltv}% (질권 활성화)`);
+                // ✅ script.js에서 노후주택 등 특수 조건으로 LTV를 낮춘 경우 존중
+                const currentLtv = parseFloat(document.getElementById("ltv1").value) || 80;
+                // 현재 설정된 LTV가 서버 계산 LTV보다 낮으면 (특수 조건 적용됨) 덮어쓰지 않음
+                if (currentLtv < ltv) {
+                    console.log(`📊 자동LTV 유지: ${currentLtv}% (특수조건 적용, 서버LTV ${ltv}% 무시)`);
+                } else {
+                    document.getElementById("ltv1").value = ltv;
+                    console.log(`📊 자동LTV 설정: ${ltv}% (질권 활성화)`);
+                }
             } else {
                 // 둘 다 체크 안 되어 있으면 80% 유지 (자동 설정하지 않음)
                 console.log(`📊 자동LTV 표시만: ${ltv}% (질권 없음, 80% 유지)`);
@@ -1150,7 +1157,7 @@ function getLegalBaseFee(amount) {
 // 국민주택채권 요율 (채권최고액 기준) - 정율법무사 기준
 function getLegalBondRate(amount) {
     if (amount <= 5e7) return 0.001556;   // 5천만 이하
-    if (amount <= 1.5e8) return 0.001476; // 1.5억 이하
+    if (amount <= 1.05e8) return 0.001476; // 1.05억 이하
     if (amount <= 2.5e8) return 0.001375; // 2.5억 이하
     if (amount <= 5e8) return 0.001333;   // 5억 이하
     return 0.001314;                      // 5억 초과
