@@ -3379,16 +3379,30 @@ function validateHopeLoanConditions() {
     if (shouldHighlightKbPrice) {
         kbPriceField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
         console.log('🔴 경고: KB시세 3억 미만');
+        // 경고창 (한 번만 표시하기 위한 플래그)
+        if (!window._hopePriceAlertShown) {
+            window._hopePriceAlertShown = true;
+            alert(`⚠️ 아이엠 취급불가\n\nKB시세 ${kbPrice.toLocaleString()}만원 (3억 미만)\n\n아이엠은 시세 3억 이상만 취급 가능합니다.`);
+        }
     } else {
         kbPriceField.removeAttribute('style');
+        window._hopePriceAlertShown = false;
     }
 
     // 준공일자 필드 스타일 처리
     if (shouldHighlightCompletionDate && completionDateField) {
         completionDateField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
         console.log('🔴 경고: 준공후 45년 이상');
+        // 경고창 (한 번만 표시하기 위한 플래그)
+        if (!window._hopeCompletionAlertShown) {
+            window._hopeCompletionAlertShown = true;
+            const year = completionDateField.value.match(/(\d{4})/)?.[1] || '';
+            const buildingAge = new Date().getFullYear() - parseInt(year);
+            alert(`⚠️ 아이엠 취급불가\n\n준공연도: ${year}년 (경과 ${buildingAge}년)\n\n아이엠은 45년 이상 노후주택 취급이 불가합니다.`);
+        }
     } else if (completionDateField) {
         completionDateField.removeAttribute('style');
+        window._hopeCompletionAlertShown = false;
     }
 
     // 물건종류 필드 스타일 처리 (NON-APT 취급불가)
