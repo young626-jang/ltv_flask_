@@ -3740,15 +3740,9 @@ function validateMeritzLoanConditions() {
             // 신도시 예외 확인
             const isNewTown = newTownExceptions.some(town => address.includes(town));
 
-            if (isNewTown) {
-                // 신도시는 노란색 경고 (-5% 차감 후 가능)
-                meritzAddressField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
-                console.log(`⚠️ 메리츠 주의: 군 단위 신도시 - LTV -5% 차감 후 가능`);
-            } else {
-                // 일반 군 지역은 빨간색 경고 (취급불가)
-                meritzAddressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-                console.log(`🔴 메리츠 경고: 군 단위 지역 - 취급불가 (신도시 제외)`);
-            }
+            // 군 단위는 노란색 경고 (+0.5% 가산금리)
+            meritzAddressField.style.cssText = 'background-color: #fff3cd !important; border: 2px solid #ffc107 !important; box-shadow: 0 0 5px rgba(255,193,7,0.3) !important;';
+            console.log(`⚠️ 메리츠 주의: 군(읍) 단위 소재 - 가산금리 +0.5%`);
         } else {
             // 군 단위가 아니고 유효한 지역이면 스타일 제거
             meritzAddressField.removeAttribute('style');
