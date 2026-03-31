@@ -170,7 +170,7 @@
         // 압류 정보가 하나라도 있으면 표시
         if (totalCount > 0) {
             // 요약 정보
-            summaryElement.textContent = `과거 압류/가압류 이력 (말소됨): ${cancelledCount}건\n현재 압류 중: ${activeCount}건`;
+            summaryElement.textContent = `과거 이력 (말소됨): ${cancelledCount}건\n현재 유효: ${activeCount}건`;
 
             // 상세 정보 (현재 유효한 압류만)
             if (activeCount > 0) {
