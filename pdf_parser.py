@@ -814,23 +814,28 @@ def check_land_ownership_right(text):
 
 def extract_seizure_info(full_text):
     """
-    갑구에서 압류/가압류 정보를 추출합니다.
+    갑구에서 압류/가압류/가등기/경매 정보를 추출합니다.
 
     Returns:
         dict: {
-            'total_count': int,  # 총 압류 이력 건수 (말소된 것 포함)
-            'active_count': int,  # 현재 유효한 압류 건수
-            'active_seizures': [  # 현재 유효한 압류 목록
+            'total_count': int,  # 총 이력 건수 (말소된 것 포함)
+            'active_count': int,  # 현재 유효한 건수
+            'active_seizures': [  # 현재 유효한 목록
                 {
                     'rank': str,  # 순위번호
-                    'type': str,  # 압류 또는 가압류
-                    'creditor': str,  # 채권자
+                    'type': str,  # 압류/가압류/가등기/임의경매/강제경매 등
+                    'creditor': str,  # 채권자/권리자
                     'date': str,  # 접수일
                     'amount': str  # 금액 (있는 경우)
                 }
             ]
         }
     """
+    # 탐지할 등기목적 키워드 (긴 것 먼저 — 가압류가 압류보다 앞에 와야 오매칭 방지)
+    TARGET_KEYWORDS = ['가압류', '압류', '가등기', '임의경매', '강제경매', '경매개시']
+    # 등기목적 자체가 이 키워드인 경우가 아닌, 내용 설명에만 언급된 경우 제외할 패턴
+    EXCLUDE_PURPOSES = ['금지사항', '소유권보존', '소유권이전', '근저당']
+
     result = {
         'total_count': 0,
         'active_count': 0,
@@ -846,7 +851,7 @@ def extract_seizure_info(full_text):
         gap_gu_text = gap_gu_match.group(1)
 
         # 모든 항목 파싱
-        seizures = {}  # {순위번호: 압류정보}
+        seizures = {}  # {순위번호: 정보}
         cancelled_ranks = set()  # 말소된 순위번호 집합
 
         # 순위번호 기준으로 항목 분리
@@ -856,61 +861,80 @@ def extract_seizure_info(full_text):
             if not entry.strip():
                 continue
 
-            # 순위번호와 등기목적 추출
-            first_line_match = re.match(r'^\s*(\d{1,2}(?:-\d{1,2})?)\s+([^\s]+)', entry)
+            # 순위번호 추출 (첫 줄)
+            first_line_match = re.match(r'^\s*(\d{1,2}(?:-\d{1,2})?)\s*', entry)
             if not first_line_match:
                 continue
 
             rank = first_line_match.group(1)
-            purpose = first_line_match.group(2)
 
-            # 말소 등기인지 확인 ("N번압류등기말소", "N번가압류등기말소")
-            # entry 전체에서 '말소' 키워드 확인 (여러 줄에 걸쳐 있을 수 있음)
+            # 말소 등기인지 확인
             if '말소' in entry:
-                # 여러 개의 압류/가압류가 한꺼번에 말소될 수 있음
-                # 예: "5번가압류, 6번가압류, 7번가압류, 8번가압류, 9번임의경매개시결정 등기말소"
-                cancelled_matches = re.findall(r'(\d{1,2})번(?:가압류|압류)', entry)
-                for rank in cancelled_matches:
-                    cancelled_ranks.add(rank)
+                cancelled_matches = re.findall(r'(\d{1,2})번(?:가압류|압류|가등기|임의경매|강제경매|경매개시)', entry)
+                for r in cancelled_matches:
+                    cancelled_ranks.add(r)
+                # 이 entry 자체가 말소 대상이면 skip
+                if re.search(r'등기말소|말소등기', entry):
+                    continue
+
+            # 등기목적 첫 줄 텍스트 추출
+            direct_match = re.match(r'^\s*\d{1,2}(?:-\d{1,2})?\s+([^\n]+)', entry)
+            first_purpose_text = direct_match.group(1).strip() if direct_match else ''
+
+            # 제외 대상 등기인지 확인 (금지사항등기, 소유권이전 등은 내용에 압류 언급해도 skip)
+            if any(ex in first_purpose_text for ex in EXCLUDE_PURPOSES):
                 continue
 
-            # 압류 또는 가압류 등기인지 확인
-            if purpose == '압류' or purpose == '가압류':
-                # 날짜 추출
-                date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', entry)
-                date = date_match.group(1) if date_match else ''
+            # entry 전체에서 등기목적 키워드 탐지
+            # PDF에 따라 첫 줄에 있을 수도, 별도 줄에 있을 수도 있음
+            purpose = None
+            for kw in TARGET_KEYWORDS:
+                # 순위번호 바로 뒤 첫 줄에서 확인 (예: "4  가압류", "4  2번지분가압류")
+                if kw in first_purpose_text:
+                    purpose = kw
+                    break
+                # entry 어딘가에 단독 줄로 있는 경우 (예: PDF가 "가압류"를 별도 줄로 출력)
+                if re.search(r'(?:^|\n)\s*' + kw + r'\s*(?:\n|$)', entry):
+                    purpose = kw
+                    break
 
-                # 채권자 추출
-                creditor = ''
-                creditor_match = re.search(r'권리자\s+([^\n]+)', entry)
-                if creditor_match:
-                    creditor = creditor_match.group(1).strip()
+            if not purpose:
+                continue
 
-                # 금액 추출 (가압류의 경우)
-                amount = ''
-                if purpose == '가압류':
-                    amount_match = re.search(r'청구금액\s+금([\d,]+)\s*원', entry)
-                    if amount_match:
-                        amount = amount_match.group(1)
+            # 날짜 추출
+            date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', entry)
+            date = date_match.group(1) if date_match else ''
 
-                seizures[rank] = {
-                    'rank': rank,
-                    'type': purpose,
-                    'creditor': creditor,
-                    'date': date,
-                    'amount': amount
-                }
+            # 채권자/권리자 추출
+            creditor = ''
+            creditor_match = re.search(r'(?:채권자|권리자)\s+([^\n]+)', entry)
+            if creditor_match:
+                creditor = creditor_match.group(1).strip()
+
+            # 금액 추출 (가압류/경매의 경우)
+            amount = ''
+            amount_match = re.search(r'청구금액\s+금([\d,]+)\s*원', entry)
+            if amount_match:
+                amount = amount_match.group(1)
+
+            seizures[rank] = {
+                'rank': rank,
+                'type': purpose,
+                'creditor': creditor,
+                'date': date,
+                'amount': amount
+            }
 
         # 총 건수
         result['total_count'] = len(seizures)
 
-        # 현재 유효한 압류 (말소되지 않은 것만)
+        # 현재 유효한 항목 (말소되지 않은 것만)
         for rank, info in seizures.items():
             if rank not in cancelled_ranks:
                 result['active_count'] += 1
                 result['active_seizures'].append(info)
 
-        print(f"[DEBUG] 압류 정보 추출: 총 {result['total_count']}건, 현재 유효 {result['active_count']}건")
+        print(f"[DEBUG] 압류/가등기 정보 추출: 총 {result['total_count']}건, 현재 유효 {result['active_count']}건")
         print(f"[DEBUG] 말소된 순위: {sorted(cancelled_ranks)}")
 
     except Exception as e:
