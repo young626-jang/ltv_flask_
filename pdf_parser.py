@@ -544,6 +544,10 @@ def extract_rights_info(full_text):
         # 변경/이전 등기인 경우 (N-M 형태): 대상 순위번호(N)의 정보 업데이트
         # 예: "6-2 근저당권변경" -> main_rank=6의 금액을 업데이트
         # 예: "18-1 근저당권이전" -> main_rank=18의 근저당권자를 업데이트
+        # N-M 형태 중 근질권설정/경정은 부수 등기이므로 완전히 건너뜀 (금액 덮어쓰기 방지)
+        if dash_sub and ('근질권' in clean_entry or '경정' in clean_entry):
+            continue
+
         if dash_sub and ('변경' in clean_entry or '이전' in clean_entry):
             target_key = main_rank  # N-M에서 N이 대상 순위번호
 
