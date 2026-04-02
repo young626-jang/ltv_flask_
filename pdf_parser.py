@@ -440,9 +440,10 @@ def extract_owner_shares_with_birth(full_text):
                 if i + 1 < len(lines) and re.search(r"^\d{6}-", lines[i+1]):
                     birth = re.search(r"(\d{6})-", lines[i+1]).group(1)
 
-                # 다음 두 줄 내에서 지분 정보 찾기
-                for j in range(i + 1, min(i + 3, len(lines))):
-                    share_match = re.search(r"지분\s*(\d+)\s*분의\s*(\d+)", lines[j])
+                # 다음 네 줄 내에서 지분 정보 찾기
+                # 패턴1: "지분 10분의 4" / 패턴2: "10분의 4" (최종지분 컬럼에 단독으로 있는 경우)
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    share_match = re.search(r"(?:지분\s*)?(\d+)\s*분의\s*(\d+)", lines[j])
                     if share_match:
                         denom, num = int(share_match.group(1)), int(share_match.group(2))
                         percent = round(num / denom * 100, 1)
