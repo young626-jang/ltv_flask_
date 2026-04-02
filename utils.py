@@ -237,13 +237,16 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
         final_ltv = min(final_ltv, 80.0)
 
         # LTV 계산 및 한도 산출
+        # 메리츠 지분대출 공식: 평가액 × LTV × 지분율
+        base_limit = int(total_value * (final_ltv / 100) * share_ratio)
         if is_senior:
-            ltv_limit = int(equity_value * (final_ltv / 100))
+            # 선순위(대환): 대환 원금 차감
+            ltv_limit = base_limit
             available = ltv_limit - existing_principal
         else:
-            # 후순위 한도 계산
-            ltv_limit = int((equity_value * (final_ltv / 100)) - maintain_maxamt_sum)
-            available = ltv_limit - existing_principal
+            # 후순위(유지): 선순위 채권최고액 전액 차감
+            ltv_limit = base_limit - maintain_maxamt_sum
+            available = ltv_limit
 
         # 절사 로직 (100원 단위)
         ltv_limit = (ltv_limit // 100) * 100
