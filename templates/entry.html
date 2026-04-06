@@ -762,11 +762,13 @@ async function updateAutoLTV() {
     const unitCountField = document.getElementById('unit_count');
     // const isMeritzChecked = meritzCheckbox && meritzCheckbox.checked; // 이미 위에서 선언됨
 
+    let isSmallComplex = false;
     if (isMeritzChecked && property_type === 'APT' && unitCountField) {
         const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
-        if (unitCount > 0 && unitCount <= 100) {
+        if (unitCount > 0 && unitCount < 100) {
             property_type = 'Non-APT';
-            console.log(`🔄 메리츠 APT 100세대 이하 (${unitCount}세대) → Non-APT 기준 자동 적용`);
+            isSmallComplex = true;
+            console.log(`🔄 메리츠 APT 100세대 미만 (${unitCount}세대) → Non-APT 기준 자동 적용`);
         }
     }
 
@@ -819,6 +821,11 @@ async function updateAutoLTV() {
             const reasonsContainer = document.getElementById('ltv-reasons-container');
             const reasonsList = document.getElementById('ltv-reasons-list');
             if (data.reasons && data.reasons.length > 0) {
+                // 100세대 이하 Non-APT 전환 사유 삽입
+                if (isSmallComplex) {
+                    const unitCount = parseInt(unitCountField.value.replace(/,/g, '')) || 0;
+                    data.reasons.splice(1, 0, `세대수: ${unitCount}세대 (100세대 미만 → Non-APT 기준 적용)`);
+                }
                 // 사유 목록을 HTML로 변환
                 const reasonsHTML = data.reasons.map(reason => {
                     // ⚠️ 아이콘이 있으면 강조 표시
