@@ -239,6 +239,11 @@
                         지분 한도 계산기
                       </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">
+                        최소낙찰률
+                      </button>
+                    </li>
                 </ul>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="instant-business-operator" value="">
@@ -509,6 +514,62 @@
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
+                <!-- ====================================================== -->
+
+                <!-- ====================================================== -->
+                <!-- 최소낙찰률 계산기 탭 -->
+                <!-- ====================================================== -->
+                <div class="tab-pane fade" id="min-bid-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
+                    <div style="font-size: 13px;">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">담보가치 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_collateral" placeholder="담보가치" oninput="calcMinBidRate()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">대출원금 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_principal" placeholder="대출원금" oninput="calcMinBidRate()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">채권최고액 비율 (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_maxamt_ratio" placeholder="150" value="150" oninput="calcMinBidRate()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체금리 (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_overdue_rate" placeholder="연체금리" oninput="calcMinBidRate()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체기간 (개월)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_overdue_months" placeholder="개월" oninput="calcMinBidRate()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">경매비용 비율 (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="bid_auction_cost_rate" placeholder="1.5" value="1.5" oninput="calcMinBidRate()">
+                            </div>
+                        </div>
+
+                        <!-- 결과 -->
+                        <div id="min-bid-result" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
+                            <div class="row g-1" style="font-size: 12px; color: #475569;">
+                                <div class="col-6">채권최고액</div>
+                                <div class="col-6 text-end fw-bold" id="bid_result_maxamt">-</div>
+                                <div class="col-6">연체이자</div>
+                                <div class="col-6 text-end" id="bid_result_interest">-</div>
+                                <div class="col-6">경매비용</div>
+                                <div class="col-6 text-end" id="bid_result_auctioncost">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6">총 회수 필요액</div>
+                                <div class="col-6 text-end fw-bold" id="bid_result_total">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">최소 낙찰률</div>
+                                <div class="col-6 text-end" id="bid_result_rate" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
+                                <div class="col-12 mt-1" id="bid_result_safety" style="text-align: center; font-weight: 600; font-size: 12px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- ====================================================== -->
+                <!-- 최소낙찰률 계산기 탭 끝 -->
                 <!-- ====================================================== -->
             </div>                
             
@@ -1409,6 +1470,55 @@ function calculatePrepayFee() {
 function updatePrepayUI(fee, days) {
     document.getElementById('prepay-result-fee').innerText = fee.toLocaleString() + '원';
     document.getElementById('prepay-result-days').innerText = days + '일';
+}
+
+function calcMinBidRate() {
+    const collateral = parseFloat(document.getElementById('bid_collateral').value.replace(/,/g, '')) || 0;
+    const principal = parseFloat(document.getElementById('bid_principal').value.replace(/,/g, '')) || 0;
+    const maxAmtRatio = parseFloat(document.getElementById('bid_maxamt_ratio').value) || 150;
+    const overdueRate = parseFloat(document.getElementById('bid_overdue_rate').value) || 0;
+    const overdueMonths = parseFloat(document.getElementById('bid_overdue_months').value) || 0;
+    const auctionCostRate = parseFloat(document.getElementById('bid_auction_cost_rate').value) || 1.5;
+
+    if (collateral <= 0 || principal <= 0) {
+        return;
+    }
+
+    // 채권최고액 = 대출원금 × 채권최고액 비율
+    const maxAmt = Math.floor(principal * (maxAmtRatio / 100));
+
+    // 연체이자 = 대출원금 × 연체금리 × (연체기간 / 12)
+    const interest = Math.floor(principal * (overdueRate / 100) * (overdueMonths / 12));
+
+    // 경매비용 = 담보가치 × 경매비용 비율
+    const auctionCost = Math.floor(collateral * (auctionCostRate / 100));
+
+    // 총 회수 필요액
+    const totalNeeded = maxAmt + interest + auctionCost;
+
+    // 최소 낙찰률 = 총 회수 필요액 / 담보가치 × 100
+    const minBidRate = (totalNeeded / collateral) * 100;
+
+    // 결과 표시
+    document.getElementById('bid_result_maxamt').textContent = maxAmt.toLocaleString() + '만원';
+    document.getElementById('bid_result_interest').textContent = interest.toLocaleString() + '만원';
+    document.getElementById('bid_result_auctioncost').textContent = auctionCost.toLocaleString() + '만원';
+    document.getElementById('bid_result_total').textContent = totalNeeded.toLocaleString() + '만원';
+    document.getElementById('bid_result_rate').textContent = minBidRate.toFixed(1) + '%';
+
+    // 안전 여부 (통상 경락률 70% 이상이면 안전)
+    const safetyEl = document.getElementById('bid_result_safety');
+    if (minBidRate <= 70) {
+        safetyEl.style.color = '#059669';
+        safetyEl.textContent = '✅ 안전 (최소낙찰률 70% 이하)';
+    } else if (minBidRate <= 80) {
+        safetyEl.style.color = '#D97706';
+        safetyEl.textContent = '⚠️ 주의 (최소낙찰률 70~80%)';
+    } else {
+        safetyEl.style.color = '#DC2626';
+        safetyEl.textContent = '🔴 위험 (최소낙찰률 80% 초과)';
+    }
+
 }
 </script>
 
