@@ -809,19 +809,21 @@ def generate_memo(data):
                     # 기본 LTV 한도 메시지 생성
                     ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
 
-                    # 아이엠 또는 메리츠 질권 체크 시 적용 금리 추가 (공통 금리 기준)
+                    # 아이엠 또는 메리츠 질권 체크 시 적용 금리 추가
                     if hope_collateral_checked or meritz_collateral_checked:
                         ltv_val = float(ltv_rate) if ltv_rate != '/' else 0
                         if ltv_val > 0:
-                            if ltv_val <= 70:
-                                apply_rate = 9.9
-                            elif ltv_val <= 75:
-                                apply_rate = 10.9
-                            elif ltv_val <= 80:
-                                apply_rate = 11.9
-                            else:
-                                apply_rate = 12.9
-                            ltv_line += f" 적용 금리 {apply_rate}%"
+                            region = get_region_from_address(address)
+                            rate_str = get_hope_collateral_interest_rate(
+                                region,
+                                ltv_val,
+                                is_meritz=meritz_collateral_checked,
+                                property_type=property_type
+                            )
+                            if rate_str:
+                                # "11.9% / 12.9%" 형태에서 첫 번째 금리만 표시
+                                apply_rate = rate_str.split('/')[0].strip()
+                                ltv_line += f" 적용 금리 {apply_rate}"
 
                     # 메리츠 질권 체크 + 10억 초과 시 경고 추가 (선순위/후순위 모두)
                     if meritz_collateral_checked and limit > 100000:
