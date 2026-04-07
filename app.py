@@ -487,8 +487,11 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
     rate1 = 0
     rate2 = 0
 
-    # 예외상품: 서울 LTV 70% 미만 (70% 미포함)
-    if region == '서울' and ltv < 70:
+    # Non-APT 여부 사전 판단 (예외상품 적용 여부에 사용)
+    is_non_apt = is_meritz and property_type and ('아파트' not in property_type and '주상복합' not in property_type)
+
+    # 예외상품: 서울 LTV 70% 미만 (70% 미포함) — Non-APT는 적용 불가 (가산금리 +2%로 9.9% 초과)
+    if region == '서울' and ltv < 70 and not is_non_apt:
         grade = '예외'
         rate1 = 9.9
         rate2 = 10.9
@@ -514,12 +517,10 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
         rate2 = 14.9
 
     # 메리츠 질권 + NON-APT (아파트, 주상복합 외) → 가산금리 +2%
-    if is_meritz and property_type:
-        is_non_apt = '아파트' not in property_type and '주상복합' not in property_type
-        if is_non_apt:
-            rate1 += 2.0
-            rate2 += 2.0
-            logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
+    if is_non_apt:
+        rate1 += 2.0
+        rate2 += 2.0
+        logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
 
     # 금리만 반환 (급지 제외)
     return f"{rate1}% / {rate2}%"
