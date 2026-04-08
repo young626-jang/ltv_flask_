@@ -250,7 +250,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                       <button class="nav-link" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">
-                        최소낙찰률
+                        최소낙찰가율
                       </button>
                     </li>
                 </ul>
@@ -526,7 +526,7 @@
                 <!-- ====================================================== -->
 
                 <!-- ====================================================== -->
-                <!-- 최소낙찰률 계산기 탭 -->
+                <!-- 최소낙찰가율 계산기 탭 -->
                 <!-- ====================================================== -->
                 <div class="tab-pane fade" id="min-bid-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
                     <div style="font-size: 13px;">
@@ -568,19 +568,22 @@
                         <!-- 결과 -->
                         <div id="min-bid-result" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
-                                <div class="col-6">채권최고액</div>
-                                <div class="col-6 text-end fw-bold" id="bid_result_maxamt">-</div>
-                                <div class="col-6">연체이자</div>
-                                <div class="col-6 text-end" id="bid_result_interest">-</div>
+                                <div class="col-6">실제 청구액 (원금+연체이자)</div>
+                                <div class="col-6 text-end" id="bid_result_claim">-</div>
+                                <div class="col-6">채권최고액 한도</div>
+                                <div class="col-6 text-end" id="bid_result_maxamt">-</div>
+                                <div class="col-6">당사 배당액 (청구액 vs 한도 중 작은 값)</div>
+                                <div class="col-6 text-end fw-bold" id="bid_result_dividend">-</div>
                                 <div class="col-6">경매비용</div>
                                 <div class="col-6 text-end" id="bid_result_auctioncost">-</div>
-                                <div class="col-6" id="bid_result_senior_label" style="display:none;">선순위 배당 합계</div>
+                                <div class="col-6" id="bid_result_senior_label" style="display:none;">선순위 채권최고액</div>
                                 <div class="col-6 text-end" id="bid_result_senior" style="display:none;">-</div>
+                                <div class="col-12" id="bid_result_cap_note" style="display:none; color:#DC2626; font-size:11px;">⚠ 실제 청구액이 채권최고액을 초과하여 한도 적용됨</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6">총 회수 필요액</div>
+                                <div class="col-6">최소 낙찰금액</div>
                                 <div class="col-6 text-end fw-bold" id="bid_result_total">-</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">최소 낙찰률</div>
+                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">최소 낙찰가율</div>
                                 <div class="col-6 text-end" id="bid_result_rate" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
                                 <div class="col-12 mt-1" id="bid_result_safety" style="text-align: center; font-weight: 600; font-size: 12px;"></div>
                             </div>
@@ -588,7 +591,7 @@
                     </div>
                 </div>
                 <!-- ====================================================== -->
-                <!-- 최소낙찰률 계산기 탭 끝 -->
+                <!-- 최소낙찰가율 계산기 탭 끝 -->
                 <!-- ====================================================== -->
             </div>                
             
@@ -1505,55 +1508,69 @@ function calcMinBidRate() {
         return;
     }
 
-    // 채권최고액 = 대출원금 × 채권최고액 비율
-    const maxAmt = Math.floor(principal * (maxAmtRatio / 100));
+    // 채권최고액 한도 = 원금 × 비율
+    const maxAmtLimit = principal * (maxAmtRatio / 100);
 
-    // 연체이자 = 대출원금 × 연체금리 × (연체기간 / 12)
-    const interest = Math.floor(principal * (overdueRate / 100) * (overdueMonths / 12));
+    // 연체이자 = 원금 × 연체금리 × (개월/12)
+    const interest = principal * (overdueRate / 100) * (overdueMonths / 12);
+
+    // 실제 청구액 = 원금 + 연체이자
+    const actualClaim = principal + interest;
+
+    // 당사 배당액 = 실제 청구액 vs 채권최고액 한도 중 작은 값
+    const dividend = Math.min(actualClaim, maxAmtLimit);
+    const isCapped = actualClaim > maxAmtLimit;
 
     // 경매비용 = 담보가치 × 경매비용 비율
-    const auctionCost = Math.floor(collateral * (auctionCostRate / 100));
+    const auctionCost = collateral * (auctionCostRate / 100);
 
-    // 선순위 배당 합계 (채권최고액 + 전세보증금)
+    // 선순위 배당 합계
     const seniorTotal = seniorMaxAmt + seniorLease;
 
-    // 총 회수 필요액
-    const totalNeeded = maxAmt + interest + auctionCost + seniorTotal;
+    // 최소 낙찰금액 = 배당액 + 경매비용 + 선순위
+    const totalNeeded = dividend + auctionCost + seniorTotal;
 
-    // 최소 낙찰률 = 총 회수 필요액 / 담보가치 × 100
+    // 최소 낙찰가율
     const minBidRate = (totalNeeded / collateral) * 100;
 
-    // 결과 표시
-    document.getElementById('bid_result_maxamt').textContent = maxAmt.toLocaleString() + '만원';
-    document.getElementById('bid_result_interest').textContent = interest.toLocaleString() + '만원';
-    document.getElementById('bid_result_auctioncost').textContent = auctionCost.toLocaleString() + '만원';
+    const fmt = n => Math.floor(n).toLocaleString() + '만원';
 
-    // 선순위 배당 합계 행 (값 있을 때만 표시)
+    document.getElementById('bid_result_claim').textContent = fmt(actualClaim);
+    document.getElementById('bid_result_maxamt').textContent = fmt(maxAmtLimit);
+
+    const dividendEl = document.getElementById('bid_result_dividend');
+    dividendEl.textContent = fmt(dividend);
+    dividendEl.style.color = isCapped ? '#DC2626' : '';
+
+    document.getElementById('bid_result_auctioncost').textContent = fmt(auctionCost);
+    document.getElementById('bid_result_cap_note').style.display = isCapped ? '' : 'none';
+
+    // 선순위 행 (값 있을 때만 표시)
     const seniorLabelEl = document.getElementById('bid_result_senior_label');
     const seniorEl = document.getElementById('bid_result_senior');
     if (seniorTotal > 0) {
         seniorLabelEl.style.display = '';
         seniorEl.style.display = '';
-        seniorEl.textContent = seniorTotal.toLocaleString() + '만원';
+        seniorEl.textContent = fmt(seniorTotal);
     } else {
         seniorLabelEl.style.display = 'none';
         seniorEl.style.display = 'none';
     }
 
-    document.getElementById('bid_result_total').textContent = totalNeeded.toLocaleString() + '만원';
+    document.getElementById('bid_result_total').textContent = fmt(totalNeeded);
     document.getElementById('bid_result_rate').textContent = minBidRate.toFixed(1) + '%';
 
     // 안전 여부
     const safetyEl = document.getElementById('bid_result_safety');
     if (minBidRate <= 70) {
         safetyEl.style.color = '#059669';
-        safetyEl.textContent = '✅ 안전 (최소낙찰률 70% 이하)';
+        safetyEl.textContent = '✅ 안전 (최소낙찰가율 70% 이하)';
     } else if (minBidRate <= 80) {
         safetyEl.style.color = '#D97706';
-        safetyEl.textContent = '⚠️ 주의 (최소낙찰률 70~80%)';
+        safetyEl.textContent = '⚠️ 주의 (최소낙찰가율 70~80%)';
     } else {
         safetyEl.style.color = '#DC2626';
-        safetyEl.textContent = '🔴 위험 (최소낙찰률 80% 초과)';
+        safetyEl.textContent = '🔴 위험 (최소낙찰가율 80% 초과)';
     }
 
 }
