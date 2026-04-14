@@ -239,7 +239,7 @@
 
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">최소낙찰가율</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">채권최고액기준계산</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
@@ -509,84 +509,69 @@
                 <!-- ====================================================== -->
 
                 <!-- ====================================================== -->
-                <!-- 최소낙찰가율 계산기 탭 -->
+                <!-- 채권최고액기준계산 탭 -->
                 <!-- ====================================================== -->
                 <div class="tab-pane fade show active" id="min-bid-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
                     <div style="font-size: 13px;">
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">담보가치 (만원)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_collateral" placeholder="담보가치" oninput="fmtComma(this); calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">대출원금 (만원)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_principal" placeholder="대출원금" oninput="fmtComma(this); bid_clearLtv(); calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #7C3AED; font-weight: 600;">최소낙찰가율 LTV (%)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_ltv" placeholder="LTV 입력 시 원금 역산" oninput="bid_clearPrincipal(); calcMinBidRate()" style="border-color: #DDD6FE;">
+                                <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채권최고액 비율 (%)" value="130" oninput="calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">채권최고액 비율 (%)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_maxamt_ratio" placeholder="150" value="150" oninput="calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_deduction" placeholder="방공제 (만원)" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체금리 (%)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_overdue_rate" placeholder="연체금리" oninput="calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_overdue_rate" placeholder="연체금리 (%)" oninput="calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체기간 (개월)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_overdue_months" placeholder="개월" oninput="calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_overdue_months" placeholder="연체기간 (개월)" oninput="calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">경매비용 비율 (기본 1.5%)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_auction_cost_rate" placeholder="없으면 0" oninput="calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_senior" placeholder="선순위 채권최고액 합계" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 채권최고액 합계 (만원)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_senior_maxamt" placeholder="없으면 0" oninput="fmtComma(this); calcMinBidRate()">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 전세보증금 합계 (만원)</label>
-                                <input type="text" class="form-control form-control-sm" id="bid_senior_lease" placeholder="없으면 0" oninput="fmtComma(this); calcMinBidRate()">
+                                <input type="text" class="form-control form-control-sm" id="cb_senior_lease" placeholder="선순위 전세보증금 합계" oninput="fmtComma(this); calcCB()">
                             </div>
                         </div>
 
                         <!-- 결과 -->
-                        <div id="min-bid-result" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
+                        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
+                                <div class="col-6">KB시세 × LTV</div>
+                                <div class="col-6 text-end" id="cb_r_ltv_amount">-</div>
+                                <div class="col-6">방공제</div>
+                                <div class="col-6 text-end" id="cb_r_deduction">-</div>
+                                <div class="col-6">선순위 배당 합계</div>
+                                <div class="col-6 text-end" id="cb_r_senior">-</div>
+                                <div class="col-6">채권최고액 설정 가능 한도</div>
+                                <div class="col-6 text-end" id="cb_r_maxamt_limit">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">채권최고액 설정액</div>
+                                <div class="col-6 text-end" id="cb_r_maxamt" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
+                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">대출 가능 원금</div>
+                                <div class="col-6 text-end" id="cb_r_principal" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6">연체이자</div>
+                                <div class="col-6 text-end" id="cb_r_interest">-</div>
                                 <div class="col-6">실제 청구액 (원금+연체이자)</div>
-                                <div class="col-6 text-end" id="bid_result_claim">-</div>
-                                <div class="col-6">채권최고액 한도</div>
-                                <div class="col-6 text-end" id="bid_result_maxamt">-</div>
-                                <div class="col-6">당사 배당액 (채권최고액 기준)</div>
-                                <div class="col-6 text-end fw-bold" id="bid_result_dividend">-</div>
-                                <div class="col-6">경매비용</div>
-                                <div class="col-6 text-end" id="bid_result_auctioncost">-</div>
-                                <div class="col-6" id="bid_result_senior_label" style="display:none;">선순위 채권최고액</div>
-                                <div class="col-6 text-end" id="bid_result_senior" style="display:none;">-</div>
-                                <div class="col-12" id="bid_result_cap_note" style="display:none; color:#DC2626; font-size:11px;">⚠ 실제 청구액이 채권최고액을 초과하여 한도 적용됨</div>
+                                <div class="col-6 text-end" id="cb_r_actual_claim">-</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6">최소 낙찰금액</div>
-                                <div class="col-6 text-end fw-bold" id="bid_result_total">-</div>
-                                <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">최소 낙찰가율</div>
-                                <div class="col-6 text-end" id="bid_result_rate" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
-                                <div class="col-12 mt-1" id="bid_result_safety" style="text-align: center; font-weight: 600; font-size: 12px;"></div>
-                                <div id="bid_rev_row" style="display:none; width:100%; margin-top:6px; background:#F5F3FF; border:1px solid #DDD6FE; border-radius:6px; padding:8px;">
-                                    <div class="row g-1">
-                                        <div class="col-6" style="color:#7C3AED; font-weight:600;">역산 대출원금</div>
-                                        <div class="col-6 text-end" id="bid_rev_principal" style="color:#7C3AED; font-weight:800; font-size:15px;">-</div>
-                                        <div class="col-6" style="font-size:11px; color:#94A3B8;">채권최고액</div>
-                                        <div class="col-6 text-end" id="bid_rev_maxamt" style="font-size:11px; color:#94A3B8;">-</div>
-                                    </div>
-                                </div>
+                                <div class="col-6" style="color:#166534;">일반방식 원금 (LTV 직접)</div>
+                                <div class="col-6 text-end" id="cb_r_normal_principal" style="color:#166534;">-</div>
+                                <div class="col-6" style="color:#DC2626;">차이 (일반 - 채권최고액)</div>
+                                <div class="col-6 text-end" id="cb_r_diff" style="color:#DC2626; font-weight:700;">-</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- ====================================================== -->
-                <!-- 최소낙찰가율 계산기 탭 끝 -->
+                <!-- 채권최고액기준계산 탭 끝 -->
                 <!-- ====================================================== -->
 
             </div>                
@@ -1495,123 +1480,53 @@ function fmtComma(el) {
     if (raw !== '' && !isNaN(raw)) el.value = parseInt(raw).toLocaleString();
 }
 
-function bid_clearLtv() {
-    document.getElementById('bid_ltv').value = '';
-    document.getElementById('bid_rev_row').style.display = 'none';
-}
-
-function bid_clearPrincipal() {
-    document.getElementById('bid_principal').value = '';
-}
-
-function calcMinBidRate() {
-    const collateral = parseFloat(document.getElementById('bid_collateral').value.replace(/,/g, '')) || 0;
-    const maxAmtRatio = parseFloat(document.getElementById('bid_maxamt_ratio').value) || 150;
-    const overdueRate = parseFloat(document.getElementById('bid_overdue_rate').value) || 0;
-    const overdueMonths = parseFloat(document.getElementById('bid_overdue_months').value) || 0;
-    const auctionCostRateRaw = document.getElementById('bid_auction_cost_rate').value.trim();
-    const auctionCostRate = parseFloat(auctionCostRateRaw) || 0;
-    const seniorMaxAmt = parseFloat(document.getElementById('bid_senior_maxamt').value.replace(/,/g, '')) || 0;
-    const seniorLease = parseFloat(document.getElementById('bid_senior_lease').value.replace(/,/g, '')) || 0;
-    const seniorTotal = seniorMaxAmt + seniorLease;
-    const auctionCost = collateral * (auctionCostRate / 100);
+function calcCB() {
+    const pv = id => parseFloat(document.getElementById(id).value.replace(/,/g, '')) || 0;
     const fmt = n => Math.floor(n).toLocaleString() + '만원';
 
-    // LTV 역산 모드
-    const ltvInput = parseFloat(document.getElementById('bid_ltv').value) || 0;
-    if (collateral > 0 && ltvInput > 0) {
-        // 역산: 원금 = (담보가치 × LTV% - 경매비용 - 선순위) ÷ 채권최고액비율%
-        const totalNeededRev = collateral * (ltvInput / 100);
-        const maxAmtRev = totalNeededRev - auctionCost - seniorTotal;
-        const principalRev = maxAmtRev / (maxAmtRatio / 100);
+    const kbPrice = pv('cb_kb_price');
+    const ltv = pv('cb_ltv') || 70;
+    const maxAmtRatio = pv('cb_maxamt_ratio') || 130;
+    const deduction = pv('cb_deduction');
+    const overdueRate = pv('cb_overdue_rate');
+    const overdueMonths = pv('cb_overdue_months');
+    const senior = pv('cb_senior');
+    const seniorLease = pv('cb_senior_lease');
 
-        document.getElementById('bid_rev_principal').textContent = fmt(principalRev);
-        document.getElementById('bid_rev_maxamt').textContent = fmt(maxAmtRev);
-        document.getElementById('bid_rev_row').style.display = '';
+    if (kbPrice <= 0) return;
 
-        // 정방향 계산도 역산된 원금으로 표시
-        const interest = principalRev * (overdueRate / 100) * (overdueMonths / 12);
-        const actualClaim = principalRev + interest;
-        document.getElementById('bid_result_claim').textContent = fmt(actualClaim);
-        document.getElementById('bid_result_maxamt').textContent = fmt(maxAmtRev);
-        document.getElementById('bid_result_dividend').textContent = fmt(maxAmtRev);
-        document.getElementById('bid_result_auctioncost').textContent = fmt(auctionCost);
-        const seniorLabelEl = document.getElementById('bid_result_senior_label');
-        const seniorEl = document.getElementById('bid_result_senior');
-        if (seniorTotal > 0) { seniorLabelEl.style.display = ''; seniorEl.style.display = ''; seniorEl.textContent = fmt(seniorTotal); }
-        else { seniorLabelEl.style.display = 'none'; seniorEl.style.display = 'none'; }
-        document.getElementById('bid_result_total').textContent = fmt(totalNeededRev);
-        document.getElementById('bid_result_rate').textContent = ltvInput.toFixed(1) + '%';
-        const safetyEl = document.getElementById('bid_result_safety');
-        if (ltvInput <= 70) { safetyEl.style.color = '#059669'; safetyEl.textContent = '✅ 안전 (최소낙찰가율 70% 이하)'; }
-        else if (ltvInput <= 80) { safetyEl.style.color = '#D97706'; safetyEl.textContent = '⚠️ 주의 (최소낙찰가율 70~80%)'; }
-        else { safetyEl.style.color = '#DC2626'; safetyEl.textContent = '🔴 위험 (최소낙찰가율 80% 초과)'; }
-        return;
-    }
-
-    document.getElementById('bid_rev_row').style.display = 'none';
-
-    const principal = parseFloat(document.getElementById('bid_principal').value.replace(/,/g, '')) || 0;
-    if (collateral <= 0 || principal <= 0) {
-        return;
-    }
-
-    // 채권최고액 = 원금 × 비율
-    const maxAmtLimit = principal * (maxAmtRatio / 100);
-
-    // 연체이자 = 원금 × 연체금리 × (개월/12)
-    const interest = principal * (overdueRate / 100) * (overdueMonths / 12);
-
-    // 실제 청구액 = 원금 + 연체이자
+    const ltvAmount = kbPrice * (ltv / 100);
+    const seniorTotal = senior + seniorLease;
+    const maxAmtLimit = ltvAmount - deduction - seniorTotal;
+    const maxAmt = Math.max(0, maxAmtLimit);
+    const principal = Math.floor(maxAmt / (maxAmtRatio / 100));
+    const interest = overdueRate > 0 && overdueMonths > 0
+        ? principal * (overdueRate / 100) * (overdueMonths / 12) : 0;
     const actualClaim = principal + interest;
+    const normalPrincipal = Math.max(0, ltvAmount - deduction - seniorTotal);
+    const diff = normalPrincipal - principal;
 
-    // 당사 배당액 = 채권최고액 기준
-    const dividend = maxAmtLimit;
+    document.getElementById('cb_r_ltv_amount').textContent = fmt(ltvAmount);
+    document.getElementById('cb_r_deduction').textContent = deduction > 0 ? fmt(deduction) : '-';
+    document.getElementById('cb_r_senior').textContent = seniorTotal > 0 ? fmt(seniorTotal) : '-';
+    document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtLimit);
+    document.getElementById('cb_r_maxamt').textContent = fmt(maxAmt);
+    document.getElementById('cb_r_principal').textContent = fmt(principal);
+    document.getElementById('cb_r_interest').textContent = interest > 0 ? fmt(interest) : '-';
 
-    // 최소 낙찰금액 = 채권최고액 + 경매비용 + 선순위
-    const totalNeeded = dividend + auctionCost + seniorTotal;
-
-    // 최소 낙찰가율
-    const minBidRate = (totalNeeded / collateral) * 100;
-
-    document.getElementById('bid_result_claim').textContent = fmt(actualClaim);
-    document.getElementById('bid_result_maxamt').textContent = fmt(maxAmtLimit);
-
-    const dividendEl = document.getElementById('bid_result_dividend');
-    dividendEl.textContent = fmt(dividend);
-    dividendEl.style.color = '';
-
-    document.getElementById('bid_result_auctioncost').textContent = fmt(auctionCost);
-    document.getElementById('bid_result_cap_note').style.display = 'none';
-
-    // 선순위 행 (값 있을 때만 표시)
-    const seniorLabelEl = document.getElementById('bid_result_senior_label');
-    const seniorEl = document.getElementById('bid_result_senior');
-    if (seniorTotal > 0) {
-        seniorLabelEl.style.display = '';
-        seniorEl.style.display = '';
-        seniorEl.textContent = fmt(seniorTotal);
+    const claimEl = document.getElementById('cb_r_actual_claim');
+    if (interest > 0) {
+        claimEl.textContent = actualClaim > maxAmt
+            ? fmt(actualClaim) + ' ⚠ 초과'
+            : fmt(actualClaim);
+        claimEl.style.color = actualClaim > maxAmt ? '#DC2626' : '#1e293b';
     } else {
-        seniorLabelEl.style.display = 'none';
-        seniorEl.style.display = 'none';
+        claimEl.textContent = '-';
+        claimEl.style.color = '';
     }
 
-    document.getElementById('bid_result_total').textContent = fmt(totalNeeded);
-    document.getElementById('bid_result_rate').textContent = minBidRate.toFixed(1) + '%';
-
-    // 안전 여부
-    const safetyEl = document.getElementById('bid_result_safety');
-    if (minBidRate <= 70) {
-        safetyEl.style.color = '#059669';
-        safetyEl.textContent = '✅ 안전 (최소낙찰가율 70% 이하)';
-    } else if (minBidRate <= 80) {
-        safetyEl.style.color = '#D97706';
-        safetyEl.textContent = '⚠️ 주의 (최소낙찰가율 70~80%)';
-    } else {
-        safetyEl.style.color = '#DC2626';
-        safetyEl.textContent = '🔴 위험 (최소낙찰가율 80% 초과)';
-    }
-
+    document.getElementById('cb_r_normal_principal').textContent = fmt(normalPrincipal);
+    document.getElementById('cb_r_diff').textContent = diff > 0 ? '-' + fmt(diff) : '0만원';
 }
 
 </script>
