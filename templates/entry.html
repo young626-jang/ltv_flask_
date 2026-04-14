@@ -238,13 +238,7 @@
             </div>
 
             <div class="d-flex justify-content-between align-items-center mt-3">
-                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">채권최고액기준계산</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
-                </ul>
+                <button type="button" onclick="toggleTabSection()" id="tab-toggle-btn" style="background:none; border:none; padding:0; font-size:13px; color:#64748B; cursor:pointer;">▶ 계산기</button>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="instant-business-operator" value="">
                     <label class="form-check-label" for="instant-business-operator">
@@ -253,7 +247,18 @@
                 </div>
             </div>
 
-            <!-- 즉발사업자 날짜 필드 (체크 시 표시) -->
+            <div id="tab-section-wrapper" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">채권최고액기준계산</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
+                </ul>
+            </div>
+
+            <!-- 즉발사업자 날짜 필드 (체크 시 표시, wrapper 안) -->
             <div id="instant-business-dates" class="mb-2 mt-2" style="display: none; background: #FCE77D; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; position: relative; z-index: 10;">
                 <div class="row g-2">
                     <div class="col-md-4">
@@ -277,7 +282,7 @@
                 </div>
             </div>
 
-            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem;">
+            <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-2 mb-3">
                         <div class="col-12">
@@ -543,8 +548,16 @@
                             </div>
                         </div>
 
-                        <!-- 결과 -->
-                        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
+                        <!-- 결과 요약 (항상 표시) -->
+                        <div id="cb_summary_bar" style="display:none; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:6px 10px; margin-top:4px; cursor:pointer;" onclick="document.getElementById('cb_detail_box').style.display = document.getElementById('cb_detail_box').style.display==='none' ? '' : 'none'; this.querySelector('.cb_toggle_icon').textContent = document.getElementById('cb_detail_box').style.display==='' ? '▲' : '▼';">
+                            <div class="d-flex justify-content-between align-items-center" style="font-size:13px;">
+                                <span style="color:#1e40af; font-weight:700;">대출가능원금 <span id="cb_summary_principal" style="color:#2563EB; font-size:15px; font-weight:800;">-</span> / 채최 <span id="cb_summary_maxamt" style="color:#2563EB;">-</span></span>
+                                <span class="cb_toggle_icon" style="color:#64748B; font-size:11px;">▼ 상세</span>
+                            </div>
+                        </div>
+
+                        <!-- 결과 상세 (접기/펼치기) -->
+                        <div id="cb_detail_box" style="display:none; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
                                 <div class="col-6" id="cb_label_ltv_amount">KB시세 × LTV</div>
                                 <div class="col-6 text-end" id="cb_r_ltv_amount">-</div>
@@ -582,8 +595,9 @@
                 <!-- 채권최고액기준계산 탭 끝 -->
                 <!-- ====================================================== -->
 
-            </div>                
-            
+            </div>
+            </div><!-- /#tab-section-wrapper 끝 -->
+
             <!-- ✅ 공통 대출항목 영역 -->
             <div id="loan-section" class="mt-3" style="background: #DFF6FD; border-radius: 12px; padding: 0.5rem;">
                 <div id="loan-items-container"></div>
@@ -1483,6 +1497,14 @@ function updatePrepayUI(fee, days) {
     document.getElementById('prepay-result-days').innerText = days + '일';
 }
 
+function toggleTabSection() {
+    const wrapper = document.getElementById('tab-section-wrapper');
+    const btn = document.getElementById('tab-toggle-btn');
+    const isHidden = wrapper.style.display === 'none';
+    wrapper.style.display = isHidden ? '' : 'none';
+    btn.textContent = isHidden ? '▼ 계산기' : '▶ 계산기';
+}
+
 function fmtComma(el) {
     const raw = el.value.replace(/,/g, '');
     if (raw !== '' && !isNaN(raw)) el.value = parseInt(raw).toLocaleString();
@@ -1521,6 +1543,9 @@ function calcCB() {
         document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtFromPrincipal + seniorTotal);
         document.getElementById('cb_r_maxamt').textContent = fmt(maxAmtFromPrincipal);
         document.getElementById('cb_r_principal').textContent = fmt(principalInput);
+        document.getElementById('cb_summary_principal').textContent = fmt(principalInput);
+        document.getElementById('cb_summary_maxamt').textContent = fmt(maxAmtFromPrincipal);
+        document.getElementById('cb_summary_bar').style.display = '';
 
         const overdueRate = pv('cb_overdue_rate');
         const overdueMonths = pv('cb_overdue_months');
@@ -1582,6 +1607,9 @@ function calcCB() {
     document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtLimit);
     document.getElementById('cb_r_maxamt').textContent = fmt(maxAmt);
     document.getElementById('cb_r_principal').textContent = fmt(principal);
+    document.getElementById('cb_summary_principal').textContent = fmt(principal);
+    document.getElementById('cb_summary_maxamt').textContent = fmt(maxAmt);
+    document.getElementById('cb_summary_bar').style.display = '';
     document.getElementById('cb_r_interest').textContent = interest > 0 ? fmt(interest) : '-';
 
     const claimEl = document.getElementById('cb_r_actual_claim');
