@@ -739,8 +739,8 @@ def extract_last_transfer_info(text):
         
         gap_gu_text = gap_gu_match.group(1)
 
-        # 2. 모든 소유권 이전 내역 찾기 (따옴표 " 가 있어도 없어도 찾을 수 있도록 수정)
-        # 패턴 설명: 순위번호, 소유권 이전, 접수일자를 순서대로 탐색
+        # 2. 소유권이전 + 소유권보존 모두 찾기
+        # 패턴 1: 쉼표 구분 형식 (소유권이전)
         pattern = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*이전["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
         all_transfers = re.findall(pattern, gap_gu_text)
 
@@ -748,6 +748,15 @@ def extract_last_transfer_info(text):
             # 패턴 2: 쉼표 없이 공백으로 구분된 경우를 위한 예비 패턴
             pattern2 = r'(\d+)\s+소유권\s*이전\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
             all_transfers = re.findall(pattern2, gap_gu_text)
+
+        # 소유권이전이 없으면 소유권보존 날짜 탐색 (신축 분양 등)
+        if not all_transfers:
+            pattern3 = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*보존["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            all_transfers = re.findall(pattern3, gap_gu_text)
+
+        if not all_transfers:
+            pattern4 = r'(\d+)\s+소유권\s*보존\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            all_transfers = re.findall(pattern4, gap_gu_text)
 
         if not all_transfers:
             return result
