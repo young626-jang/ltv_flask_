@@ -556,7 +556,7 @@
                                 <div class="col-6 text-end" id="bid_result_claim">-</div>
                                 <div class="col-6">채권최고액 한도</div>
                                 <div class="col-6 text-end" id="bid_result_maxamt">-</div>
-                                <div class="col-6">당사 배당액 (청구액 vs 한도 중 작은 값)</div>
+                                <div class="col-6">당사 배당액 (채권최고액 기준)</div>
                                 <div class="col-6 text-end fw-bold" id="bid_result_dividend">-</div>
                                 <div class="col-6">경매비용</div>
                                 <div class="col-6 text-end" id="bid_result_auctioncost">-</div>
@@ -597,10 +597,6 @@
                                 <input type="text" class="form-control form-control-sm" id="ml_maxamt_ratio" placeholder="130" value="130" oninput="calcMaxAmtLimit()">
                             </div>
                             <div class="col-6">
-                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">방공제 (만원)</label>
-                                <input type="text" class="form-control form-control-sm" id="ml_deduction" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
-                            </div>
-                            <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 채권최고액 합계 (만원)</label>
                                 <input type="text" class="form-control form-control-sm" id="ml_senior" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
                             </div>
@@ -623,21 +619,18 @@
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
                                 <div class="col-6">KB시세 × LTV</div>
                                 <div class="col-6 text-end" id="ml_result_ltv_amount">-</div>
-                                <div class="col-6">방공제 + 선순위</div>
+                                <div class="col-6">선순위 합계</div>
                                 <div class="col-6 text-end" id="ml_result_deduct_total">-</div>
                                 <div class="col-6">채권최고액 설정 한도</div>
                                 <div class="col-6 text-end fw-bold" id="ml_result_maxamt_limit">-</div>
-                                <div class="col-6">대출 원금</div>
-                                <div class="col-6 text-end" id="ml_result_principal_info">-</div>
-                                <div id="ml_overdue_rows" style="display:contents;">
+                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">대출 가능 원금</div>
+                                <div class="col-6 text-end" id="ml_result_principal" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
+                                <div id="ml_overdue_rows" style="display:none;">
                                     <div class="col-6" id="ml_overdue_label">연체이자</div>
                                     <div class="col-6 text-end" id="ml_result_interest">-</div>
                                     <div class="col-6">실제 청구액</div>
                                     <div class="col-6 text-end" id="ml_result_claim">-</div>
                                 </div>
-                                <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">대출 가능 원금</div>
-                                <div class="col-6 text-end" id="ml_result_principal" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
                                 <div class="col-6" style="color: #64748B;">일반 방식 원금</div>
                                 <div class="col-6 text-end" id="ml_result_normal" style="color: #64748B;">-</div>
@@ -1577,7 +1570,7 @@ function calcMinBidRate() {
         return;
     }
 
-    // 채권최고액 한도 = 원금 × 비율
+    // 채권최고액 = 원금 × 비율
     const maxAmtLimit = principal * (maxAmtRatio / 100);
 
     // 연체이자 = 원금 × 연체금리 × (개월/12)
@@ -1586,9 +1579,8 @@ function calcMinBidRate() {
     // 실제 청구액 = 원금 + 연체이자
     const actualClaim = principal + interest;
 
-    // 당사 배당액 = 실제 청구액 vs 채권최고액 한도 중 작은 값
-    const dividend = Math.min(actualClaim, maxAmtLimit);
-    const isCapped = actualClaim > maxAmtLimit;
+    // 당사 배당액 = 채권최고액 기준
+    const dividend = maxAmtLimit;
 
     // 경매비용 = 담보가치 × 경매비용 비율
     const auctionCost = collateral * (auctionCostRate / 100);
@@ -1596,7 +1588,7 @@ function calcMinBidRate() {
     // 선순위 배당 합계
     const seniorTotal = seniorMaxAmt + seniorLease;
 
-    // 최소 낙찰금액 = 배당액 + 경매비용 + 선순위
+    // 최소 낙찰금액 = 채권최고액 + 경매비용 + 선순위
     const totalNeeded = dividend + auctionCost + seniorTotal;
 
     // 최소 낙찰가율
@@ -1609,10 +1601,10 @@ function calcMinBidRate() {
 
     const dividendEl = document.getElementById('bid_result_dividend');
     dividendEl.textContent = fmt(dividend);
-    dividendEl.style.color = isCapped ? '#DC2626' : '';
+    dividendEl.style.color = '';
 
     document.getElementById('bid_result_auctioncost').textContent = fmt(auctionCost);
-    document.getElementById('bid_result_cap_note').style.display = isCapped ? '' : 'none';
+    document.getElementById('bid_result_cap_note').style.display = 'none';
 
     // 선순위 행 (값 있을 때만 표시)
     const seniorLabelEl = document.getElementById('bid_result_senior_label');
@@ -1648,7 +1640,6 @@ function calcMaxAmtLimit() {
     const kbPrice = parseFloat(document.getElementById('ml_kb_price').value.replace(/,/g, '')) || 0;
     const ltv = parseFloat(document.getElementById('ml_ltv').value) || 70;
     const maxAmtRatio = parseFloat(document.getElementById('ml_maxamt_ratio').value) || 130;
-    const deduction = parseFloat(document.getElementById('ml_deduction').value.replace(/,/g, '')) || 0;
     const senior = parseFloat(document.getElementById('ml_senior').value.replace(/,/g, '')) || 0;
     const seniorLease = parseFloat(document.getElementById('ml_senior_lease').value.replace(/,/g, '')) || 0;
     const overdueRate = parseFloat(document.getElementById('ml_overdue_rate').value) || 0;
@@ -1661,21 +1652,17 @@ function calcMaxAmtLimit() {
     // KB시세 × LTV
     const ltvAmount = kbPrice * (ltv / 100);
 
-    // 방공제 + 선순위 합계
-    const deductTotal = deduction + senior + seniorLease;
+    // 선순위 합계
+    const deductTotal = senior + seniorLease;
 
     // 채권최고액 설정 한도
-    const maxAmtLimit = Math.max(0, ltvAmount - deductTotal);
+    const maxAmtLimit = ltvAmount - deductTotal;
 
     // 대출 가능 원금 = 채권최고액 ÷ 비율
     const principal = Math.floor(maxAmtLimit / (maxAmtRatio / 100));
 
-    // 연체이자 / 실제 청구액
-    const interest = principal * (overdueRate / 100) * (overdueMonths / 12);
-    const actualClaim = principal + interest;
-
     // 일반 방식 원금
-    const normalPrincipal = Math.max(0, ltvAmount - deductTotal);
+    const normalPrincipal = ltvAmount - deductTotal;
 
     // 차이
     const diff = normalPrincipal - principal;
@@ -1683,10 +1670,13 @@ function calcMaxAmtLimit() {
     document.getElementById('ml_result_ltv_amount').textContent = fmt(ltvAmount);
     document.getElementById('ml_result_deduct_total').textContent = deductTotal > 0 ? fmt(deductTotal) : '-';
     document.getElementById('ml_result_maxamt_limit').textContent = fmt(maxAmtLimit);
-    document.getElementById('ml_result_principal_info').textContent = fmt(principal);
     document.getElementById('ml_result_principal').textContent = fmt(principal);
     document.getElementById('ml_result_normal').textContent = fmt(normalPrincipal);
     document.getElementById('ml_result_diff').textContent = diff > 0 ? '-' + fmt(diff) : '0만원';
+
+    // 연체이자 / 실제 청구액
+    const interest = principal * (overdueRate / 100) * (overdueMonths / 12);
+    const actualClaim = principal + interest;
 
     // 연체이자 행 표시
     const overdueRows = document.getElementById('ml_overdue_rows');
