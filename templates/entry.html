@@ -524,9 +524,6 @@
                                 <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채권최고액 비율 (%)" value="130" oninput="calcCB()">
                             </div>
                             <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_deduction" placeholder="방공제 (만원)" oninput="fmtComma(this); calcCB()">
-                            </div>
-                            <div class="col-6">
                                 <input type="text" class="form-control form-control-sm" id="cb_overdue_rate" placeholder="연체금리 (%)" oninput="calcCB()">
                             </div>
                             <div class="col-6">
@@ -538,6 +535,9 @@
                             <div class="col-6">
                                 <input type="text" class="form-control form-control-sm" id="cb_senior_lease" placeholder="선순위 전세보증금 합계" oninput="fmtComma(this); calcCB()">
                             </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control form-control-sm" id="cb_auction_cost_rate" placeholder="경매비용 비율 (%)" oninput="calcCB()">
+                            </div>
                         </div>
 
                         <!-- 결과 -->
@@ -545,8 +545,6 @@
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
                                 <div class="col-6">KB시세 × LTV</div>
                                 <div class="col-6 text-end" id="cb_r_ltv_amount">-</div>
-                                <div class="col-6">방공제</div>
-                                <div class="col-6 text-end" id="cb_r_deduction">-</div>
                                 <div class="col-6">선순위 배당 합계</div>
                                 <div class="col-6 text-end" id="cb_r_senior">-</div>
                                 <div class="col-6">채권최고액 설정 가능 한도</div>
@@ -566,6 +564,13 @@
                                 <div class="col-6 text-end" id="cb_r_normal_principal" style="color:#166534;">-</div>
                                 <div class="col-6" style="color:#DC2626;">차이 (일반 - 채권최고액)</div>
                                 <div class="col-6 text-end" id="cb_r_diff" style="color:#DC2626; font-weight:700;">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6">경매비용</div>
+                                <div class="col-6 text-end" id="cb_r_auction_cost">-</div>
+                                <div class="col-6">최소 낙찰금액</div>
+                                <div class="col-6 text-end fw-bold" id="cb_r_min_bid_amount">-</div>
+                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">최소 낙찰가율</div>
+                                <div class="col-6 text-end" id="cb_r_min_bid_rate" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
                             </div>
                         </div>
                     </div>
@@ -1487,27 +1492,31 @@ function calcCB() {
     const kbPrice = pv('cb_kb_price');
     const ltv = pv('cb_ltv') || 70;
     const maxAmtRatio = pv('cb_maxamt_ratio') || 130;
-    const deduction = pv('cb_deduction');
     const overdueRate = pv('cb_overdue_rate');
     const overdueMonths = pv('cb_overdue_months');
     const senior = pv('cb_senior');
     const seniorLease = pv('cb_senior_lease');
+    const auctionCostRate = pv('cb_auction_cost_rate');
 
     if (kbPrice <= 0) return;
 
     const ltvAmount = kbPrice * (ltv / 100);
     const seniorTotal = senior + seniorLease;
-    const maxAmtLimit = ltvAmount - deduction - seniorTotal;
+    const maxAmtLimit = ltvAmount - seniorTotal;
     const maxAmt = Math.max(0, maxAmtLimit);
     const principal = Math.floor(maxAmt / (maxAmtRatio / 100));
     const interest = overdueRate > 0 && overdueMonths > 0
         ? principal * (overdueRate / 100) * (overdueMonths / 12) : 0;
     const actualClaim = principal + interest;
-    const normalPrincipal = Math.max(0, ltvAmount - deduction - seniorTotal);
+    const normalPrincipal = Math.max(0, ltvAmount - seniorTotal);
     const diff = normalPrincipal - principal;
 
+    // 최소낙찰가율
+    const auctionCost = kbPrice * (auctionCostRate / 100);
+    const minBidAmount = maxAmt + auctionCost + seniorTotal;
+    const minBidRate = kbPrice > 0 ? (minBidAmount / kbPrice) * 100 : 0;
+
     document.getElementById('cb_r_ltv_amount').textContent = fmt(ltvAmount);
-    document.getElementById('cb_r_deduction').textContent = deduction > 0 ? fmt(deduction) : '-';
     document.getElementById('cb_r_senior').textContent = seniorTotal > 0 ? fmt(seniorTotal) : '-';
     document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtLimit);
     document.getElementById('cb_r_maxamt').textContent = fmt(maxAmt);
@@ -1527,6 +1536,18 @@ function calcCB() {
 
     document.getElementById('cb_r_normal_principal').textContent = fmt(normalPrincipal);
     document.getElementById('cb_r_diff').textContent = diff > 0 ? '-' + fmt(diff) : '0만원';
+
+    // 경매 관련 결과
+    document.getElementById('cb_r_auction_cost').textContent = auctionCostRate > 0 ? fmt(auctionCost) : '-';
+    document.getElementById('cb_r_min_bid_amount').textContent = auctionCostRate > 0 ? fmt(minBidAmount) : '-';
+    const rateEl = document.getElementById('cb_r_min_bid_rate');
+    if (auctionCostRate > 0) {
+        rateEl.textContent = minBidRate.toFixed(1) + '%';
+        rateEl.style.color = minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626';
+    } else {
+        rateEl.textContent = '-';
+        rateEl.style.color = '#2563EB';
+    }
 }
 
 </script>
