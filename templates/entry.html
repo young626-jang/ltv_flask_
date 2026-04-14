@@ -239,8 +239,7 @@
 
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
                     <li class="nav-item" role="presentation">
@@ -292,15 +291,7 @@
             </div>
 
             <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem;">
-                <div class="tab-pane fade show active" id="fee-tab-pane" role="tabpanel">
-                    <div class="row g-2">
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="컨설팅(만)"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="(%)"></div>
-                        <div class="col"><input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="브릿지(만)"></div>
-                        <div class="col"><input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="(%)"></div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
+                <div class="tab-pane fade show active" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-2 mb-3">
                         <div class="col-12">
                             <div class="d-flex gap-3">
@@ -629,6 +620,14 @@
                                 <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 전세보증금 합계 (만원)</label>
                                 <input type="text" class="form-control form-control-sm" id="ml_senior_lease" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
                             </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체금리 (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_overdue_rate" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">연체기간 (개월)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_overdue_months" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
+                            </div>
                         </div>
 
                         <!-- 결과 -->
@@ -640,6 +639,14 @@
                                 <div class="col-6 text-end" id="ml_result_deduct_total">-</div>
                                 <div class="col-6">채권최고액 설정 한도</div>
                                 <div class="col-6 text-end fw-bold" id="ml_result_maxamt_limit">-</div>
+                                <div class="col-6">대출 원금</div>
+                                <div class="col-6 text-end" id="ml_result_principal_info">-</div>
+                                <div id="ml_overdue_rows" style="display:contents;">
+                                    <div class="col-6" id="ml_overdue_label">연체이자</div>
+                                    <div class="col-6 text-end" id="ml_result_interest">-</div>
+                                    <div class="col-6">실제 청구액</div>
+                                    <div class="col-6 text-end" id="ml_result_claim">-</div>
+                                </div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
                                 <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">대출 가능 원금</div>
                                 <div class="col-6 text-end" id="ml_result_principal" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
@@ -649,6 +656,18 @@
                                 <div class="col-6" style="color: #DC2626;">차이 (일반 - 채권최고액)</div>
                                 <div class="col-6 text-end" id="ml_result_diff" style="color: #DC2626; font-weight: 600;">-</div>
                             </div>
+                        </div>
+
+                        <!-- 채권최고액 초과 경고 -->
+                        <div id="ml_exceed_box" style="display:none; background:#FEE2E2; border:1px solid #FECACA; border-radius:8px; padding:10px; margin-top:8px; font-size:12px; color:#991B1B; line-height:1.7;">
+                            <strong style="color:#DC2626;">⚠ 채권최고액 초과</strong><br>
+                            실제 청구액 <strong id="ml_claim_val">-</strong>이 채권최고액 <strong id="ml_maxamt_val">-</strong>을 초과합니다.<br>
+                            초과액 <strong id="ml_exceed_val">-</strong>은 회수 불가 → 채권최고액 비율을 <strong id="ml_suggest_ratio">-</strong> 이상으로 높이세요.
+                        </div>
+
+                        <!-- 채권최고액 충분 안내 -->
+                        <div id="ml_ok_box" style="display:none; background:#DCFCE7; border:1px solid #BBF7D0; border-radius:8px; padding:10px; margin-top:8px; font-size:12px; color:#166534;">
+                            <strong style="color:#15803D;">✅ 채권최고액 충분</strong> — 실제 청구액이 채권최고액 이내입니다.
                         </div>
                     </div>
                 </div>
@@ -1644,6 +1663,8 @@ function calcMaxAmtLimit() {
     const deduction = parseFloat(document.getElementById('ml_deduction').value.replace(/,/g, '')) || 0;
     const senior = parseFloat(document.getElementById('ml_senior').value.replace(/,/g, '')) || 0;
     const seniorLease = parseFloat(document.getElementById('ml_senior_lease').value.replace(/,/g, '')) || 0;
+    const overdueRate = parseFloat(document.getElementById('ml_overdue_rate').value) || 0;
+    const overdueMonths = parseFloat(document.getElementById('ml_overdue_months').value) || 0;
 
     if (kbPrice <= 0) return;
 
@@ -1661,6 +1682,10 @@ function calcMaxAmtLimit() {
     // 대출 가능 원금 = 채권최고액 ÷ 비율
     const principal = Math.floor(maxAmtLimit / (maxAmtRatio / 100));
 
+    // 연체이자 / 실제 청구액
+    const interest = principal * (overdueRate / 100) * (overdueMonths / 12);
+    const actualClaim = principal + interest;
+
     // 일반 방식 원금
     const normalPrincipal = Math.max(0, ltvAmount - deductTotal);
 
@@ -1670,9 +1695,40 @@ function calcMaxAmtLimit() {
     document.getElementById('ml_result_ltv_amount').textContent = fmt(ltvAmount);
     document.getElementById('ml_result_deduct_total').textContent = deductTotal > 0 ? fmt(deductTotal) : '-';
     document.getElementById('ml_result_maxamt_limit').textContent = fmt(maxAmtLimit);
+    document.getElementById('ml_result_principal_info').textContent = fmt(principal);
     document.getElementById('ml_result_principal').textContent = fmt(principal);
     document.getElementById('ml_result_normal').textContent = fmt(normalPrincipal);
     document.getElementById('ml_result_diff').textContent = diff > 0 ? '-' + fmt(diff) : '0만원';
+
+    // 연체이자 행 표시
+    const overdueRows = document.getElementById('ml_overdue_rows');
+    const exceedBox = document.getElementById('ml_exceed_box');
+    const okBox = document.getElementById('ml_ok_box');
+
+    if (overdueRate > 0 && overdueMonths > 0) {
+        overdueRows.style.display = 'contents';
+        document.getElementById('ml_overdue_label').textContent = '연체이자 (' + overdueRate + '% × ' + overdueMonths + '개월)';
+        document.getElementById('ml_result_interest').textContent = fmt(interest);
+        document.getElementById('ml_result_claim').textContent = fmt(actualClaim);
+
+        if (actualClaim > maxAmtLimit) {
+            exceedBox.style.display = '';
+            okBox.style.display = 'none';
+            const exceed = actualClaim - maxAmtLimit;
+            const suggestRatio = Math.ceil(actualClaim / principal * 100);
+            document.getElementById('ml_claim_val').textContent = fmt(actualClaim);
+            document.getElementById('ml_maxamt_val').textContent = fmt(maxAmtLimit);
+            document.getElementById('ml_exceed_val').textContent = fmt(exceed);
+            document.getElementById('ml_suggest_ratio').textContent = suggestRatio + '%';
+        } else {
+            exceedBox.style.display = 'none';
+            okBox.style.display = '';
+        }
+    } else {
+        overdueRows.style.display = 'none';
+        exceedBox.style.display = 'none';
+        okBox.style.display = 'none';
+    }
 }
 </script>
 
