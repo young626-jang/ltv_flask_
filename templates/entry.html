@@ -253,6 +253,11 @@
                         최소낙찰가율
                       </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="maxamt-limit-tab" data-bs-toggle="tab" data-bs-target="#maxamt-limit-tab-pane" type="button" role="tab">
+                        채권최고액기준한도
+                      </button>
+                    </li>
                 </ul>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="instant-business-operator" value="">
@@ -592,6 +597,63 @@
                 </div>
                 <!-- ====================================================== -->
                 <!-- 최소낙찰가율 계산기 탭 끝 -->
+                <!-- ====================================================== -->
+
+                <!-- ====================================================== -->
+                <!-- 채권최고액기준한도 계산기 탭 -->
+                <!-- ====================================================== -->
+                <div class="tab-pane fade" id="maxamt-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
+                    <div style="font-size: 13px;">
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">KB시세 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_kb_price" placeholder="KB시세" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">LTV (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_ltv" placeholder="70" value="70" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">채권최고액 비율 (%)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_maxamt_ratio" placeholder="130" value="130" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">방공제 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_deduction" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 채권최고액 합계 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_senior" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 12px; color: #475569;">선순위 전세보증금 합계 (만원)</label>
+                                <input type="text" class="form-control form-control-sm" id="ml_senior_lease" placeholder="없으면 0" oninput="calcMaxAmtLimit()">
+                            </div>
+                        </div>
+
+                        <!-- 결과 -->
+                        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
+                            <div class="row g-1" style="font-size: 12px; color: #475569;">
+                                <div class="col-6">KB시세 × LTV</div>
+                                <div class="col-6 text-end" id="ml_result_ltv_amount">-</div>
+                                <div class="col-6">방공제 + 선순위</div>
+                                <div class="col-6 text-end" id="ml_result_deduct_total">-</div>
+                                <div class="col-6">채권최고액 설정 한도</div>
+                                <div class="col-6 text-end fw-bold" id="ml_result_maxamt_limit">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6" style="font-size: 13px; color: #1e293b; font-weight: 700;">대출 가능 원금</div>
+                                <div class="col-6 text-end" id="ml_result_principal" style="font-size: 15px; font-weight: 700; color: #2563EB;">-</div>
+                                <div class="col-12"><hr style="margin: 4px 0;"></div>
+                                <div class="col-6" style="color: #64748B;">일반 방식 원금</div>
+                                <div class="col-6 text-end" id="ml_result_normal" style="color: #64748B;">-</div>
+                                <div class="col-6" style="color: #DC2626;">차이 (일반 - 채권최고액)</div>
+                                <div class="col-6 text-end" id="ml_result_diff" style="color: #DC2626; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- ====================================================== -->
+                <!-- 채권최고액기준한도 계산기 탭 끝 -->
                 <!-- ====================================================== -->
             </div>                
             
@@ -1573,6 +1635,44 @@ function calcMinBidRate() {
         safetyEl.textContent = '🔴 위험 (최소낙찰가율 80% 초과)';
     }
 
+}
+
+function calcMaxAmtLimit() {
+    const kbPrice = parseFloat(document.getElementById('ml_kb_price').value.replace(/,/g, '')) || 0;
+    const ltv = parseFloat(document.getElementById('ml_ltv').value) || 70;
+    const maxAmtRatio = parseFloat(document.getElementById('ml_maxamt_ratio').value) || 130;
+    const deduction = parseFloat(document.getElementById('ml_deduction').value.replace(/,/g, '')) || 0;
+    const senior = parseFloat(document.getElementById('ml_senior').value.replace(/,/g, '')) || 0;
+    const seniorLease = parseFloat(document.getElementById('ml_senior_lease').value.replace(/,/g, '')) || 0;
+
+    if (kbPrice <= 0) return;
+
+    const fmt = n => Math.floor(n).toLocaleString() + '만원';
+
+    // KB시세 × LTV
+    const ltvAmount = kbPrice * (ltv / 100);
+
+    // 방공제 + 선순위 합계
+    const deductTotal = deduction + senior + seniorLease;
+
+    // 채권최고액 설정 한도
+    const maxAmtLimit = Math.max(0, ltvAmount - deductTotal);
+
+    // 대출 가능 원금 = 채권최고액 ÷ 비율
+    const principal = Math.floor(maxAmtLimit / (maxAmtRatio / 100));
+
+    // 일반 방식 원금
+    const normalPrincipal = Math.max(0, ltvAmount - deductTotal);
+
+    // 차이
+    const diff = normalPrincipal - principal;
+
+    document.getElementById('ml_result_ltv_amount').textContent = fmt(ltvAmount);
+    document.getElementById('ml_result_deduct_total').textContent = deductTotal > 0 ? fmt(deductTotal) : '-';
+    document.getElementById('ml_result_maxamt_limit').textContent = fmt(maxAmtLimit);
+    document.getElementById('ml_result_principal').textContent = fmt(principal);
+    document.getElementById('ml_result_normal').textContent = fmt(normalPrincipal);
+    document.getElementById('ml_result_diff').textContent = diff > 0 ? '-' + fmt(diff) : '0만원';
 }
 </script>
 
