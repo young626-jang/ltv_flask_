@@ -239,24 +239,12 @@
 
             <div class="d-flex justify-content-between align-items-center mt-3">
                 <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="maxamt-limit-tab" data-bs-toggle="tab" data-bs-target="#maxamt-limit-tab-pane" type="button" role="tab">채권최고액기준한도</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">최소낙찰가율</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
-                    <li class="nav-item" role="presentation">
-                      <button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">
-                        지분 한도 계산기
-                      </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                      <button class="nav-link" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">
-                        최소낙찰가율
-                      </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                      <button class="nav-link" id="maxamt-limit-tab" data-bs-toggle="tab" data-bs-target="#maxamt-limit-tab-pane" type="button" role="tab">
-                        채권최고액기준한도
-                      </button>
-                    </li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
                 </ul>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="instant-business-operator" value="">
@@ -291,7 +279,7 @@
             </div>
 
             <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem;">
-                <div class="tab-pane fade show active" id="interest-calc-tab-pane" role="tabpanel">
+                <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-2 mb-3">
                         <div class="col-12">
                             <div class="d-flex gap-3">
@@ -593,7 +581,7 @@
                 <!-- ====================================================== -->
                 <!-- 채권최고액기준한도 계산기 탭 -->
                 <!-- ====================================================== -->
-                <div class="tab-pane fade" id="maxamt-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
+                <div class="tab-pane fade show active" id="maxamt-limit-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
                     <div style="font-size: 13px;">
                         <div class="row g-2 mb-2">
                             <div class="col-6">
