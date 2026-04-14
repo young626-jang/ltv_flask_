@@ -514,39 +514,39 @@
                 <div class="tab-pane fade show active" id="min-bid-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
                     <div style="font-size: 13px;">
                         <div class="row g-2 mb-2">
-                            <div class="col-6">
+                            <div class="col-5">
                                 <input type="text" class="form-control form-control-sm" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
                             </div>
-                            <div class="col-6">
+                            <div class="col-3">
                                 <input type="text" class="form-control form-control-sm" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="cb_clearPrincipal(); calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_principal_input" placeholder="대출 가능 원금 (만원)" oninput="fmtComma(this); cb_clearLtv(); calcCB()">
+                            <div class="col-4">
+                                <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채최비율 (%)" value="130" oninput="calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채권최고액 비율 (%)" value="130" oninput="calcCB()">
+                            <div class="col-5">
+                                <input type="text" class="form-control form-control-sm" id="cb_principal_input" placeholder="원금 역산 (만원)" oninput="fmtComma(this); cb_clearLtv(); calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_overdue_rate" placeholder="연체금리 (%)" oninput="calcCB()">
+                            <div class="col-3">
+                                <input type="text" class="form-control form-control-sm" id="cb_overdue_rate" placeholder="연체금리%" oninput="calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_overdue_months" placeholder="연체기간 (개월)" oninput="calcCB()">
+                            <div class="col-4">
+                                <input type="text" class="form-control form-control-sm" id="cb_overdue_months" placeholder="연체기간(월)" oninput="calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_senior" placeholder="선순위 채권최고액 합계" oninput="fmtComma(this); calcCB()">
+                            <div class="col-5">
+                                <input type="text" class="form-control form-control-sm" id="cb_senior" placeholder="선순위 채최합계" oninput="fmtComma(this); calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_senior_lease" placeholder="선순위 전세보증금 합계" oninput="fmtComma(this); calcCB()">
+                            <div class="col-4">
+                                <input type="text" class="form-control form-control-sm" id="cb_senior_lease" placeholder="선순위 전세금" oninput="fmtComma(this); calcCB()">
                             </div>
-                            <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_auction_cost_rate" placeholder="경매비용 비율 (%)" oninput="calcCB()">
+                            <div class="col-3">
+                                <input type="text" class="form-control form-control-sm" id="cb_auction_cost_rate" placeholder="경매비용%" oninput="calcCB()">
                             </div>
                         </div>
 
                         <!-- 결과 -->
                         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
                             <div class="row g-1" style="font-size: 12px; color: #475569;">
-                                <div class="col-6">KB시세 × LTV</div>
+                                <div class="col-6" id="cb_label_ltv_amount">KB시세 × LTV</div>
                                 <div class="col-6 text-end" id="cb_r_ltv_amount">-</div>
                                 <div class="col-6">선순위 배당 합계</div>
                                 <div class="col-6 text-end" id="cb_r_senior">-</div>
@@ -1507,10 +1507,16 @@ function calcCB() {
     const ltvFieldVal = document.getElementById('cb_ltv').value.trim();
     if (principalInput > 0 && !ltvFieldVal && kbPrice > 0) {
         const seniorTotal = pv('cb_senior') + pv('cb_senior_lease');
-        // 원금 → 채권최고액 → 채권최고액+선순위 → LTV%
+        // 원금 → 채권최고액 → 채권최고액+선순위 → 역산LTV%
         const maxAmtFromPrincipal = principalInput * (maxAmtRatio / 100);
         const impliedLtv = ((maxAmtFromPrincipal + seniorTotal) / kbPrice) * 100;
-        document.getElementById('cb_r_ltv_amount').textContent = '-';
+        const ltvColor = impliedLtv <= 70 ? '#059669' : impliedLtv <= 80 ? '#D97706' : '#DC2626';
+
+        // "KB시세 × LTV" 레이블을 역산 LTV%로 변경
+        document.getElementById('cb_label_ltv_amount').textContent = '역산 LTV';
+        document.getElementById('cb_r_ltv_amount').textContent = impliedLtv.toFixed(1) + '%';
+        document.getElementById('cb_r_ltv_amount').style.color = ltvColor;
+
         document.getElementById('cb_r_senior').textContent = seniorTotal > 0 ? fmt(seniorTotal) : '-';
         document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtFromPrincipal + seniorTotal);
         document.getElementById('cb_r_maxamt').textContent = fmt(maxAmtFromPrincipal);
@@ -1538,17 +1544,12 @@ function calcCB() {
         document.getElementById('cb_r_auction_cost').textContent = auctionCostRate > 0 ? fmt(auctionCost) : '-';
         document.getElementById('cb_r_min_bid_amount').textContent = auctionCostRate > 0 ? fmt(minBidAmount) : '-';
         const rateEl = document.getElementById('cb_r_min_bid_rate');
-
-        // LTV% 역산 결과를 크게 표시
-        const ltvColor = impliedLtv <= 70 ? '#059669' : impliedLtv <= 80 ? '#D97706' : '#DC2626';
         rateEl.textContent = auctionCostRate > 0 ? minBidRate.toFixed(1) + '%' : '-';
         rateEl.style.color = auctionCostRate > 0 ? (minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626') : '#2563EB';
-
-        // 역산 LTV를 채권최고액 설정 가능 한도 행에 표시
-        document.getElementById('cb_r_ltv_amount').textContent = fmt(kbPrice * (impliedLtv / 100)) + ' (역산 LTV: ' + impliedLtv.toFixed(1) + '%)';
-        document.getElementById('cb_r_ltv_amount').style.color = ltvColor;
         return;
     }
+    // 정방향 모드: 레이블 원상복구
+    document.getElementById('cb_label_ltv_amount').textContent = 'KB시세 × LTV';
     document.getElementById('cb_r_ltv_amount').style.color = '';
 
     const ltv = pv('cb_ltv') || 70;
