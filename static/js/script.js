@@ -943,11 +943,10 @@ function collectAllData() {
             loan_available_date: document.getElementById('loan_available_date').value,
         },
         fees: {
-            // [복구] consult_amt가 컨설팅 금액으로 돌아옵니다.
-            consult_amt: document.getElementById('consult_amt').value, 
-            consult_rate: document.getElementById('consult_rate').value,
-            bridge_amt: document.getElementById('bridge_amt').value,
-            bridge_rate: document.getElementById('bridge_rate').value,
+            consult_amt: '0',
+            consult_rate: '0',
+            bridge_amt: '0',
+            bridge_rate: '0',
         },
         loans: loanItems
     };
@@ -1055,10 +1054,6 @@ async function loadCustomerData() {
         safeSetValue('area', data.area || '');
         safeSetValue('property_type', data.property_type || '');
         safeSetValue('ltv1', data.ltv1 || '80');
-        safeSetValue('consult_amt', (data.consult_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        safeSetValue('consult_rate', data.consult_rate || '1.5');
-        safeSetValue('bridge_amt', (data.bridge_amt || '0').toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        safeSetValue('bridge_rate', data.bridge_rate || '0.7');
 
         // 소유권이전일 및 세대수 로드
         safeSetValue('ownership_transfer_date', data.ownership_transfer_date || '');
@@ -1574,8 +1569,6 @@ async function handleFileUpload(file) {
 
         safeSetValue('customer_name_2', '');
         safeSetValue('ltv1', '80');
-        safeSetValue('consult_rate', '1.5');
-        safeSetValue('bridge_rate', '0.7');
 
         const deductionRegion = document.getElementById('deduction_region');
         if (deductionRegion) {
