@@ -518,7 +518,10 @@
                                 <input type="text" class="form-control form-control-sm" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-6">
-                                <input type="text" class="form-control form-control-sm" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="calcCB()">
+                                <input type="text" class="form-control form-control-sm" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="cb_clearPrincipal(); calcCB()">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control form-control-sm" id="cb_principal_input" placeholder="대출 가능 원금 (만원)" oninput="fmtComma(this); cb_clearLtv(); calcCB()">
                             </div>
                             <div class="col-6">
                                 <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채권최고액 비율 (%)" value="130" oninput="calcCB()">
@@ -1485,13 +1488,70 @@ function fmtComma(el) {
     if (raw !== '' && !isNaN(raw)) el.value = parseInt(raw).toLocaleString();
 }
 
+function cb_clearLtv() {
+    document.getElementById('cb_ltv').value = '';
+}
+function cb_clearPrincipal() {
+    document.getElementById('cb_principal_input').value = '';
+}
+
 function calcCB() {
     const pv = id => parseFloat(document.getElementById(id).value.replace(/,/g, '')) || 0;
     const fmt = n => Math.floor(n).toLocaleString() + '만원';
 
     const kbPrice = pv('cb_kb_price');
-    const ltv = pv('cb_ltv') || 70;
     const maxAmtRatio = pv('cb_maxamt_ratio') || 130;
+
+    // 원금 역산 모드: 원금 입력 → LTV% 표시
+    const principalInput = pv('cb_principal_input');
+    const ltvFieldVal = document.getElementById('cb_ltv').value.trim();
+    if (principalInput > 0 && !ltvFieldVal && kbPrice > 0) {
+        const seniorTotal = pv('cb_senior') + pv('cb_senior_lease');
+        // 원금 → 채권최고액 → 채권최고액+선순위 → LTV%
+        const maxAmtFromPrincipal = principalInput * (maxAmtRatio / 100);
+        const impliedLtv = ((maxAmtFromPrincipal + seniorTotal) / kbPrice) * 100;
+        document.getElementById('cb_r_ltv_amount').textContent = '-';
+        document.getElementById('cb_r_senior').textContent = seniorTotal > 0 ? fmt(seniorTotal) : '-';
+        document.getElementById('cb_r_maxamt_limit').textContent = fmt(maxAmtFromPrincipal + seniorTotal);
+        document.getElementById('cb_r_maxamt').textContent = fmt(maxAmtFromPrincipal);
+        document.getElementById('cb_r_principal').textContent = fmt(principalInput);
+
+        const overdueRate = pv('cb_overdue_rate');
+        const overdueMonths = pv('cb_overdue_months');
+        const interest = overdueRate > 0 && overdueMonths > 0
+            ? principalInput * (overdueRate / 100) * (overdueMonths / 12) : 0;
+        const actualClaim = principalInput + interest;
+        document.getElementById('cb_r_interest').textContent = interest > 0 ? fmt(interest) : '-';
+        const claimEl = document.getElementById('cb_r_actual_claim');
+        if (interest > 0) {
+            claimEl.textContent = actualClaim > maxAmtFromPrincipal ? fmt(actualClaim) + ' ⚠ 초과' : fmt(actualClaim);
+            claimEl.style.color = actualClaim > maxAmtFromPrincipal ? '#DC2626' : '#1e293b';
+        } else { claimEl.textContent = '-'; claimEl.style.color = ''; }
+
+        document.getElementById('cb_r_normal_principal').textContent = '-';
+        document.getElementById('cb_r_diff').textContent = '-';
+
+        const auctionCostRate = pv('cb_auction_cost_rate');
+        const auctionCost = kbPrice * (auctionCostRate / 100);
+        const minBidAmount = maxAmtFromPrincipal + auctionCost + seniorTotal;
+        const minBidRate = (minBidAmount / kbPrice) * 100;
+        document.getElementById('cb_r_auction_cost').textContent = auctionCostRate > 0 ? fmt(auctionCost) : '-';
+        document.getElementById('cb_r_min_bid_amount').textContent = auctionCostRate > 0 ? fmt(minBidAmount) : '-';
+        const rateEl = document.getElementById('cb_r_min_bid_rate');
+
+        // LTV% 역산 결과를 크게 표시
+        const ltvColor = impliedLtv <= 70 ? '#059669' : impliedLtv <= 80 ? '#D97706' : '#DC2626';
+        rateEl.textContent = auctionCostRate > 0 ? minBidRate.toFixed(1) + '%' : '-';
+        rateEl.style.color = auctionCostRate > 0 ? (minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626') : '#2563EB';
+
+        // 역산 LTV를 채권최고액 설정 가능 한도 행에 표시
+        document.getElementById('cb_r_ltv_amount').textContent = fmt(kbPrice * (impliedLtv / 100)) + ' (역산 LTV: ' + impliedLtv.toFixed(1) + '%)';
+        document.getElementById('cb_r_ltv_amount').style.color = ltvColor;
+        return;
+    }
+    document.getElementById('cb_r_ltv_amount').style.color = '';
+
+    const ltv = pv('cb_ltv') || 70;
     const overdueRate = pv('cb_overdue_rate');
     const overdueMonths = pv('cb_overdue_months');
     const senior = pv('cb_senior');
