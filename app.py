@@ -548,7 +548,7 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
         # 변동금리 문자열 (낮은 것부터)
         variable_rates.sort()
         variable_str = " / ".join(f"{r}%" for r in variable_rates)
-        return f"{variable_str} 6개월 이후 2%할증\n또는 고정 {fixed_str}"
+        return f"{variable_str} 6개월 이후 2% 인상\n고정 {fixed_str}"
     else:
         return fixed_str
 
