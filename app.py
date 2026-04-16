@@ -829,6 +829,10 @@ def generate_memo(data):
                     if meritz_collateral_checked and limit > 100000:
                         ltv_line += " 이나 10억 초과 메리츠 질권 진행불가"
 
+                    # 아이엠 질권 체크 시 한도초과 경고 (현재 한도 소진으로 진행 중단)
+                    if hope_collateral_checked:
+                        ltv_line += " ⚠️ 현재 아이엠 질권 한도초과로 진행 중단"
+
                     ltv_memo.append(ltv_line)
 
             if ltv_memo:
