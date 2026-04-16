@@ -522,8 +522,35 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
         rate2 += 2.0
         logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
 
-    # 금리만 반환 (급지 제외)
-    return f"{rate1}% / {rate2}%"
+    # 고정금리 선택 문자열 생성 (11.9% 이상만 고정 가능)
+    fixed_rates_all = [11.9, 12.9, 13.9, 14.9]
+    # 최저 고정금리: rate1/rate2 중 11.9 이상인 값 중 최솟값
+    min_fixed = None
+    for r in [rate1, rate2]:
+        if r >= 11.9:
+            if min_fixed is None or r < min_fixed:
+                min_fixed = r
+
+    if min_fixed is None:
+        # rate1, rate2 모두 11.9 미만 (예외/A grade) → 고정 최저 11.9%
+        min_fixed = 11.9
+
+    fixed_options = [r for r in fixed_rates_all if r >= min_fixed]
+    if len(fixed_options) == 1:
+        fixed_str = f"{fixed_options[0]}%"
+    else:
+        fixed_str = " / ".join(f"{r}%" for r in fixed_options) + " 선택"
+
+    # 변동금리 여부: rate1 또는 rate2가 10.9 이하이면 변동금리 표시
+    variable_rates = [r for r in [rate1, rate2] if r <= 10.9]
+
+    if variable_rates:
+        # 변동금리 문자열 (낮은 것부터)
+        variable_rates.sort()
+        variable_str = " / ".join(f"{r}%" for r in variable_rates)
+        return f"{variable_str} 6개월 이후 2%할증\n또는 고정 {fixed_str}"
+    else:
+        return fixed_str
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
@@ -821,9 +848,7 @@ def generate_memo(data):
                                 property_type=property_type
                             )
                             if rate_str:
-                                # "11.9% / 12.9%" 형태에서 첫 번째 금리만 표시
-                                apply_rate = rate_str.split('/')[0].strip()
-                                ltv_line += f" 적용 금리 {apply_rate}"
+                                ltv_line += f" 적용 금리 {rate_str}"
 
                     # 메리츠 질권 체크 + 10억 초과 시 경고 추가 (선순위/후순위 모두)
                     if meritz_collateral_checked and limit > 100000:
