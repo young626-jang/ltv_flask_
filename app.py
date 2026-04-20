@@ -462,12 +462,12 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return {'ltv': None, 'reasons': reasons, 'error': str(e)}
 
-def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type=''):
+def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type='', region_grade=''):
     """
     희망담보상품(아이엠질권) 금리 기준 (KB시세 아파트)
 
     지역 및 LTV 기준                                           적용 금리 (연이율)
-    예외상품: 서울지역 LTV 70% 미만                          9.9% / 10.9%
+    예외상품: 서울 LTV 70% 미만 / 경기 1군 LTV 60% 미만      8.9% / 9.9% / 10.9%
     A. 서울지역 LTV 75% 미만                                 10.9% / 11.9%
     B. 서울 LTV 80% 미만 OR 경기/인천 LTV 75% 미만          11.9% / 12.9%
     C. 경기/인천 LTV 80% 미만                               12.9% / 13.9%
@@ -490,11 +490,16 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
     # Non-APT 여부 사전 판단 (예외상품 적용 여부에 사용)
     is_non_apt = is_meritz and property_type and ('아파트' not in property_type and '주상복합' not in property_type)
 
-    # 예외상품: 서울 LTV 70% 미만 (70% 미포함) — Non-APT는 적용 불가 (가산금리 +2%로 9.9% 초과)
-    if region == '서울' and ltv < 70 and not is_non_apt:
+    # 예외상품: 서울 LTV 70% 미만 OR 경기 1군 LTV 60% 미만 — Non-APT는 적용 불가
+    is_exception = (
+        (region == '서울' and ltv < 70) or
+        (region == '경기' and region_grade == '1군' and ltv < 60)
+    )
+    if is_exception and not is_non_apt:
         grade = '예외'
-        rate1 = 9.9
-        rate2 = 10.9
+        rate1 = 8.9
+        rate2 = 9.9
+        rate3 = 10.9
     # A: 서울 LTV 75% 미만 (75% 미포함)
     elif region == '서울' and ltv < 75:
         grade = 'A'
@@ -516,23 +521,30 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
         rate1 = 13.9
         rate2 = 14.9
 
+    # 예외 등급이 아닌 경우 rate3 없음
+    if grade != '예외':
+        rate3 = None
+
     # 메리츠 질권 + NON-APT (아파트, 주상복합 외) → 가산금리 +2%
     if is_non_apt:
         rate1 += 2.0
         rate2 += 2.0
+        if rate3 is not None:
+            rate3 += 2.0
         logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
 
     # 고정금리 선택 문자열 생성 (11.9% 이상만 고정 가능)
     fixed_rates_all = [11.9, 12.9, 13.9, 14.9]
-    # 최저 고정금리: rate1/rate2 중 11.9 이상인 값 중 최솟값
+    all_rates = [r for r in [rate1, rate2, rate3] if r is not None]
+    # 최저 고정금리: 모든 rate 중 11.9 이상인 값 중 최솟값
     min_fixed = None
-    for r in [rate1, rate2]:
+    for r in all_rates:
         if r >= 11.9:
             if min_fixed is None or r < min_fixed:
                 min_fixed = r
 
     if min_fixed is None:
-        # rate1, rate2 모두 11.9 미만 (예외/A grade) → 고정 최저 11.9%
+        # 모든 rate가 11.9 미만 (예외/A grade) → 고정 최저 11.9%
         min_fixed = 11.9
 
     fixed_options = [r for r in fixed_rates_all if r >= min_fixed]
@@ -541,14 +553,14 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
     else:
         fixed_str = " / ".join(f"{r}%" for r in fixed_options) + " 선택"
 
-    # 변동금리 여부: rate1 또는 rate2가 10.9 이하이면 변동금리 표시
-    variable_rates = [r for r in [rate1, rate2] if r <= 10.9]
+    # 변동금리 여부: 10.9 이하인 금리는 변동금리 표시
+    variable_rates = [r for r in all_rates if r <= 10.9]
 
     if variable_rates:
         # 변동금리 문자열 (낮은 것부터)
         variable_rates.sort()
         variable_str = " / ".join(f"{r}%" for r in variable_rates)
-        return f"{variable_str} 6개월 이후 2% 인상\n고정 {fixed_str}"
+        return f"{variable_str} 6개월이후 2%인상\n고정 {fixed_str}"
     else:
         return fixed_str
 
@@ -841,11 +853,13 @@ def generate_memo(data):
                         ltv_val = float(ltv_rate) if ltv_rate != '/' else 0
                         if ltv_val > 0:
                             region = get_region_from_address(address)
+                            region_grade = get_region_grade(address)
                             rate_str = get_hope_collateral_interest_rate(
                                 region,
                                 ltv_val,
                                 is_meritz=meritz_collateral_checked,
-                                property_type=property_type
+                                property_type=property_type,
+                                region_grade=region_grade
                             )
                             if rate_str:
                                 ltv_line += f" 적용 금리 {rate_str}"
