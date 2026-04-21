@@ -464,14 +464,12 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
 
 def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type='', region_grade=''):
     """
-    희망담보상품(아이엠질권) 금리 기준 (KB시세 아파트)
+    희망담보상품(아이엠질권) 금리 기준
 
-    지역 및 LTV 기준                                           적용 금리 (연이율)
-    예외상품: 서울 LTV 70% 미만 / 경기 1군 LTV 60% 미만      8.9% / 9.9% / 10.9%
-    A. 서울지역 LTV 75% 미만                                 10.9% / 11.9%
-    B. 서울 LTV 80% 미만 OR 경기/인천 LTV 75% 미만          11.9% / 12.9%
-    C. 경기/인천 LTV 80% 미만                               12.9% / 13.9%
-    D. 서울/경기/인천 LTV 83% 미만                          13.9% / 14.9%
+    서울 LTV 70% 미만        → 변동 8.9% / 9.9% / 10.9% (6개월이후 2%인상), 고정 11.9%~14.9% 선택
+    서울 LTV 70% 이상        → 고정 11.9% / 12.9% / 13.9% / 14.9% 선택
+    경기 1군 LTV 60% 미만    → 변동 8.9% / 9.9% / 10.9% (6개월이후 2%인상), 고정 11.9%~14.9% 선택
+    경기 1군 LTV 60% 이상    → 고정 11.9% / 12.9% / 13.9% / 14.9% 선택
 
     메리츠 NON-APT: 가산금리 +2%
     """
@@ -483,88 +481,33 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
     except (ValueError, TypeError):
         return None
 
-    grade = None
-    rate1 = 0
-    rate2 = 0
-
-    # Non-APT 여부 사전 판단 (예외상품 적용 여부에 사용)
+    # Non-APT 여부 사전 판단
     is_non_apt = is_meritz and property_type and ('아파트' not in property_type and '주상복합' not in property_type)
 
-    # 예외상품: 서울 LTV 70% 미만 OR 경기 1군 LTV 60% 미만 — Non-APT는 적용 불가
-    is_exception = (
+    # 변동금리 여부 판단
+    is_variable = (
         (region == '서울' and ltv < 70) or
-        (region == '경기' and region_grade == '1군' and ltv < 60)
-    )
-    if is_exception and not is_non_apt:
-        grade = '예외'
-        rate1 = 8.9
-        rate2 = 9.9
-        rate3 = 10.9
-    # A: 서울 LTV 75% 미만 (75% 미포함)
-    elif region == '서울' and ltv < 75:
-        grade = 'A'
-        rate1 = 10.9
-        rate2 = 11.9
-    # B: 서울 LTV 80% 미만, 경기/인천 LTV 75% 미만
-    elif (region == '서울' and ltv < 80) or (region in ['경기', '인천'] and ltv < 75):
-        grade = 'B'
-        rate1 = 11.9
-        rate2 = 12.9
-    # C: 경기/인천 LTV 80% 미만 (80% 미포함)
-    elif region in ['경기', '인천'] and ltv < 80:
-        grade = 'C'
-        rate1 = 12.9
-        rate2 = 13.9
-    # D: 서울/경기/인천 LTV 83% 이상 포함 (나머지 모든 경우)
-    else:
-        grade = 'D'
-        rate1 = 13.9
-        rate2 = 14.9
+        (region in ['경기', '인천'] and region_grade == '1군' and ltv < 60)
+    ) and not is_non_apt
 
-    # 예외 등급이 아닌 경우 rate3 없음
-    if grade != '예외':
-        rate3 = None
-
-    # 메리츠 질권 + NON-APT (아파트, 주상복합 외) → 가산금리 +2%
-    if is_non_apt:
-        rate1 += 2.0
-        rate2 += 2.0
-        if rate3 is not None:
-            rate3 += 2.0
-        logger.info(f"메리츠 NON-APT 가산금리 +2% 적용: {property_type}")
-
-    # 고정금리 선택 문자열 생성 (11.9% 이상만 고정 가능)
     fixed_rates_all = [11.9, 12.9, 13.9, 14.9]
-    all_rates = [r for r in [rate1, rate2, rate3] if r is not None]
-    # 최저 고정금리: 모든 rate 중 11.9 이상인 값 중 최솟값
-    min_fixed = None
-    for r in all_rates:
-        if r >= 11.9:
-            if min_fixed is None or r < min_fixed:
-                min_fixed = r
 
-    if min_fixed is None:
-        # 모든 rate가 11.9 미만 (예외/A grade) → 고정 최저 11.9%
-        min_fixed = 11.9
-
-    fixed_options = [r for r in fixed_rates_all if r >= min_fixed]
-    if len(fixed_options) == 1:
-        fixed_str = f"{fixed_options[0]}%"
-    else:
-        fixed_str = " / ".join(f"{r}%" for r in fixed_options) + " 선택"
-
-    # 변동금리 여부: 10.9 이하인 금리는 변동금리 표시
-    variable_rates = [r for r in all_rates if r <= 10.9]
-
-    if variable_rates:
-        variable_rates.sort()
+    if is_variable:
+        variable_rates = [8.9, 9.9, 10.9]
+        if is_non_apt:
+            variable_rates = [round(r + 2.0, 1) for r in variable_rates]
+        fixed_str = " / ".join(f"{r}%" for r in fixed_rates_all) + " 선택"
         lines = []
         for r in variable_rates:
             after = round(r + 2.0, 1)
             lines.append(f"{r}% → 6개월이후 {after}%  고정 {fixed_str}")
         return "\n".join(lines)
     else:
-        return fixed_str
+        if is_non_apt:
+            fixed_rates = [round(r + 2.0, 1) for r in fixed_rates_all]
+        else:
+            fixed_rates = fixed_rates_all
+        return " / ".join(f"{r}%" for r in fixed_rates) + " 선택"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
