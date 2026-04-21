@@ -557,10 +557,12 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
     variable_rates = [r for r in all_rates if r <= 10.9]
 
     if variable_rates:
-        # 변동금리 문자열 (낮은 것부터)
         variable_rates.sort()
-        variable_str = " / ".join(f"{r}%" for r in variable_rates)
-        return f"{variable_str} 6개월이후 2%인상\n고정 {fixed_str}"
+        lines = []
+        for r in variable_rates:
+            after = round(r + 2.0, 1)
+            lines.append(f"{r}% → 6개월이후 {after}%  고정 {fixed_str}")
+        return "\n".join(lines)
     else:
         return fixed_str
 
