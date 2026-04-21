@@ -614,6 +614,7 @@ def generate_memo(data):
             address_area_parts.append(kb_price_str)
 
         # 시세적용 정보 추가 (층수 기준, 메리츠 질권 + 오피스텔이면 무조건 하안가)
+        meritz_collateral_checked = inputs.get('meritz_collateral_checked', False)
         price_type = ""
         if meritz_collateral_checked and property_type and '오피스텔' in property_type:
             price_type = "하안가 적용"
