@@ -613,9 +613,11 @@ def generate_memo(data):
         if kb_price_str:
             address_area_parts.append(kb_price_str)
 
-        # 시세적용 정보 추가 (층수 기준)
+        # 시세적용 정보 추가 (층수 기준, 메리츠 질권 + 오피스텔이면 무조건 하안가)
         price_type = ""
-        if address and address.strip():
+        if meritz_collateral_checked and property_type and '오피스텔' in property_type:
+            price_type = "하안가 적용"
+        elif address and address.strip():
             floor_match = re.search(r'(?:제)?(\d+)층', address)
             if floor_match:
                 floor = int(floor_match.group(1))
@@ -701,6 +703,10 @@ def generate_memo(data):
         if kb_price_val > 0:
             # ✅ 케이스 1: 메리츠 체크 → 메리츠 기준 (주소+면적 기반)
             if meritz_collateral_checked:
+                # 군 단위 지역 불가 체크
+                if re.search(r'[가-힣]+군[\s]', address or ''):
+                    memo_lines.insert(0, "⚠️ 군 단위 지역 메리츠 질권 진행불가")
+                    memo_lines.insert(1, "")
                 area = inputs.get('area', '')
                 # 면적은 소수점을 포함한 float로 파싱
                 try:
@@ -920,8 +926,8 @@ def generate_memo(data):
                 price_type = ""  # 층수를 찾을 수 없으면 비워둠
         else:
             price_type = ""  # 주소가 없으면 시세적용 표시 안함
-        price_type = get_price_type_from_address(address)
-        
+        price_type = get_price_type_from_address(address, property_type=property_type, is_meritz=meritz_collateral_checked)
+
         return {
             'memo': memo_text,
             'price_type': price_type,
@@ -937,15 +943,19 @@ def generate_memo(data):
         }
     
 
-def get_price_type_from_address(address):
+def get_price_type_from_address(address, property_type='', is_meritz=False):
     """주소 문자열에서 층수를 분석하여 시세 적용 타입을 반환합니다."""
     if not address or not address.strip():
         return ""
-        
+
+    # 메리츠 질권 + 오피스텔이면 층수 관계없이 하안가
+    if is_meritz and property_type and '오피스텔' in property_type:
+        return "하안가 적용"
+
     floor_match = re.search(r'(?:제)?(\d+)층', address)
     if not floor_match:
         return ""
-        
+
     try:
         floor = int(floor_match.group(1))
         return "하안가 적용" if floor <= 2 else "일반가 적용"
