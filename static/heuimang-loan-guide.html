@@ -64,8 +64,6 @@
     /* 탭별 포인트 컬러 (선택사항) */
     .tab-btn-1.active { background-color: #008080; border-color: #008080; } /* iM캐피탈 */
     .tab-btn-2.active { background-color: #555; border-color: #555; }       /* 사업자담보 */
-    .tab-btn-3.active { background-color: #3498db; border-color: #3498db; } /* 희망-아이엠 */
-    .tab-btn-4.active { background-color: #27ae60; border-color: #27ae60; } /* 희망-메리츠 */
 
     /* 탭 콘텐츠 영역 */
     .tab-content {
@@ -111,17 +109,17 @@
         padding: 12px; font-size: 18px; font-weight: bold; margin-bottom: 5px;
     }
     .style-imcap .date-text { text-align: right; font-size: 11px; margin-bottom: 10px; color: #555; }
-    
+
     .style-imcap table, .style-imcap th, .style-imcap td { border: 1px solid #000; }
-    
+
     .style-imcap .bg-green { background-color: #e2efda; font-weight: bold; }
     .style-imcap .bg-pink { background-color: #ffccff; font-weight: bold; }
     .style-imcap .bg-purple-light { background-color: #e4dfec; font-weight: bold; }
     .style-imcap .bg-blue-light { background-color: #ddebf7; font-weight: bold; }
-    
+
     .style-imcap .inner-table { border: none; margin: 0; width: 100%; }
     .style-imcap .inner-table th, .style-imcap .inner-table td { border: 1px solid #000; }
-    
+
     .style-imcap ul { margin: 0; padding-left: 15px; list-style: none; text-align: left; }
     .style-imcap li { position: relative; padding-left: 15px; margin-bottom: 4px; }
     .style-imcap li::before { content: "▶"; position: absolute; left: 0; top: 1px; font-size: 10px; color: #333; }
@@ -132,97 +130,45 @@
        ========================================= */
     .style-biz table { border: 2px solid #000; table-layout: fixed; }
     .style-biz th, .style-biz td { border: 1px solid #000; padding: 6px 2px; }
-    
+
     .style-biz .section-title {
         font-size: 15px; font-weight: bold; margin-top: 30px; margin-bottom: 10px;
         border-left: 5px solid #000; padding-left: 10px; color: #000;
         display: flex; align-items: center;
     }
-    
+
     .style-biz .bg-yellow { background-color: #ffff00; font-weight: bold; }
     .style-biz .bg-gray { background-color: #e7e6e6; font-weight: bold; }
     .style-biz .bg-blue-group { background-color: #b4c6e7; font-weight: bold; }
     .style-biz .bg-purple { background-color: #ccc0da; font-weight: bold; }
     .style-biz .bg-header-blue { background-color: #dce6f1; font-weight: bold; }
     .style-biz .bg-orange { background-color: #fcd5b4; }
-    
+
     .style-biz .diagonal-cell {
         background: linear-gradient(to top right, #dce6f1 49%, #000 50%, #dce6f1 51%);
         position: relative; height: 50px;
     }
     .style-biz .text-tr { position: absolute; top: 3px; right: 5px; font-weight: bold; }
     .style-biz .text-bl { position: absolute; bottom: 3px; left: 5px; font-weight: bold; }
-    
+
     .style-biz .border-dotted-r { border-right: 1px dotted #000; }
     .style-biz .border-solid-r { border-right: 1px solid #000; }
     .style-biz .border-thick-b { border-bottom: 2px solid #000; }
-    
+
     .style-biz .info-box { border: 1px solid #000; padding: 12px; margin-bottom: 20px; background: #fff; }
     .style-biz .red-box { border: 2px solid red; padding: 12px; margin-bottom: 20px; background: #fff; }
     .style-biz ul { margin: 0; padding-left: 20px; list-style-type: disc; text-align: left; }
     .style-biz li { margin-bottom: 3px; }
 
 
-    /* =========================================
-       [스타일] 탭3 & 4: 희망담보 (카드/그리드 디자인)
-       ========================================= */
-    .style-hope h2 {
-        font-size: 16px; font-weight: 700; padding: 12px 15px; margin-bottom: 15px; margin-top: 30px;
-        border-radius: 4px; color: white;
-    }
-    .style-hope h2:first-child { margin-top: 0; }
-    
-    .style-hope .info-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px; margin-bottom: 20px;
-    }
-    .style-hope .info-item {
-        padding: 15px; border-radius: 6px; border-left: 4px solid #ccc; background-color: #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .style-hope .info-label { font-weight: 700; display: block; font-size: 12px; color: #555; margin-bottom: 6px; }
-    .style-hope .info-value { font-weight: 600; font-size: 14px; color: #000; }
-    
-    /* 희망-아이엠 테마 */
-    .theme-iam h2 { background-color: #34495e; }
-    .theme-iam .info-item { border-left-color: #3498db; background-color: #f8fbfd; }
-    .theme-iam .info-value { color: #2980b9; }
-    .theme-iam table thead th { background-color: #34495e; color: white; border-color: #2c3e50; }
-
-    /* 희망-메리츠 테마 */
-    .theme-meritz h1 { color: #003d82; text-align: center; font-size: 24px; margin-bottom: 5px; }
-    .theme-meritz .subtitle { text-align: center; color: #666; margin-bottom: 25px; }
-    .theme-meritz .section-title {
-        background-color: #003d82; color: white; padding: 12px; border-radius: 4px;
-        margin-bottom: 15px; margin-top: 30px; font-weight: bold; font-size: 16px;
-    }
-    .theme-meritz table thead th { background-color: #e8eef5; color: #333; font-weight: bold; }
-    .theme-meritz .highlight-green { background-color: #e6f9e6; font-weight: bold; color: #006400; }
-    .theme-meritz .highlight-yellow { background-color: #fff3cd; font-weight: bold; color: #856404; }
-    .theme-meritz .highlight-blue { background-color: #e0f2f7; font-weight: bold; color: #003d82; }
-    
-    .theme-meritz .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .theme-meritz .info-card {
-        background: #fff; border: 1px solid #ddd; border-left: 4px solid #003d82;
-        padding: 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .theme-meritz .warning-box {
-        background-color: #fff8e1; border-left: 4px solid #ffc107; padding: 15px;
-        margin: 15px 0; border-radius: 4px; color: #856404; font-size: 13px; line-height: 1.6;
-    }
-    .theme-meritz .region-box {
-        background: #f0f7ff; border-left: 4px solid #3aa0e8; padding: 10px 15px;
-        margin-bottom: 10px; border-radius: 4px;
-    }
-
     @media (max-width: 768px) {
-        .theme-meritz .grid-2 { grid-template-columns: 1fr; }
+        .tab-button { min-width: 100px; font-size: 12px; }
     }
 </style>
 <script>
     function openTab(evt, tabId) {
         var i, tabcontent, tablinks;
-        
+
         // 1. 모든 탭 콘텐츠 숨김
         tabcontent = document.getElementsByClassName("tab-content");
         for (i = 0; i < tabcontent.length; i++) {
@@ -242,7 +188,7 @@
         setTimeout(function() {
             document.getElementById(tabId).className += " active";
         }, 10);
-        
+
         evt.currentTarget.className += " active";
     }
 </script>
@@ -255,8 +201,6 @@
     <div class="tab-nav">
         <button class="tab-button tab-btn-1" onclick="openTab(event, 'Tab1')" id="defaultOpen">iM캐피탈질권가이드</button>
         <button class="tab-button tab-btn-2" onclick="openTab(event, 'Tab2')">메리츠질권가이드</button>
-        <button class="tab-button tab-btn-3" onclick="openTab(event, 'Tab3')">희망담보(아이엠)</button>
-        <button class="tab-button tab-btn-4" onclick="openTab(event, 'Tab4')">희망담보(메리츠)</button>
     </div>
 
 
@@ -335,11 +279,11 @@
                                 <th class="bg-pink">LTV</th><th class="bg-pink" style="border-right:0;">기본금리</th>
                             </tr>
                             <tr>
-                                <td rowspan="4" style="border-left:0; border-bottom:0;">70% 이하</td><td rowspan="4" style="border-bottom:0;">6.4%</td>
-                                <td>70% 이하</td><td style="border-right:0;">6.4%</td>
+                                <td rowspan="4" style="border-left:0; border-bottom:0;">70% 이하</td><td rowspan="4" style="border-bottom:0;">6.8%</td>
+                                <td>70% 이하</td><td style="border-right:0;">6.8%</td>
                             </tr>
-                            <tr><td>70%~75%</td><td style="border-right:0;">6.6%</td></tr>
-                            <tr><td>75%~80%</td><td style="border-right:0;">7.0%</td></tr>
+                            <tr><td>70%~75%</td><td style="border-right:0;">7.0%</td></tr>
+                            <tr><td>75%~80%</td><td style="border-right:0;">7.4%</td></tr>
                             <tr><td style="border-bottom:0;">80%~85%</td><td style="border-right:0; border-bottom:0;">사전협의</td></tr>
                         </table>
                     </td>
@@ -383,7 +327,7 @@
             </tbody>
         </table>
         <div style="text-align:center; font-weight:bold; color:#008080; font-size:18px; margin-top:20px;">iM캐피탈</div>
-        <div style="text-align:right; font-size:11px; color:#666; margin-top:10px;">2025.12.01 17:11 / 박현정 / 10223 / iMCapital</div>
+        <div style="text-align:right; font-size:11px; color:#666; margin-top:10px;">2026.03.15 기준 / 박현정 / 10223 / iMCapital</div>
     </div>
 
 
@@ -391,7 +335,7 @@
          [TAB 2] 사업자담보채권 기준 (LTV 테이블 상세)
          ================================================================================== -->
     <div id="Tab2" class="tab-content style-biz">
-        
+
         <!-- 1. 적용금리 섹션 -->
         <div class="section-title">▣ 사업자담보채권_적용금리 기준</div>
         <table>
@@ -416,15 +360,15 @@
             <tbody>
                 <tr>
                     <td class="bg-gray">APT</td>
-                    <td class="text-red">6.50%</td>
-                    <td class="text-red">7.50%</td>
-                    <td>9.00%</td>
+                    <td class="text-red">6.70%</td>
+                    <td class="text-red">7.70%</td>
+                    <td>9.20%</td>
                 </tr>
                 <tr>
                     <td class="bg-gray">Non-APT</td>
-                    <td class="text-red">8.70%</td>
-                    <td>9.70%</td>
-                    <td>11.20%</td>
+                    <td class="text-red">8.90%</td>
+                    <td>9.90%</td>
+                    <td>11.40%</td>
                 </tr>
             </tbody>
         </table>
@@ -564,9 +508,14 @@
                 <td class="text-left" style="vertical-align: top; width: 40%; border-left: 1px solid #000; background-color: #f9f9f9; padding:15px;">
                     <div class="text-bold">※ 사업자 취급 업종 주의</div>
                     <ul class="small-text" style="margin-top:10px;">
-                        <li><strong>취급불가:</strong> 부동산 매매·임대업, 종교·무속인</li>
-                        <li><strong>유의업종:</strong> 숙박, 음식, 서비스(교육/예술/스포츠), 정보통신(영상)</li>
-                        <li class="text-red"> * 유의업종은 아파트만 취급 가능</li>
+                        <li><strong>취급불가:</strong> 부동산 매매·임대업, 종교·무속인, 도박·사행성</li>
+                        <li><strong>유의업종:</strong> 숙박업, 음식점업, 서비스업(교육/예술/스포츠/레저), 정보통신업(영상/영화제작)</li>
+                        <li class="text-red" style="font-weight:bold;"> * 유의업종은 아파트만 취급 가능 (Non-Apt 취급불가)</li>
+                    </ul>
+                    <hr style="margin:15px 0;">
+                    <div class="text-bold">▶ 대출 한도</div>
+                    <ul class="small-text" style="margin-top:5px;">
+                        <li class="text-red">- 최소 대출금: <strong>2,000만원</strong></li>
                     </ul>
                     <hr style="margin:15px 0;">
                     <div class="text-bold">▶ 취급 불가 고객 및 담보물건</div>
@@ -575,6 +524,7 @@
                         <li>- 연체 및 채무불이행, 권리침해(압류 등)</li>
                         <li>- 차주/담보제공자가 외국인 또는 법인</li>
                         <li>- 담보시세 1억 미만 (신탁건은 가능)</li>
+                        <li>- 담보물건 공실 시 취급 불가</li>
                     </ul>
                 </td>
             </tr>
@@ -808,7 +758,7 @@
                 대출가능액 = [평가액 × LTV × 지분율(%)] − 선순위 채권최고액
             </div>
         </div>
-        
+
         <div style="text-align:right; margin-top:20px; color:#999; font-size:11px;">메리츠캐피탈 가이드라인</div>
     </div>
 
