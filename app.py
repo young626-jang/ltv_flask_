@@ -490,23 +490,26 @@ def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, propert
         (region in ['경기', '인천'] and region_grade == '1군' and ltv < 60)
     ) and not is_non_apt
 
-    fixed_rates_all = [11.9, 12.9, 13.9, 14.9]
-
     if is_variable:
         variable_rates = [8.9, 9.9, 10.9]
+        fixed_rates = [11.9, 12.9, 13.9, 14.9]
         if is_non_apt:
             variable_rates = [round(r + 2.0, 1) for r in variable_rates]
-        fixed_str = " / ".join(f"{r}%" for r in fixed_rates_all) + " 선택"
+            fixed_rates = [round(r + 2.0, 1) for r in fixed_rates]
+        fixed_str = " / ".join(f"{r}%" for r in fixed_rates) + " 선택"
         lines = []
         for r in variable_rates:
             after = round(r + 2.0, 1)
             lines.append(f"{r}% → 6개월이후 {after}%  고정 {fixed_str}")
         return "\n".join(lines)
     else:
-        if is_non_apt:
-            fixed_rates = [round(r + 2.0, 1) for r in fixed_rates_all]
+        # 서울 70% 이상: 11.9%부터 / 경기·인천 1군 60% 이상 및 그 외: 12.9%부터
+        if region == '서울':
+            fixed_rates = [11.9, 12.9, 13.9, 14.9]
         else:
-            fixed_rates = fixed_rates_all
+            fixed_rates = [12.9, 13.9, 14.9]
+        if is_non_apt:
+            fixed_rates = [round(r + 2.0, 1) for r in fixed_rates]
         return " / ".join(f"{r}%" for r in fixed_rates) + " 선택"
 
 def _generate_memo_header(inputs):
