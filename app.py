@@ -18,7 +18,7 @@ import requests
 # --- 우리가 만든 헬퍼 파일들 임포트 ---
 from utils import parse_korean_number, calculate_ltv_limit, convert_won_to_manwon, calculate_principal_from_ratio, auto_convert_loan_amounts, calculate_individual_ltv_limits
 from ltv_map import region_map
-from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
+from region_ltv_map import get_region_grade, get_ltv_standard
 from history_manager_flask import fetch_all_customers, fetch_customer_details, create_new_customer, update_customer, delete_customer
 # --- ▼▼▼ pdf_parser.py에서 모든 필요한 함수를 가져오도록 수정합니다 ▼▼▼ ---
 from pdf_parser import (
@@ -308,11 +308,7 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
             logger.warning(f"Non-APT {region_grade} 취급불가: {address}")
             return None
 
-        # 3. 유의지역이면 LTV 80% 제한 (APT만)
-        if property_type == "APT" and is_caution_region(address) and ltv_standard > 80:
-            ltv_standard = 80.0
-
-        # 4. 시세 15억(150000만원) 초과 시 5% 차감
+        # 3. 시세 15억(150000만원) 초과 시 5% 차감
         if kb_price and kb_price > 150000:
             ltv_standard = max(0, ltv_standard - 5.0)  # 음수가 되지 않도록 처리
             logger.info(f"시세 15억 초과 - LTV 5% 차감 적용: {ltv_standard}% (시세: {kb_price}만원)")
@@ -407,13 +403,6 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
             reasons.append(f"전용면적: {area}㎡")
 
         # 3. 유의지역이면 LTV 80% 제한 (APT만)
-        if property_type == "APT" and is_caution_region(address):
-            if ltv_standard > 80:
-                reasons.append(f"⚠️ 유의지역 80% 제한 적용 ({ltv_standard}% → 80%)")
-                ltv_standard = 80.0
-            else:
-                reasons.append("유의지역 (현재 LTV는 80% 이하)")
-
         # 4. 시세 15억(150000만원) 초과 시 5% 차감
         if kb_price and kb_price > 150000:
             kb_price_billion = kb_price / 10000  # 만원 → 억원
@@ -724,8 +713,7 @@ def generate_memo(data):
                 if auto_ltv is not None:
                     # 메모에 급지 정보 추가 (메리츠일 때만)
                     region_grade = get_region_grade(address, is_meritz_pledge=True)
-                    caution_flag = " (유의지역)" if is_caution_region(address) else ""
-                    memo_lines.insert(0, f"급지: {region_grade}{caution_flag} | {loan_type}")
+                    memo_lines.insert(0, f"급지: {region_grade} | {loan_type}")
                     memo_lines.insert(1, "")
 
             # ✅ 케이스 2: 아이엠 체크 → 아이엠 기준 (서울/경기/인천만 진행, 선후순위 구분)
@@ -1041,14 +1029,12 @@ def auto_calculate_ltv_route():
 
         # 추가 정보
         region_grade = get_region_grade(address, is_meritz_pledge=True)
-        is_caution = is_caution_region(address)
 
         return jsonify({
             "success": True,
             "auto_ltv": result['ltv'],
-            "reasons": result['reasons'],  # 적용 사유 추가
+            "reasons": result['reasons'],
             "region_grade": region_grade,
-            "is_caution_region": is_caution,
             "is_senior": is_senior,
             "address": address,
             "area": area_val
