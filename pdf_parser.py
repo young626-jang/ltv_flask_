@@ -197,8 +197,8 @@ def extract_property_type(text):
 
     # 3. 상세 유형 판단 로직 (우선순위 중요)
 
-    # 3-1. 오피스텔 (전유부분이나 1동의 건물 표시에 명시됨)
-    if re.search(r'오피스텔', clean_text, re.IGNORECASE):
+    # 3-1. 오피스텔 (전유부분이나 1동의 건물 표시에 명시됨, 업무시설도 오피스텔로 처리)
+    if re.search(r'오피스텔|업무시설', clean_text, re.IGNORECASE):
         return {'type': 'Non-APT', 'detail': '오피스텔'}
 
     # 3-2. 도시형생활주택 (요즘 많이 등장, 아파트/다세대와 혼용되므로 우선 체크)
