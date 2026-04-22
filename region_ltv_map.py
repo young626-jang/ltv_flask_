@@ -9,26 +9,25 @@ REGION_CLASSIFICATION = {
             "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구",
             "노원구", "도봉구", "은평구", "서북구", "양천구", "구로구", "강서구"
         ],
-        "인천": ["계양구", "부평구", "연수구", "미추홀구"],
+        # 인천1군: 해당지역 없음 (인천 전체 2군)
         "경기": [
-            "과천", "광명", "구리", "군포", "부천", "성남",
-            "수원", "안양", "의왕", "하남", "김포", "남양주"
+            "과천", "광명", "구리", "군포", "성남",
+            "수원", "안양", "의왕", "하남", "남양주"
         ],
         "경기_용인": ["수지구", "기흥구"],  # 용인시 중 1군
-        "광역시": ["광주"]  # 광주광역시 1군
     },
     "2군": {
-        "인천": ["남동구", "서구", "동구", "중구"],
+        "인천": ["중구", "동구", "서구", "남동구", "연수구", "부평구", "계양구", "미추홀구"],  # 인천 전체 2군
         "경기": [
             "시흥", "안산", "화성", "의정부", "양주", "고양",
-            "광주", "동두천", "오산", "이천", "파주"
+            "광주", "동두천", "오산", "이천", "파주", "김포", "부천"
         ],
         "경기_용인": ["처인구"],  # 용인시 중 2군
-        "광역시": ["부산", "울산"]  # 부산, 울산 2군
+        "광역시": ["부산", "울산", "광주"]  # 광주 2군으로 이동
     },
     "3군": {
         "경기": ["평택", "안성", "여주", "포천"],
-        "광역시": ["대전", "세종", "대구"]  # 대전, 대구, 세종만 3군
+        "광역시": ["대전", "세종", "대구"]
     }
 }
 
@@ -36,8 +35,6 @@ REGION_CLASSIFICATION = {
 CAUTION_REGIONS = {
     "서울": ["중랑구", "관악구", "강북구", "성북구", "노원구", "도봉구"],
     "경기": ["구리", "남양주"],
-    "인천": ["계양구", "부평구", "연수구", "미추홀구"],
-    "광역시": ["광주"],  # 광주광역시도 유의지역
 }
 
 # 2. LTV 기준 테이블 (급지별, 물건유형별, 면적별, 선후순위별)
@@ -45,12 +42,14 @@ LTV_STANDARDS = {
     "1군": {
         "APT": {
             "선순위": {
-                "95.9": 83.0,      # 95.9㎡ 이하
+                "62.8": 83.0,      # 62.8㎡ 이하
+                "95.9": 83.0,      # 62.8㎡ 초과 ~ 95.9㎡ 이하
                 "135": 75.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
                 "135+": 60.0       # 135㎡ 초과
             },
             "후순위": {
-                "95.9": 85.0,      # 95.9㎡ 이하
+                "62.8": 85.0,      # 62.8㎡ 이하
+                "95.9": 85.0,      # 62.8㎡ 초과 ~ 95.9㎡ 이하
                 "135": 80.0,
                 "135+": 70.0
             }
@@ -63,21 +62,23 @@ LTV_STANDARDS = {
                 "135+": 50.0       # 135㎡ 초과
             },
             "후순위": {
-                "62.8": 75.0,      # 62.8㎡ 이하
-                "95.9": 70.0,      # 62.8㎡ 초과 ~ 95.9㎡ 이하
-                "135": 60.0,       # 95.9㎡ 초과 ~ 135㎡ 이하
-                "135+": 50.0       # 135㎡ 초과
+                "62.8": 75.0,
+                "95.9": 70.0,
+                "135": 60.0,
+                "135+": 50.0
             }
         }
     },
     "2군": {
         "APT": {
             "선순위": {
+                "62.8": 75.0,
                 "95.9": 75.0,
                 "135": 70.0,
                 "135+": 55.0
             },
             "후순위": {
+                "62.8": 80.0,
                 "95.9": 80.0,
                 "135": 75.0,
                 "135+": 65.0
@@ -88,11 +89,13 @@ LTV_STANDARDS = {
     "3군": {
         "APT": {
             "선순위": {
+                "62.8": 70.0,
                 "95.9": 70.0,
                 "135": 65.0,
                 "135+": 50.0
             },
             "후순위": {
+                "62.8": 75.0,
                 "95.9": 75.0,
                 "135": 70.0,
                 "135+": 60.0
@@ -117,20 +120,11 @@ def get_region_grade(address, is_meritz_pledge=False):
     if not address:
         return "미분류"
 
-    # 군 단위 지역 체크 (취급불가) - 신도시 예외 제외
+    # 군 단위 지역은 3군으로 처리 (+0.5% 가산금리)
     import re
-    new_town_exceptions = [
-        '판교', '동탄', '광교', '위례', '평촌', '분당', '일산', '산본',
-        '중동', '정자', '수지', '죽전', '운정', '양주신도시', '화성동탄',
-        '김포한강신도시', '고덕', '위례신도시', '남양주왕숙', '하남감일',
-        '인천검단', '부천대장', '광명시흥', '성남판교', '용인흥덕'
-    ]
     has_gun = re.search(r'\s군\s|\s군$|[가-힣]+군\s', address)
-    is_new_town = any(town in address for town in new_town_exceptions)
-
-    # 군 단위이면서 신도시가 아니면 취급불가 (미분류)
-    if has_gun and not is_new_town:
-        return "미분류"
+    if has_gun:
+        return "3군"
 
     # ✅ 1. 용인시 특별 처리 (수지구/기흥구는 1군, 처인구는 2군)
     if "용인" in address:
@@ -143,12 +137,9 @@ def get_region_grade(address, is_meritz_pledge=False):
         # 용인인데 구가 명시 안되면 2군으로 처리
         return "2군"
 
-    # ✅ 2. 광역시 처리 (1군: 광주, 2군: 부산/울산, 3군: 대전/대구/세종)
-    for metro_city in REGION_CLASSIFICATION.get("1군", {}).get("광역시", []):
-        if metro_city in address and "광역시" in address:
-            return "1군"
+    # ✅ 2. 광역시 처리 (2군: 부산/울산/광주, 3군: 대전/대구/세종)
     for metro_city in REGION_CLASSIFICATION.get("2군", {}).get("광역시", []):
-        if metro_city in address:
+        if metro_city in address and "광역시" in address:
             return "2군"
     for metro_city in REGION_CLASSIFICATION.get("3군", {}).get("광역시", []):
         if metro_city in address:
@@ -196,15 +187,17 @@ def is_caution_region(address):
     if not address:
         return False
 
-    # 인천 1군 전체가 유의지역
-    if "인천" in address:
-        for district in CAUTION_REGIONS.get("인천", []):
+    # 서울 유의지역
+    if "서울" in address:
+        for district in CAUTION_REGIONS.get("서울", []):
             if district in address:
                 return True
 
-    # 광주광역시 전체가 유의지역
-    if "광주" in address and "광역시" in address:
-        return True
+    # 경기 유의지역
+    if "경기" in address:
+        for district in CAUTION_REGIONS.get("경기", []):
+            if district in address:
+                return True
 
     # 서울, 경기 유의지역
     for city, districts in CAUTION_REGIONS.items():
@@ -258,7 +251,9 @@ def get_ltv_standard(region_grade, area, is_senior, property_type="APT"):
             return area_standards.get("135+", 50.0)
     else:
         # APT
-        if area <= 95.9:
+        if area <= 62.8:
+            return area_standards.get("62.8", area_standards["95.9"])
+        elif area <= 95.9:
             return area_standards["95.9"]
         elif area <= 135:
             return area_standards["135"]
