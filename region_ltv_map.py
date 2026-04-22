@@ -31,12 +31,6 @@ REGION_CLASSIFICATION = {
     }
 }
 
-# 유의지역 (1군에 속하지만 LTV 80% 제한)
-CAUTION_REGIONS = {
-    "서울": ["중랑구", "관악구", "강북구", "성북구", "노원구", "도봉구"],
-    "경기": ["구리", "남양주"],
-}
-
 # 2. LTV 기준 테이블 (급지별, 물건유형별, 면적별, 선후순위별)
 LTV_STANDARDS = {
     "1군": {
@@ -174,40 +168,6 @@ def get_region_grade(address, is_meritz_pledge=False):
 
     return "미분류"
 
-def is_caution_region(address):
-    """
-    유의지역 여부 확인 (LTV 80% 제한)
-
-    Args:
-        address (str): 주소 문자열
-
-    Returns:
-        bool: 유의지역이면 True
-    """
-    if not address:
-        return False
-
-    # 서울 유의지역
-    if "서울" in address:
-        for district in CAUTION_REGIONS.get("서울", []):
-            if district in address:
-                return True
-
-    # 경기 유의지역
-    if "경기" in address:
-        for district in CAUTION_REGIONS.get("경기", []):
-            if district in address:
-                return True
-
-    # 서울, 경기 유의지역
-    for city, districts in CAUTION_REGIONS.items():
-        if city in ["인천", "광역시"]:
-            continue  # 위에서 처리함
-        if city in address:
-            for district in districts:
-                if district in address:
-                    return True
-    return False
 
 def get_ltv_standard(region_grade, area, is_senior, property_type="APT"):
     """
