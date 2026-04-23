@@ -192,7 +192,7 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
     Returns:
         list: 개인별 LTV 한도 결과
     """
-    from region_ltv_map import get_region_grade, get_ltv_standard, is_caution_region
+    from region_ltv_map import get_region_grade, get_ltv_standard
 
     results = []
     for owner in owners:
@@ -218,11 +218,7 @@ def calculate_individual_ltv_limits(total_value, owners, ltv, maintain_maxamt_su
                     # 2. 급지, 면적, 선후순위에 따른 LTV 기준값 조회
                     meritz_ltv = get_ltv_standard(region_grade, float(area), is_senior)
 
-                    # 3. 유의지역이면 LTV 80% 제한
-                    if is_caution_region(address) and meritz_ltv > 80:
-                        meritz_ltv = 80.0
-
-                    # 4. 시세 15억(150000만원) 초과 시 5% 차감
+                    # 3. 시세 15억(150000만원) 초과 시 5% 차감
                     if total_value and total_value > 150000:
                         meritz_ltv = max(0, meritz_ltv - 5.0)
                         logger.info(f"시세 15억 초과 - LTV 5% 차감 적용: {meritz_ltv}% (시세: {total_value}만원)")
