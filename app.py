@@ -451,6 +451,59 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return {'ltv': None, 'reasons': reasons, 'error': str(e)}
 
+def get_meritz_collateral_interest_rate(ltv_rate, property_type='', region_grade='', address='', unit_count=0, is_share=False):
+    """메리츠캐피탈 질권 금리 계산 (JS updateCollateralRateDisplay와 동일 로직)"""
+    try:
+        ltv = float(ltv_rate)
+    except (ValueError, TypeError):
+        return None
+
+    is_apt = property_type and ('아파트' in property_type or '주상복합' in property_type)
+
+    if is_apt:
+        if ltv <= 75:
+            base_rate = 6.70
+        elif ltv <= 85:
+            base_rate = 7.70
+        else:
+            base_rate = 9.20
+    else:
+        if ltv <= 75:
+            base_rate = 8.90
+        elif ltv <= 85:
+            base_rate = 9.90
+        else:
+            base_rate = 11.40
+
+    additional = 0.0
+    add_reasons = []
+
+    if region_grade == '2군':
+        additional += 0.5
+        add_reasons.append('2군')
+    elif region_grade == '3군':
+        additional += 1.0
+        add_reasons.append('3군')
+
+    if is_apt and unit_count > 0 and unit_count <= 100:
+        additional += 0.5
+        add_reasons.append('100세대이하')
+
+    if address and (re.search(r'[가-힣]+군[\s]', address) or re.search(r'[가-힣]+읍[\s]', address) or re.search(r'[가-힣]+군$', address)):
+        additional += 0.5
+        add_reasons.append('군읍소재')
+
+    if is_share:
+        additional += 1.0
+        add_reasons.append('지분')
+
+    total_rate = round(base_rate + additional, 2)
+    rate_str = f"{total_rate:.1f}%"
+    if additional > 0:
+        rate_str += f" (+{additional:.1f} {','.join(add_reasons)})"
+    return rate_str
+
+
 def get_hope_collateral_interest_rate(region, ltv_rate, is_meritz=False, property_type='', region_grade=''):
     """
     희망담보상품(아이엠질권) 금리 기준
@@ -795,15 +848,30 @@ def generate_memo(data):
                     if hope_collateral_checked or meritz_collateral_checked:
                         ltv_val = float(ltv_rate) if ltv_rate != '/' else 0
                         if ltv_val > 0:
-                            region = get_region_from_address(address)
-                            region_grade = get_region_grade(address)
-                            rate_str = get_hope_collateral_interest_rate(
-                                region,
-                                ltv_val,
-                                is_meritz=meritz_collateral_checked,
-                                property_type=property_type,
-                                region_grade=region_grade
-                            )
+                            if meritz_collateral_checked:
+                                region_grade = get_region_grade(address)
+                                unit_count_val = 0
+                                try:
+                                    unit_count_val = int(str(inputs.get('unit_count', 0)).replace(',', '').strip() or 0)
+                                except (ValueError, TypeError):
+                                    pass
+                                rate_str = get_meritz_collateral_interest_rate(
+                                    ltv_val,
+                                    property_type=property_type,
+                                    region_grade=region_grade,
+                                    address=address,
+                                    unit_count=unit_count_val
+                                )
+                            else:
+                                region = get_region_from_address(address)
+                                region_grade = get_region_grade(address)
+                                rate_str = get_hope_collateral_interest_rate(
+                                    region,
+                                    ltv_val,
+                                    is_meritz=False,
+                                    property_type=property_type,
+                                    region_grade=region_grade
+                                )
                             if rate_str:
                                 ltv_line += f" 적용 금리 {rate_str}"
 
