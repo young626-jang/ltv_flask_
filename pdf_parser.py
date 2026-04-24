@@ -197,24 +197,20 @@ def extract_property_type(text):
 
     # 3. 상세 유형 판단 로직 (우선순위 중요)
 
-    # 3-1. 오피스텔 (전유부분이나 1동의 건물 표시에 명시됨, 업무시설도 오피스텔로 처리)
-    if re.search(r'오피스텔|업무시설', clean_text, re.IGNORECASE):
-        return {'type': 'Non-APT', 'detail': '오피스텔'}
-
-    # 3-2. 도시형생활주택 (요즘 많이 등장, 아파트/다세대와 혼용되므로 우선 체크)
-    if re.search(r'도시형\s*생활\s*주택', clean_text, re.IGNORECASE):
-        # 도시형생활주택은 아파트형과 원룸형이 섞여있으나 보통 Non-APT로 분류하거나 별도 관리
-        return {'type': 'Non-APT', 'detail': '도시형생활주택'}
-
-    # 3-3. 아파트
-    # 건물 내역에 '아파트' 또는 '공동주택'이 있거나, 주소/건물명에 포함된 경우
-    # 단, '빌라'인데 이름만 'XX아파트'인 경우를 배제하기 위해 건물내역(구조) 키워드를 우선 봄
-    # [수정] '(아파트)', '공동주택', '층아파트' 형태도 인식
+    # 3-1. 아파트 우선 체크 (공동주택이 있으면 업무시설보다 우선)
     if (re.search(r'건물\s*내역.*?아파트', clean_text) or
         re.search(r'[\d\s\(\[]아파트', clean_text) or
         re.search(r'층아파트', clean_text) or
         re.search(r'공동주택', clean_text)):
         return {'type': 'APT', 'detail': '아파트'}
+
+    # 3-2. 오피스텔 (업무시설 단독으로 있는 경우)
+    if re.search(r'오피스텔|업무시설', clean_text, re.IGNORECASE):
+        return {'type': 'Non-APT', 'detail': '오피스텔'}
+
+    # 3-3. 도시형생활주택
+    if re.search(r'도시형\s*생활\s*주택', clean_text, re.IGNORECASE):
+        return {'type': 'Non-APT', 'detail': '도시형생활주택'}
 
     # 3-4. 연립/다세대
     if re.search(r'연립\s*주택', clean_text, re.IGNORECASE):
