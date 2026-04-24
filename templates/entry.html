@@ -224,24 +224,6 @@
                     </div>
                 </div>
 
-                <!-- 컨설팅/브릿지 비용 -->
-                <div class="row g-2 mt-1">
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-1">
-                            <label class="mb-0" style="white-space: nowrap;">컨설팅(만)</label>
-                            <input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="금액">
-                            <input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="%" style="width: 60px; flex-shrink: 0;">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="d-flex align-items-center gap-1">
-                            <label class="mb-0" style="white-space: nowrap;">브릿지(만)</label>
-                            <input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="금액">
-                            <input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="%" style="width: 60px; flex-shrink: 0;">
-                        </div>
-                    </div>
-                </div>
-
                 <!-- LTV 적용 사유 표시 영역 -->
                 <div id="ltv-reasons-container" class="mt-2" style="display: none;">
                     <div class="card" style="border: 1px solid #E2E8F0; border-radius: 8px; background: #F8FAFC;">
@@ -273,6 +255,7 @@
                     <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
                 </ul>
             </div>
 
@@ -529,6 +512,46 @@
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 끝 -->
+                <!-- ====================================================== -->
+
+                <!-- ====================================================== -->
+                <!-- 컨설팅/브릿지 탭 -->
+                <!-- ====================================================== -->
+                <div class="tab-pane fade" id="fee-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
+                    <div class="row g-2 mt-1">
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label class="mb-0" style="white-space: nowrap; font-size: 13px;">컨설팅(만)</label>
+                                <input type="text" class="form-control form-field manwon-format md-input" id="consult_amt" placeholder="금액" oninput="calcFees()">
+                                <input type="text" class="form-control form-field md-input" id="consult_rate" placeholder="%" style="width: 60px; flex-shrink: 0;" oninput="calcFees()">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-1">
+                                <label class="mb-0" style="white-space: nowrap; font-size: 13px;">브릿지(만)</label>
+                                <input type="text" class="form-control form-field manwon-format md-input" id="bridge_amt" placeholder="금액" oninput="calcFees()">
+                                <input type="text" class="form-control form-field md-input" id="bridge_rate" placeholder="%" style="width: 60px; flex-shrink: 0;" oninput="calcFees()">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 결과 영역 -->
+                    <div class="p-3 rounded mt-2" style="background: #f8f9fc; border: 1px solid #e3e6f0; font-size: 13px;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">컨설팅 비용</span>
+                            <span id="fee-consult-result" class="fw-bold">0만원</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">브릿지 비용</span>
+                            <span id="fee-bridge-result" class="fw-bold">0만원</span>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2" style="border-top: 1px solid #ddd;">
+                            <span class="fw-bold">합계</span>
+                            <span id="fee-total-result" class="fw-bold" style="color: #e74a3b; font-size: 15px;">0만원</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- ====================================================== -->
+                <!-- 컨설팅/브릿지 탭 끝 -->
                 <!-- ====================================================== -->
 
                 <!-- ====================================================== -->
@@ -1533,6 +1556,24 @@ function cb_clearLtv() {
 }
 function cb_clearPrincipal() {
     document.getElementById('cb_principal_input').value = '';
+}
+
+function calcFees() {
+    const pv = id => parseFloat(document.getElementById(id).value.replace(/,/g, '')) || 0;
+    const fmt = n => Math.floor(n).toLocaleString() + '만원';
+
+    const consultAmt = pv('consult_amt');
+    const consultRate = pv('consult_rate');
+    const bridgeAmt = pv('bridge_amt');
+    const bridgeRate = pv('bridge_rate');
+
+    const consultFee = consultAmt * (consultRate / 100);
+    const bridgeFee = bridgeAmt * (bridgeRate / 100);
+    const total = consultFee + bridgeFee;
+
+    document.getElementById('fee-consult-result').textContent = fmt(consultFee);
+    document.getElementById('fee-bridge-result').textContent = fmt(bridgeFee);
+    document.getElementById('fee-total-result').textContent = fmt(total);
 }
 
 function calcCB() {
