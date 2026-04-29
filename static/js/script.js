@@ -532,6 +532,7 @@
 
         return `
         <div id="loan-item-${index}" class="loan-item py-2 border-bottom" draggable="false">
+            <input type="hidden" name="rank" value="${loan.rank || ''}">
             <div class="loan-col loan-col-drag">
                 <div class="drag-handle md-drag-handle" title="드래그하여 순서 변경">⋮⋮</div>
             </div>
@@ -902,6 +903,7 @@ function collectAllData() {
         max_amount: item.querySelector('[name="max_amount"]').value,
         principal: item.querySelector('[name="principal"]').value,
         ratio: item.querySelector('[name="ratio"]').value,
+        rank: item.querySelector('[name="rank"]')?.value || '',
     }));
 
     // return 구문 바깥에서 변수를 먼저 선언합니다.
@@ -1441,7 +1443,8 @@ async function handleFileUpload(file) {
                         lender: lender,
                         debtor: debtor,
                         max_amount: maxAmount,
-                        status: '유지' // 기본 상태는 '유지'로 설정
+                        status: '유지',
+                        rank: mortgage.main_key || ''
                     });
                 });
             } else {
@@ -1823,7 +1826,6 @@ async function handleFileUpload(file) {
                 individualShareMemo += '\n*사업자 담보대출 (사업자필)';
                 individualShareMemo += '\n*계약 2년';
                 individualShareMemo += '\n*중도 3%';
-                individualShareMemo += '\n*환수 92일이내 50%';
                 individualShareMemo += '\n*연체이력 및 권리침해사항 1% 할증';
             }
 
