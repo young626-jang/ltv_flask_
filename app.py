@@ -640,9 +640,10 @@ def generate_memo(data):
                 ratio_str = f"{ratio}%" if ratio and ratio != '/' else '/'
                 principal = format_manwon(item.get('principal', '0'))
                 status = item.get('status', '/')
+                rank = item.get('rank', '') or str(i)
 
-                # 포맷: 1. 2015-06-30 | 신한은행 | 홍길동 | 설정금액: 1,000만 | 120% | 원금: 833만 | 유지
-                parts = [f"{i}."]
+                # 포맷: 3. 2015-06-30 | 신한은행 | 홍길동 | 설정금액: 1,000만 | 120% | 원금: 833만 | 유지
+                parts = [f"{rank}."]
                 if setup_date:
                     parts.append(setup_date)
                 parts.append(lender)
