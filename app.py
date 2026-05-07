@@ -589,6 +589,10 @@ def generate_memo(data):
         if property_type and property_type.strip():
             address_area_parts.append(property_type)
 
+        # LTV 계산용 물건유형 분류 (APT/Non-APT)
+        APT_TYPES = ['아파트', 'APT']
+        property_type_for_ltv = 'APT' if any(t in property_type for t in APT_TYPES) else 'Non-APT'
+
         if area_str:
             address_area_parts.append(area_str)
 
@@ -696,16 +700,16 @@ def generate_memo(data):
             # ✅ 케이스 1: 메리츠 체크 → 메리츠 기준 (주소+면적 기반)
             if meritz_collateral_checked:
                 area = inputs.get('area', '')
-                # 면적은 소수점을 포함한 float로 파싱
+                # 면적은 소수점을 포함한 float로 파싱 (㎡ 단위 제거 후 변환)
                 try:
-                    area_val = float(str(area).replace(",", "").strip()) if area else None
+                    area_val = float(str(area).replace("㎡", "").replace(",", "").strip()) if area else None
                 except (ValueError, TypeError):
                     area_val = None
 
                 # 준공일자 가져오기
                 completion_date = inputs.get('completion_date', '')
 
-                auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val, property_type=property_type, completion_date=completion_date)
+                auto_ltv = auto_calculate_ltv(address, area_val, is_senior, kb_price=kb_price_val, property_type=property_type_for_ltv, completion_date=completion_date)
                 auto_source = "메리츠 기준"
 
                 if auto_ltv is not None:
@@ -744,11 +748,12 @@ def generate_memo(data):
                 'source': auto_source
             })
 
-        # 사용자 입력 LTV가 있으면 함께 처리 (비교용) — 메리츠 체크 시 자동계산 우선, 사용자 입력 무시
+        # 사용자 입력 LTV가 있으면 함께 처리 — 메리츠 체크 + 자동계산 성공 시에만 무시
         ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
 
-        # 명확한 검증: 빈 문자열이나 None 제외
-        if ltv1_raw is not None and not meritz_collateral_checked:
+        # 메리츠 체크이고 auto_ltv가 성공적으로 계산된 경우에만 사용자 입력 무시
+        meritz_auto_success = meritz_collateral_checked and auto_ltv is not None
+        if ltv1_raw is not None and not meritz_auto_success:
             ltv_str = str(ltv1_raw).strip()
             if ltv_str and ltv_str != "":
                 try:
