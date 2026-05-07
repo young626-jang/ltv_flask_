@@ -247,19 +247,7 @@
                 </div>
             </div>
 
-            <div id="tab-section-wrapper" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mt-2">
-                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">채권최고액기준계산</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
-                </ul>
-            </div>
-
-            <!-- 즉발사업자 날짜 필드 (체크 시 표시, wrapper 안) -->
+            <!-- 즉발사업자 날짜 필드 (체크 시 표시) -->
             <div id="instant-business-dates" class="mb-2 mt-2" style="display: none; background: #FCE77D; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; position: relative; z-index: 10;">
                 <div class="row g-2">
                     <div class="col-md-4">
@@ -281,6 +269,18 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div id="tab-section-wrapper" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <ul class="nav nav-tabs" id="myTab" role="tablist" style="border-bottom: 0;">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="min-bid-tab" data-bs-toggle="tab" data-bs-target="#min-bid-tab-pane" type="button" role="tab">채권최고액기준계산</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="legal-fee-tab" data-bs-toggle="tab" data-bs-target="#legal-fee-tab-pane" type="button" role="tab">법무비용</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="interest-calc-tab" data-bs-toggle="tab" data-bs-target="#interest-calc-tab-pane" type="button" role="tab">이자 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="prepay-fee-tab" data-bs-toggle="tab" data-bs-target="#prepay-fee-tab-pane" type="button" role="tab">중수료계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="share-limit-tab" data-bs-toggle="tab" data-bs-target="#share-limit-tab-pane" type="button" role="tab">지분 한도 계산기</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="fee-tab" data-bs-toggle="tab" data-bs-target="#fee-tab-pane" type="button" role="tab">컨설팅/브릿지</button></li>
+                </ul>
             </div>
 
             <div class="tab-content" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem; margin-bottom: 0.5rem;">
@@ -980,14 +980,8 @@ async function updateAutoLTV() {
             // 질권이 하나라도 체크되어 있을 때만 자동으로 LTV 설정
             if (isHopeChecked || isMeritzChecked) {
                 // ✅ script.js에서 노후주택 등 특수 조건으로 LTV를 낮춘 경우 존중
-                const currentLtv = parseFloat(document.getElementById("ltv1").value) || 80;
-                // 현재 설정된 LTV가 서버 계산 LTV보다 낮으면 (특수 조건 적용됨) 덮어쓰지 않음
-                if (currentLtv < ltv) {
-                    console.log(`📊 자동LTV 유지: ${currentLtv}% (특수조건 적용, 서버LTV ${ltv}% 무시)`);
-                } else {
-                    document.getElementById("ltv1").value = ltv;
-                    console.log(`📊 자동LTV 설정: ${ltv}% (질권 활성화)`);
-                }
+                document.getElementById("ltv1").value = ltv;
+                console.log(`📊 자동LTV 설정: ${ltv}% (질권 활성화)`);
             } else {
                 // 둘 다 체크 안 되어 있으면 80% 유지 (자동 설정하지 않음)
                 console.log(`📊 자동LTV 표시만: ${ltv}% (질권 없음, 80% 유지)`);
@@ -1361,8 +1355,8 @@ function calculateLegalFee() {
     let stamp = 15000;      // 증지
     let cert = 20000;       // 제증명대
     let transport = 50000;  // 교통비
-    // 국민주택채권 (천원 단위 반올림)
-    let bond = Math.round(amount * getLegalBondRate(amount) / 1000) * 1000;
+    // 국민주택채권 (천원 단위 반올림, +20,000 여유분 포함)
+    let bond = Math.round(amount * getLegalBondRate(amount) / 1000) * 1000 + 20000;
     // 공과금 합계
     let subTotal1 = regTax + eduTax + stamp + cert + bond + transport;
 
