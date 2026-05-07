@@ -748,10 +748,10 @@ def generate_memo(data):
                 'source': auto_source
             })
 
-        # 사용자 입력 LTV가 있으면 함께 처리 — 메리츠 체크 + 자동계산 성공 시에만 무시
+        # 사용자 입력 LTV가 있으면 함께 처리 — 메리츠 체크 + 자동계산 성공 시 무시
         ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
 
-        # 메리츠 체크이고 auto_ltv가 성공적으로 계산된 경우에만 사용자 입력 무시
+        # 명확한 검증: 빈 문자열이나 None 제외
         meritz_auto_success = meritz_collateral_checked and auto_ltv is not None
         if ltv1_raw is not None and not meritz_auto_success:
             ltv_str = str(ltv1_raw).strip()
@@ -785,11 +785,12 @@ def generate_memo(data):
                     limit = res.get('limit', 0)
                     available = res.get('available', 0)
 
-                    # ✅ [핵심] 필요금액이 입력되면 한도와 가용자금 덮어쓰기
+                    # ✅ [핵심] 필요금액이 입력되면 한도/가용/LTV 역산값으로 덮어쓰기
                     if required_amount_val > 0:
                         limit = required_amount_val
-                        # 가용자금 = 필요금액 - 대환/선말소 원금 합계
                         available = required_amount_val - principal_sum
+                        from utils import calculate_ltv_from_required_amount
+                        ltv_rate = calculate_ltv_from_required_amount(kb_price_val, required_amount_val, valid_loans, deduction_amount_val)
 
                     # 기본 LTV 한도 메시지 생성
                     ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
