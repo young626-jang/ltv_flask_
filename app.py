@@ -463,7 +463,7 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None):
     경기·인천 1군 60% 이상 / 2군 / 3군:
       12.9% / 13.9% / 14.9% 선택
     """
-    if not region or not ltv_rate:
+    if not ltv_rate:
         return None
 
     try:
@@ -472,29 +472,30 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None):
         return None
 
     rate_6month = "8.9%→6개월후10.9% / 9.9%→6개월후11.9% / 10.9%→6개월후12.9%  고정 11.9%/12.9%/13.9%/14.9% 선택"
-    rate_gyeongin_other = "12.9% / 13.9% / 14.9% 선택"
 
-    if region == '서울':
+    if not region:
+        # 지역 구분 없는 경우 (질권 등)
+        return "12.9% / 13.9% / 14.9% 선택"
+    elif region == '서울':
         if ltv < 70:
             return rate_6month
         elif ltv < 75:
             return "10.9% / 11.9% / 12.9% / 13.9% / 14.9% 선택"
         elif ltv < 80:
-            return "12.9% / 13.9% / 14.9% 선택"
+            return "11.9% / 12.9% / 13.9% / 14.9% 선택"
         elif ltv <= 85:
-            return "13.9% / 14.9% 선택"
+            return "12.9% / 13.9% / 14.9% 선택"
         else:
             return None
     elif region in ['경기', '인천']:
-        is_1gun = region_grade == '1군' if region_grade else False
         if ltv < 60:
             return rate_6month
         elif ltv < 70:
-            return "11.9% / 12.9% / 13.9% / 14.9% 선택"
+            return "10.9% / 11.9% / 12.9% / 13.9% / 14.9% 선택"
         elif ltv < 75:
-            return "12.9% / 13.9% / 14.9% 선택"
+            return "11.9% / 12.9% / 13.9% / 14.9% 선택"
         else:
-            return "13.9% / 14.9% 선택"
+            return "12.9% / 13.9% / 14.9% 선택"
     else:
         # 그 외 3군지역
         if ltv < 70:
@@ -743,11 +744,11 @@ def generate_memo(data):
                 'source': auto_source
             })
 
-        # 사용자 입력 LTV가 있으면 함께 처리 (비교용)
+        # 사용자 입력 LTV가 있으면 함께 처리 (비교용) — 메리츠 체크 시 자동계산 우선, 사용자 입력 무시
         ltv1_raw = inputs.get('ltv_rates', [None])[0] if isinstance(inputs.get('ltv_rates'), list) and len(inputs.get('ltv_rates', [])) > 0 else None
 
         # 명확한 검증: 빈 문자열이나 None 제외
-        if ltv1_raw is not None:
+        if ltv1_raw is not None and not meritz_collateral_checked:
             ltv_str = str(ltv1_raw).strip()
             if ltv_str and ltv_str != "":
                 try:
