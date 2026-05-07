@@ -713,10 +713,7 @@ def generate_memo(data):
                 auto_source = "메리츠 기준"
 
                 if auto_ltv is not None:
-                    # 메모에 급지 정보 추가 (메리츠일 때만)
                     region_grade = get_region_grade(address, is_meritz_pledge=True)
-                    memo_lines.insert(0, f"급지: {region_grade} | {loan_type}")
-                    memo_lines.insert(1, "")
 
             # ✅ 케이스 2: 아이엠 체크 → 아이엠 기준 (서울/경기/인천만 진행, 선후순위 구분)
             elif hope_collateral_checked:
@@ -792,8 +789,11 @@ def generate_memo(data):
                         from utils import calculate_ltv_from_required_amount
                         ltv_rate = calculate_ltv_from_required_amount(kb_price_val, required_amount_val, valid_loans, deduction_amount_val)
 
-                    # 기본 LTV 한도 메시지 생성
-                    ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
+                    # 기본 LTV 한도 메시지 생성 (메리츠 체크 시 급지 정보 앞에 붙임)
+                    if meritz_collateral_checked and auto_ltv is not None:
+                        ltv_line = f"급지: {region_grade} {loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
+                    else:
+                        ltv_line = f"{loan_type} 한도: LTV {ltv_rate}% {format_manwon(limit)} 가용 {format_manwon(available)}"
 
                     # 아이엠 또는 메리츠 질권 체크 시 적용 금리 추가
                     if hope_collateral_checked or meritz_collateral_checked:
