@@ -593,6 +593,15 @@ def generate_memo(data):
         APT_TYPES = ['아파트', 'APT']
         property_type_for_ltv = 'APT' if any(t in property_type for t in APT_TYPES) else 'Non-APT'
 
+        # 세대수 100 미만 APT는 Non-APT 기준 적용 (팝업과 동일 로직)
+        unit_count_raw = inputs.get('unit_count', '')
+        try:
+            unit_count_val = int(str(unit_count_raw).replace(',', '').strip()) if unit_count_raw else 0
+        except (ValueError, TypeError):
+            unit_count_val = 0
+        if property_type_for_ltv == 'APT' and 0 < unit_count_val < 100:
+            property_type_for_ltv = 'Non-APT'
+
         if area_str:
             address_area_parts.append(area_str)
 
