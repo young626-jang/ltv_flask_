@@ -1769,6 +1769,7 @@ async function handleFileUpload(file) {
                     const shareRequiredAmountField = document.getElementById('share-required-amount');
                     const shareRequiredAmountText = shareRequiredAmountField ? shareRequiredAmountField.value.replace(/,/g, '') : '';
                     const shareRequiredAmount = parseInt(shareRequiredAmountText) || 0;
+                    let displayLtv = ltv;
                     if (shareRequiredAmount > 0) {
                         // 대환/선말소 원금 합계 계산
                         const replaceStatuses = ['대환', '선말소', '퇴거자금'];
@@ -1780,6 +1781,19 @@ async function handleFileUpload(file) {
                         });
                         shareLimit = shareRequiredAmount;
                         available = shareRequiredAmount - existingPrincipal;
+
+                        // 지분시세 기준 역산 LTV: (유지채권최고액 + 필요금액) / 지분시세
+                        const sharePrice = parseFloat(document.getElementById('share-price')?.value?.replace(/,/g, '')) || 0;
+                        if (sharePrice > 0) {
+                            const maintainStatuses = ['유지', '동의', '비동의'];
+                            let maintainSum = 0;
+                            loans.forEach(loan => {
+                                if (maintainStatuses.includes(loan.status)) {
+                                    maintainSum += (loan.max_amount || 0);
+                                }
+                            });
+                            displayLtv = Math.round((maintainSum + shareRequiredAmount) / sharePrice * 1000) / 10;
+                        }
                     }
 
                     // 첫 번째 결과에서만 차주명과 지분율 표시
@@ -1788,7 +1802,7 @@ async function handleFileUpload(file) {
                         // 지분율 표시 방식 구분 (PDF 스크래핑 vs 수기입력)
                         const originalShareText = shareField.value.trim();
                         let displayShare;
-                        
+
                         // PDF 스크래핑 시: 분수나 괄호가 포함된 경우 원본값 그대로
                         if (originalShareText.includes('/') || originalShareText.includes('(') || originalShareText.includes('%')) {
                             // 이미 "지분율"이 포함되어 있으면 그대로, 없으면 추가
@@ -1801,13 +1815,12 @@ async function handleFileUpload(file) {
                             // 수기입력 시: 숫자에 % 추가
                             displayShare = `지분율 ${sharePercent}%`;
                         }
-                        
+
                         individualShareMemo += `\n차주 ${ownerName} ${displayShare}`;
                     }
-                    
-                    // --- ### 여기부터 수정 ### ---
+
                     // 기본 메모 라인 (한도까지)
-                    let memoLine = `\n${loanTypeInfo} LTV ${ltv}% 지분 ${shareLimit.toLocaleString()}만`;
+                    let memoLine = `\n${loanTypeInfo} LTV ${displayLtv}% 지분 ${shareLimit.toLocaleString()}만`;
                     
                     // 'available' 값이 존재할 경우 (즉, 선순위일 경우)에만 '가용' 금액 추가
                     if (available !== null && available !== undefined) {
@@ -3052,10 +3065,35 @@ function calculateShareLTVFromRequiredAmount() {
         return;
     }
 
-    // 지분시세 기준 LTV 역산: 필요금액 / 지분시세 * 100
-    const ltv = Math.round((requiredAmountValue / sharePrice) * 1000) / 10; // 소수점 1자리
+    // 유지 채권최고액 지분분 계산
+    const selectedRadio = document.querySelector('input[name="share-borrower"]:checked');
+    const ownerIdx = selectedRadio ? selectedRadio.value : null;
+    const shareField = ownerIdx ? document.getElementById(`share-customer-birth-${ownerIdx}`) : null;
+    const shareText = shareField ? shareField.value.trim() : '';
+    let sharePercent = 0;
+    if (shareText) {
+        const percentMatch = shareText.match(/\(([\d.]+)%?\)/);
+        if (percentMatch) {
+            sharePercent = parseFloat(percentMatch[1]);
+        } else {
+            const numberMatch = shareText.match(/([\d.]+)%?/);
+            sharePercent = numberMatch ? parseFloat(numberMatch[1]) : 0;
+        }
+    }
+
+    const maintainStatuses = ['유지', '동의', '비동의'];
+    let maintainSum = 0;
+    document.querySelectorAll("#loan-items-container .loan-item").forEach(item => {
+        const status = item.querySelector("select[name='status']")?.value || '';
+        if (maintainStatuses.includes(status)) {
+            const maxAmount = parseInt((item.querySelector("input[name='max_amount']")?.value || '0').replace(/,/g, '')) || 0;
+            maintainSum += maxAmount;
+        }
+    });
+    // 지분시세 기준 LTV 역산: (유지채권최고액 + 필요금액) / 지분시세 * 100
+    const ltv = Math.round(((maintainSum + requiredAmountValue) / sharePrice) * 1000) / 10;
     shareLtvField.value = ltv > 0 ? ltv : '80';
-    console.log(`📊 지분 LTV 역산: 필요금액 ${requiredAmountValue}만 / 지분시세 ${sharePrice}만 = ${ltv}%`);
+    console.log(`📊 지분 LTV 역산: (유지채권최고액 ${maintainSum} + 필요금액 ${requiredAmountValue}) / 지분시세 ${sharePrice} = ${ltv}%`);
     calculateIndividualShare();
 }
 
