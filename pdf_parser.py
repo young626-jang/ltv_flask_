@@ -153,17 +153,19 @@ def extract_area(text):
     search_text = area_section_match.group(1) if area_section_match else ""
 
     if search_text:
-        # "면적" 키워드 바로 뒤의 숫자를 우선 탐색 (전유 전용면적)
-        area_keyword_match = re.search(r"면\s*적\s*(\d+\.\d+)\s*㎡", search_text)
-        if area_keyword_match:
-            return f"{area_keyword_match.group(1)}㎡"
+        # "면적" 키워드 바로 뒤의 숫자를 모두 탐색 (복층 등 면적이 여러 개인 경우 합산)
+        area_keyword_matches = re.findall(r"면\s*적\s*(\d+\.\d+)\s*㎡", search_text)
+        if area_keyword_matches:
+            total = round(sum(float(v) for v in area_keyword_matches), 4)
+            return f"{total}㎡"
         # 전유부분 섹션 내에서 면적 찾기
         matches = re.findall(r"(\d+\.\d+)\s*㎡", search_text)
         if matches:
-            # 전유부분 전용면적은 보통 200㎡ 이하 — 범위 내 최솟값 우선
+            # 전유부분 전용면적은 보통 200㎡ 이하 — 범위 내 값 합산
             valid = [m for m in matches if float(m) <= 200]
             if valid:
-                return f"{min(valid, key=lambda x: float(x))}㎡"
+                total = round(sum(float(v) for v in valid), 4)
+                return f"{total}㎡"
             return f"{min(matches, key=lambda x: float(x))}㎡"
 
     # 패턴 2: 전유부분 섹션을 못 찾은 경우, 기존 방식 (전체 텍스트에서)
