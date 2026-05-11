@@ -1336,7 +1336,7 @@ function getLegalBaseFee(amount) {
 function getLegalBondRate(amount) {
     if (amount <= 1.05e8) return 0.001476;  // 1.05억 이하 (PDF: 1.05억 → 155,000 = 0.001476)
     if (amount <= 1.5e8) return 0.0014;     // 1.5억 이하 (PDF: 1.5억 → 210,000 = 0.0014)
-    return 0.001367;                        // 1.5억 초과 (PDF: 3억 → 410,000 = 0.001367)
+    return 0.001437;                        // 1.5억 초과 (PDF: 6.75억 → 970,000 = 0.001437)
 }
 
 // 법무비용 계산 함수
@@ -1355,8 +1355,8 @@ function calculateLegalFee() {
     let stamp = 15000;      // 증지
     let cert = 20000;       // 제증명대
     let transport = 50000;  // 교통비
-    // 국민주택채권 (천원 단위 반올림, +20,000 여유분 포함)
-    let bond = Math.round(amount * getLegalBondRate(amount) / 1000) * 1000 + 20000;
+    // 국민주택채권 (천원 단위 반올림)
+    let bond = Math.round(amount * getLegalBondRate(amount) / 1000) * 1000;
     // 공과금 합계
     let subTotal1 = regTax + eduTax + stamp + cert + bond + transport;
 
