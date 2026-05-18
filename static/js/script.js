@@ -2892,8 +2892,7 @@ document.addEventListener('DOMContentLoaded', () => {
                const kbUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encodedAddress}`;
                window.open(kbUrl, 'kbLandPopup', 'width=1200,height=900,resizable=yes,scrollbars=yes');
            } else {
-               console.warn('⚠️ 주소가 입력되지 않았습니다');
-               alert('주소를 먼저 입력해주세요.');
+               window.open('https://kbland.kr/map', 'kbLandPopup', 'width=1200,height=900,resizable=yes,scrollbars=yes');
            }
        });
    });
