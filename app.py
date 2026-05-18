@@ -151,6 +151,10 @@ def internal_error(e):
 def main_calculator_page():
     return render_template('entry.html', region_map=region_map)
 
+@app.route('/sw.js')
+def service_worker():
+    return app.send_static_file('sw.js')
+
 # --- 대출심사 현황관리 라우트 ---
 @app.route('/loan-review')
 def loan_review_page():
