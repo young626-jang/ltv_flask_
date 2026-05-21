@@ -3723,10 +3723,16 @@ function validateMeritzLoanConditions() {
 
             if (dateMatch) {
                 const year = parseInt(dateMatch[1]);
-                const currentYear = new Date().getFullYear();
-                const buildingAge = currentYear - year;
+                const month = dateMatch[2] ? parseInt(dateMatch[2]) : 1;
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                const currentMonth = today.getMonth() + 1;
 
-                // 40년 이상이면 경고 (2025년 기준 1985년 이전)
+                // 40년 이상이면 경고 (월 고려 - 준공월이 아직 안 됐으면 -1)
+                let buildingAge = currentYear - year;
+                if (currentMonth < month) {
+                    buildingAge -= 1;
+                }
                 is40YearsOld = buildingAge >= 40;
 
                 if (is40YearsOld) {
