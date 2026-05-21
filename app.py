@@ -541,11 +541,12 @@ def _generate_memo_header(inputs):
     price_info_parts = []
     if kb_price_str: price_info_parts.append(kb_price_str)
     
-    price_type = get_price_type_from_address(address)
+    property_type = inputs.get('property_type', '')
+    price_type = get_price_type_from_address(address, property_type)
     if price_type: price_info_parts.append(price_type)
     if deduction_str: price_info_parts.append(deduction_str)
     if price_info_parts: memo_lines.append(" | ".join(price_info_parts))
-    
+
     return memo_lines, kb_price_val, deduction_amount_val
 
 def generate_memo(data):
@@ -921,8 +922,9 @@ def generate_memo(data):
                 price_type = ""  # 층수를 찾을 수 없으면 비워둠
         else:
             price_type = ""  # 주소가 없으면 시세적용 표시 안함
-        price_type = get_price_type_from_address(address)
-        
+        property_type = inputs.get('property_type', '')
+        price_type = get_price_type_from_address(address, property_type)
+
         return {
             'memo': memo_text,
             'price_type': price_type,
@@ -938,15 +940,19 @@ def generate_memo(data):
         }
     
 
-def get_price_type_from_address(address):
+def get_price_type_from_address(address, property_type=""):
     """주소 문자열에서 층수를 분석하여 시세 적용 타입을 반환합니다."""
+    # 오피스텔이면 층수 무관 하안가
+    if property_type and '오피스텔' in property_type:
+        return "하안가 적용"
+
     if not address or not address.strip():
         return ""
-        
+
     floor_match = re.search(r'(?:제)?(\d+)층', address)
     if not floor_match:
         return ""
-        
+
     try:
         floor = int(floor_match.group(1))
         return "하안가 적용" if floor <= 2 else "일반가 적용"
