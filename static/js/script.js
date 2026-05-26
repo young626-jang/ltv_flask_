@@ -3232,8 +3232,8 @@ function updateCollateralRateDisplay() {
         const regionGrade = getRegionGradeFromAddress(address);
         const unitCount = parseInt((document.getElementById('unit_count')?.value || '0').replace(/,/g, '')) || 0;
 
-        // 100세대 미만 아파트는 Non-APT 금리 기준 적용 (가이드 기준)
-        const effectiveApt = isApt && !(unitCount > 0 && unitCount < 100);
+        // 금리 기준: 아파트는 APT 금리 기준 (100세대 미만도 동일 - LTV만 Non-APT 적용, 금리 기준은 APT)
+        const effectiveApt = isApt;
 
         // 메리츠 금리 계산 시점의 최신 LTV 값을 다시 읽음 (validateMeritzLoanConditions 반영)
         const meritzLtv = parseFloat(document.getElementById('ltv1')?.value) || 0;
