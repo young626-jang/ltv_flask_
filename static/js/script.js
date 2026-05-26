@@ -3232,8 +3232,8 @@ function updateCollateralRateDisplay() {
         const regionGrade = getRegionGradeFromAddress(address);
         const unitCount = parseInt((document.getElementById('unit_count')?.value || '0').replace(/,/g, '')) || 0;
 
-        // 아파트는 세대수 관계없이 APT 기준 적용 (등기부 기준)
-        const effectiveApt = isApt;
+        // 100세대 미만 아파트는 Non-APT 금리 기준 적용 (가이드 기준)
+        const effectiveApt = isApt && !(unitCount > 0 && unitCount < 100);
 
         // 메리츠 금리 계산 시점의 최신 LTV 값을 다시 읽음 (validateMeritzLoanConditions 반영)
         const meritzLtv = parseFloat(document.getElementById('ltv1')?.value) || 0;
@@ -3263,9 +3263,9 @@ function updateCollateralRateDisplay() {
             addReasons.push('3군');
         }
 
-        if (isApt && unitCount > 0 && unitCount <= 100) {
+        if (isApt && unitCount > 0 && unitCount < 100) {
             additional += 0.5;
-            addReasons.push('100세대이하');
+            addReasons.push('100세대미만NONAPT');
         }
 
         // 군(읍) 단위 소재
@@ -3520,6 +3520,11 @@ function validateMeritzLoanConditions() {
     // 주소 가져오기
     const meritzAddressField = document.getElementById('address');
     const address = meritzAddressField ? meritzAddressField.value.trim() : '';
+    // 세대수 가져오기
+    const unitCount = parseInt((document.getElementById('unit_count')?.value || '0').replace(/,/g, '')) || 0;
+    // 100세대 미만 아파트는 Non-APT LTV 적용 (가이드 기준)
+    const isApt = propertyType.includes('아파트') || propertyType.includes('주상복합');
+    const effectivePropertyType = (isApt && unitCount > 0 && unitCount < 100) ? '연립/다세대' : propertyType;
 
     // 선순위/후순위 판단 (유지/동의/비동의가 있으면 후순위, 없으면 선순위)
     const maintainStatus = ['유지', '동의', '비동의'];
@@ -3566,8 +3571,8 @@ function validateMeritzLoanConditions() {
     // 2. 메리츠 면적에 따른 LTV 자동 설정 (지역 고려)
     // ========================================================
 
-    // Non-APT 2군/3군 취급불가 검증
-    const isNonApt = propertyType && !propertyType.includes('아파트');
+    // Non-APT 2군/3군 취급불가 검증 (100세대 미만 아파트도 Non-APT로 취급)
+    const isNonApt = effectivePropertyType && !effectivePropertyType.includes('아파트') && !effectivePropertyType.includes('주상복합');
     const isNonAptRestricted = isNonApt && (meritzRegion === '2gun' || meritzRegion === '3gun');
 
     if (isNonAptRestricted && propertyTypeField) {
@@ -3580,11 +3585,12 @@ function validateMeritzLoanConditions() {
     }
 
     if (area > 0) {
-        // 기본 LTV (선순위/후순위, 지역 고려, 물건유형 고려)
-        let baseLtv = calculateMeritzLTV(area, priority, meritzRegion, propertyType);
+        // 기본 LTV (선순위/후순위, 지역 고려, 물건유형 고려) - 100세대 미만 APT는 effectivePropertyType으로 Non-APT 기준 적용
+        let baseLtv = calculateMeritzLTV(area, priority, meritzRegion, effectivePropertyType);
         const regionName = meritzRegion === '1gun' ? '1군(일반)' : (meritzRegion === '2gun' ? '2군' : '3군');
+        const unitNote = (isApt && unitCount > 0 && unitCount < 100) ? ` [100세대미만→Non-APT기준]` : '';
 
-        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 순위: ${priorityLabel}, 면적: ${area}㎡, 물건유형: ${propertyType}, 설정LTV: ${baseLtv}%`);
+        console.log(`📊 메리츠 면적별 LTV - 지역: ${regionName}, 순위: ${priorityLabel}, 면적: ${area}㎡, 물건유형: ${propertyType}${unitNote}, 설정LTV: ${baseLtv}%`);
 
         // ✅ [수정] 필요금액이 입력되어 있으면 역계산된 LTV를 유지 (덮어쓰기 방지)
         const requiredAmountField = document.getElementById('required_amount');
