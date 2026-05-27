@@ -549,9 +549,13 @@ def extract_rights_info(full_text):
         # 변경/이전 등기인 경우 (N-M 형태): 대상 순위번호(N)의 정보 업데이트
         # 예: "6-2 근저당권변경" -> main_rank=6의 금액을 업데이트
         # 예: "18-1 근저당권이전" -> main_rank=18의 근저당권자를 업데이트
-        # N-M 형태 중 근질권설정/채권질권설정/경정은 부수 등기이므로 완전히 건너뜀 (금액 덮어쓰기 방지)
+        # N-M 형태 중 근질권설정/채권질권설정/경정/질권(단독)은 부수 등기이므로 완전히 건너뜀
         # 예: "19-1 (1)19번근저당권부채권질권설정" → 근저당권에 종속된 질권이므로 독립 행 생성 안 함
+        # 예: "19-1 (1)질권" (요약 테이블 형식) → 마찬가지로 건너뜀
         if dash_sub and ('근질권' in clean_entry or '채권질권' in clean_entry or '경정' in clean_entry):
+            continue
+        # 요약 테이블에서 "N-M (K)질권" 형식으로 표기된 경우 (근저당 없이 질권만 있는 경우)
+        if dash_sub and '질권' in clean_entry and '근저당' not in clean_entry:
             continue
 
         if dash_sub and ('변경' in clean_entry or '이전' in clean_entry):
