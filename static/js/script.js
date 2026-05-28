@@ -3199,18 +3199,18 @@ function updateCollateralRateDisplay() {
     });
     const isSenior = !hasSubordinate;
 
-    // --- 아이엠 금리 ---
+    // --- 아이엠 금리 (2026.06 기준) ---
     if (hopeCheckbox?.checked) {
         let hopeRate = null;
         if (isSenior) {
             // 선순위: 70% 이하만 가능
-            if (ltv <= 70) hopeRate = 6.8;
+            if (ltv <= 70) hopeRate = 7.0;
             // 70% 초과는 표시 안함
         } else {
             // 후순위
-            if (ltv <= 70) hopeRate = 6.8;
-            else if (ltv <= 75) hopeRate = 7.0;
-            else if (ltv <= 80) hopeRate = 7.4;
+            if (ltv <= 70) hopeRate = 7.0;
+            else if (ltv <= 75) hopeRate = 7.2;
+            else if (ltv <= 80) hopeRate = 7.6;
         }
 
         if (hopeRate !== null) {
