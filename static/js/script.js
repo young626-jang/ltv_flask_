@@ -3905,6 +3905,12 @@ function calculateMeritzLTV(area, priority = 'first', region = '1gun', propertyT
         }
     }
 
+    // 현재 LTV 상한선 79% 적용 (임시)
+    const LTV_MAX_CAP = 79.0;
+    if (ltv !== null && ltv !== undefined && ltv !== 0 && ltv > LTV_MAX_CAP) {
+        ltv = LTV_MAX_CAP;
+    }
+
     return ltv;
 }
 
