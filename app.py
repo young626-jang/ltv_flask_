@@ -455,13 +455,13 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         return {'ltv': None, 'reasons': reasons, 'error': str(e)}
 
 def _to_customer_rate(cost_rate):
-    """질권사 원가금리 + 마진 4% → 고객 적용금리 (X.9% 올림)"""
+    """질권사 원가금리 + 마진 4% → 고객 최소 적용금리 (X.9% 올림)"""
     return int(cost_rate + 4) + 0.9
 
 def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_meritz=False, property_type='', is_senior=True):
     """
-    질권사 원가금리 + 마진 4% 기준으로 고객 적용 금리 텍스트 반환
-    원가금리에 4%를 더한 후 X.9%로 올림 처리
+    질권사 원가금리 + 마진 4% 기준으로 최소금리를 계산하고,
+    최소금리부터 14.9%까지 선택 가능한 금리 목록 반환
     """
     if not ltv_rate:
         return None
@@ -470,6 +470,8 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_me
         ltv = float(ltv_rate)
     except (ValueError, TypeError):
         return None
+
+    ALL_RATES = [10.9, 11.9, 12.9, 13.9, 14.9]
 
     if is_meritz:
         # 메리츠 원가금리 (2026.03 기준)
@@ -488,8 +490,6 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_me
                 cost = 9.90
             else:
                 cost = 11.40
-        rate = _to_customer_rate(cost)
-        return f"{rate:.1f}% 선택"
     else:
         # 아이엠 원가금리 (2026.06 기준)
         if is_senior:
@@ -507,8 +507,11 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_me
         if cost is None:
             return None
 
-        rate = _to_customer_rate(cost)
-        return f"{rate:.1f}% 선택"
+    min_rate = _to_customer_rate(cost)
+    available = [r for r in ALL_RATES if r >= min_rate]
+    if not available:
+        return f"{min_rate:.1f}% 선택"
+    return " / ".join(f"{r:.1f}%" for r in available) + " 선택"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
