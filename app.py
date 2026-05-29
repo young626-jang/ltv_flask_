@@ -454,18 +454,14 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
         return {'ltv': None, 'reasons': reasons, 'error': str(e)}
 
-def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None):
-    """
-    아이엠질권 금리 기준
+def _to_customer_rate(cost_rate):
+    """질권사 원가금리 + 마진 4% → 고객 적용금리 (X.9% 올림)"""
+    return int(cost_rate + 4) + 0.9
 
-    서울 LTV 70% 미만:
-      8.9%→6개월후10.9% / 9.9%→6개월후11.9% / 10.9%→6개월후12.9%  고정 11.9%/12.9%/13.9%/14.9% 선택
-    서울 LTV 70% 이상:
-      11.9% / 12.9% / 13.9% / 14.9% 선택
-    경기·인천 1군 LTV 60% 미만:
-      8.9%→6개월후10.9% / 9.9%→6개월후11.9% / 10.9%→6개월후12.9%  고정 11.9%/12.9%/13.9%/14.9% 선택
-    경기·인천 1군 60% 이상 / 2군 / 3군:
-      12.9% / 13.9% / 14.9% 선택
+def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_meritz=False, property_type='', is_senior=True):
+    """
+    질권사 원가금리 + 마진 4% 기준으로 고객 적용 금리 텍스트 반환
+    원가금리에 4%를 더한 후 X.9%로 올림 처리
     """
     if not ltv_rate:
         return None
@@ -475,39 +471,44 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None):
     except (ValueError, TypeError):
         return None
 
-    rate_6month = "8.9%→6개월후10.9% / 9.9%→6개월후11.9% / 10.9%→6개월후12.9%  고정 11.9%/12.9%/13.9%/14.9% 선택"
-
-    if not region:
-        # 지역 구분 없는 경우 (질권 등)
-        return "12.9% / 13.9% / 14.9% 선택"
-    elif region == '서울':
-        if ltv < 70:
-            return rate_6month
-        elif ltv < 75:
-            return "10.9% / 11.9% / 12.9% / 13.9% / 14.9% 선택"
-        elif ltv < 80:
-            return "11.9% / 12.9% / 13.9% / 14.9% 선택"
-        elif ltv <= 85:
-            return "12.9% / 13.9% / 14.9% 선택"
+    if is_meritz:
+        # 메리츠 원가금리 (2026.03 기준)
+        is_apt = '아파트' in property_type or '주상복합' in property_type
+        if is_apt:
+            if ltv <= 75:
+                cost = 6.70
+            elif ltv <= 85:
+                cost = 7.70
+            else:
+                cost = 9.20
         else:
-            return None
-    elif region in ['경기', '인천']:
-        if ltv < 60:
-            return rate_6month
-        elif ltv < 70:
-            return "10.9% / 11.9% / 12.9% / 13.9% / 14.9% 선택"
-        elif ltv < 75:
-            return "11.9% / 12.9% / 13.9% / 14.9% 선택"
-        else:
-            return "12.9% / 13.9% / 14.9% 선택"
+            if ltv <= 75:
+                cost = 8.90
+            elif ltv <= 85:
+                cost = 9.90
+            else:
+                cost = 11.40
+        rate = _to_customer_rate(cost)
+        return f"{rate:.1f}% 선택"
     else:
-        # 그 외 3군지역
-        if ltv < 70:
-            return "12.9% / 13.9% / 14.9% 선택"
-        elif ltv <= 75:
-            return "13.9% / 14.9% 선택"
+        # 아이엠 원가금리 (2026.06 기준)
+        if is_senior:
+            cost = 7.0 if ltv <= 70 else None
         else:
+            if ltv <= 70:
+                cost = 7.0
+            elif ltv <= 75:
+                cost = 7.2
+            elif ltv <= 80:
+                cost = 7.6
+            else:
+                cost = None
+
+        if cost is None:
             return None
+
+        rate = _to_customer_rate(cost)
+        return f"{rate:.1f}% 선택"
 
 def _generate_memo_header(inputs):
     """메모의 헤더 부분(소유자, 주소, 면적, 시세 정보)을 생성합니다."""
@@ -811,10 +812,14 @@ def generate_memo(data):
 
                     # 아이엠 또는 메리츠 질권 체크 시 적용 금리 추가
                     if hope_collateral_checked or meritz_collateral_checked:
-                        _region = get_region_from_address(address)
-                        _region_grade = get_region_grade(address) if _region in ['경기', '인천'] else None
-                        logger.info(f"금리계산 - address: {address}, region: {_region}, grade: {_region_grade}, ltv: {ltv_rate}")
-                        interest_rate = get_hope_collateral_interest_rate(_region, ltv_rate, region_grade=_region_grade)
+                        _property_type = inputs.get('property_type', '')
+                        interest_rate = get_hope_collateral_interest_rate(
+                            region=None,
+                            ltv_rate=ltv_rate,
+                            is_meritz=meritz_collateral_checked,
+                            property_type=_property_type,
+                            is_senior=is_senior
+                        )
                         if interest_rate:
                             ltv_line += f"\n적용 금리 (연이율) {interest_rate}"
 
