@@ -3215,7 +3215,8 @@ function updateCollateralRateDisplay() {
 
         if (hopeRate !== null) {
             const label = isSenior ? '선순위' : '후순위';
-            hopeDisplay.textContent = `${label} ${hopeRate}%`;
+            const minApplyRate = Math.floor(hopeRate + 4) + 0.9;
+            hopeDisplay.textContent = `${label} 최소 ${minApplyRate.toFixed(1)}%`;
             hopeDisplay.style.display = 'inline';
         } else {
             hopeDisplay.style.display = 'none';
@@ -3282,7 +3283,9 @@ function updateCollateralRateDisplay() {
         }
 
         const totalRate = baseRate + additional;
-        let displayText = `${totalRate.toFixed(1)}%`;
+        // 최소 적용금리: 질권사 금리 + 마진 4%, 소수점 올림하여 X.9%로 표시
+        const minApplyRate = Math.floor(totalRate + 4) + 0.9;
+        let displayText = `최소 ${minApplyRate.toFixed(1)}%`;
         if (additional > 0) {
             displayText += ` (+${additional.toFixed(1)} ${addReasons.join(',')})`;
         }
