@@ -345,6 +345,12 @@ def auto_calculate_ltv(address, area, is_senior=True, kb_price=None, property_ty
             except (ValueError, IndexError) as e:
                 logger.warning(f"준공일자 파싱 실패: {completion_date}, 오류: {e}")
 
+        # 6. 현재 LTV 상한선 79% 적용 (임시)
+        LTV_MAX_CAP = 79.0
+        if ltv_standard > LTV_MAX_CAP:
+            ltv_standard = LTV_MAX_CAP
+            logger.info(f"LTV 상한선 {LTV_MAX_CAP}% 적용")
+
         return ltv_standard
     except Exception as e:
         logger.error(f"LTV 자동 계산 중 오류 (주소: {address}, 면적: {area}): {e}")
@@ -445,6 +451,12 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
                         reasons.append(f"준공연도: {completion_year}년 (경과 {years_elapsed}년)")
             except (ValueError, IndexError) as e:
                 reasons.append(f"⚠️ 준공일자 파싱 오류: {completion_date}")
+
+        # 6. 현재 LTV 상한선 79% 적용 (임시)
+        LTV_MAX_CAP = 79.0
+        if ltv_standard > LTV_MAX_CAP:
+            reasons.append(f"⚠️ 최종 LTV {ltv_standard}% → 현재 LTV 상한선 {LTV_MAX_CAP}% 적용")
+            ltv_standard = LTV_MAX_CAP
 
         # 최종 LTV 표시
         reasons.append(f"✅ 최종 LTV: {ltv_standard}%")
