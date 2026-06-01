@@ -1147,11 +1147,11 @@ def convert_to_road_address():
         logger.info(f"[도로명 변환] 원본: {address}")
 
         # 동/호수 정보 미리 추출 (나중에 사용)
-        # 패턴1: 동 + 층 + 호 (예: 제401동 제1층 제109호)
-        dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)층\s*제?(\d+)호', address)
+        # 패턴1: 동 + 층 + 호 (예: 제401동 제1층 제109호, 제가동 제4층 제409호)
+        dong_ho_match = re.search(r'제?([가-힣]?[가-힣\d]+)동.*?제?(\d+)층\s*제?(\d+)호', address)
         # 패턴2: 동 + 호 (층 없음)
         if not dong_ho_match:
-            dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
+            dong_ho_match = re.search(r'제?([가-힣]?[가-힣\d]+)동.*?제?(\d+)호', address)
         # 패턴3: 층 + 호만 (동 없음, 예: 제12층 제1204호) - 오피스텔/상가 등
         floor_ho_match = None
         if not dong_ho_match:
