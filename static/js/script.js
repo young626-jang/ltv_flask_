@@ -1840,6 +1840,16 @@ async function handleFileUpload(file) {
                 individualShareMemo += '\n*계약 2년';
                 individualShareMemo += '\n*중도 3%';
                 individualShareMemo += '\n*연체이력 및 권리침해사항 1% 할증';
+
+                // 아이엠 지분대출 금리 가산 안내 (서울/경기 +0.5%, 인천 +1%)
+                if (isHopeChecked) {
+                    const addr = document.getElementById('address')?.value || '';
+                    if (addr.includes('인천')) {
+                        individualShareMemo += '\n*지분대출 금리 가산: 인천 +1.0%';
+                    } else if (addr.includes('서울') || addr.includes('경기')) {
+                        individualShareMemo += '\n*지분대출 금리 가산: 서울/경기 +0.5%';
+                    }
+                }
             }
 
             const memoTextarea = document.getElementById('generated-memo');
@@ -3215,7 +3225,15 @@ function updateCollateralRateDisplay() {
 
         if (hopeRate !== null) {
             const label = isSenior ? '선순위' : '후순위';
-            hopeDisplay.textContent = `${label} ${hopeRate}%`;
+            // 지분대출(라디오 선택) 시 지역별 가산금리 표시
+            const shareBorrowerRadio = document.querySelector('input[name="share-borrower"]:checked');
+            let hopeAddText = '';
+            if (shareBorrowerRadio) {
+                const addr = document.getElementById('address')?.value || '';
+                if (addr.includes('인천')) hopeAddText = ' (+1.0% 인천지분)';
+                else if (addr.includes('서울') || addr.includes('경기')) hopeAddText = ' (+0.5% 지분)';
+            }
+            hopeDisplay.textContent = `${label} ${hopeRate}%${hopeAddText}`;
             hopeDisplay.style.display = 'inline';
         } else {
             hopeDisplay.style.display = 'none';
@@ -3316,14 +3334,14 @@ function validateHopeLoanConditions() {
     // --- ▲▲▲ [수정] ▲▲▲
     const kbPrice = parseInt(kbPriceField.value.replace(/,/g, '')) || 0;
 
-    // 3억 = 30,000만 (KB시세는 만 단위)
-    const THREE_HUNDRED_MILLION = 30000;
+    // 2억 = 20,000만 (KB시세는 만 단위, 2026.06 기준 3억→2억 변경)
+    const KB_MIN = 20000;
 
     // 조건 1: 희망담보대부 체크 AND 세대수 < 100
     const shouldHighlightUnitCount = isHopeChecked && unitCount > 0 && unitCount < 100;
 
-    // 조건 2: 희망담보대부 체크 AND KB시세 < 3억 (30,000만)
-    const shouldHighlightKbPrice = isHopeChecked && kbPrice > 0 && kbPrice < THREE_HUNDRED_MILLION;
+    // 조건 2: 희망담보대부 체크 AND KB시세 < 2억 (20,000만)
+    const shouldHighlightKbPrice = isHopeChecked && kbPrice > 0 && kbPrice < KB_MIN;
 
     // 조건 3: 희망담보대부 체크 AND 준공일자 45년 이상 (2025년 기준 1980년 이전)
     const completionDateField = document.getElementById('completion_date');
@@ -3410,11 +3428,11 @@ function validateHopeLoanConditions() {
     // KB시세 필드 스타일 처리
     if (shouldHighlightKbPrice) {
         kbPriceField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-        console.log('🔴 경고: KB시세 3억 미만');
+        console.log('🔴 경고: KB시세 2억 미만');
         // 경고창 (한 번만 표시하기 위한 플래그)
         if (!window._hopePriceAlertShown) {
             window._hopePriceAlertShown = true;
-            alert(`⚠️ 아이엠 취급불가\n\nKB시세 ${kbPrice.toLocaleString()}만원 (3억 미만)\n\n아이엠은 시세 3억 이상만 취급 가능합니다.`);
+            alert(`⚠️ 아이엠 취급불가\n\nKB시세 ${kbPrice.toLocaleString()}만원 (2억 미만)\n\n아이엠은 시세 2억 이상만 취급 가능합니다.`);
         }
     } else {
         kbPriceField.removeAttribute('style');
