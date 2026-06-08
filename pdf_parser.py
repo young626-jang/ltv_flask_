@@ -144,8 +144,13 @@ def extract_search_address(full_address):
 
 def extract_area(text):
     """텍스트에서 전용 면적을 추출합니다."""
-    # 패턴 1: "전유부분의 건물의 표시" ~ "갑 구" 또는 "대지권의 표시" 사이
-    # 괄호로 감싸져 있을 수 있음: ( 전유부분의 건물의 표시 )
+    # 패턴 0: "철근콘크리트조 XX.XXXX㎡" 형태 — 전유부분 건물내역에서 직접 추출 (가장 정확)
+    # 예: "철근콘크리트조84.6098㎡" 또는 "철근콘크리트조 84.6098㎡"
+    structure_match = re.search(r"철근콘크리트조\s*(\d+\.\d+)\s*㎡", text)
+    if structure_match:
+        return f"{structure_match.group(1)}㎡"
+
+    # 패턴 1: "전유부분의 건물의 표시" ~ "대지권의 표시" 사이
     area_section_match = re.search(
         r"전유부분의\s*건물의\s*표시\s*\)?([\s\S]*?)(?:갑\s*구|대지권의\s*표시)",
         text
@@ -158,29 +163,24 @@ def extract_area(text):
         if area_keyword_matches:
             total = round(sum(float(v) for v in area_keyword_matches), 4)
             return f"{total}㎡"
-        # 전유부분 섹션 내에서 면적 찾기
+        # 전유부분 섹션 내 가장 작은 값 선택 (공용면적보다 전용면적이 작음)
         matches = re.findall(r"(\d+\.\d+)\s*㎡", search_text)
         if matches:
-            # 전유부분 전용면적은 보통 200㎡ 이하 — 범위 내 값 합산
-            valid = [m for m in matches if float(m) <= 200]
+            valid = [m for m in matches if 20 <= float(m) <= 200]
             if valid:
-                total = round(sum(float(v) for v in valid), 4)
-                return f"{total}㎡"
+                return f"{min(valid, key=lambda x: float(x))}㎡"
             return f"{min(matches, key=lambda x: float(x))}㎡"
 
     # 패턴 2: 전유부분 섹션을 못 찾은 경우, 기존 방식 (전체 텍스트에서)
-    # 줄바꿈으로 분리된 면적 처리
     clean_text = re.sub(r'구조(\d+)\s*\n\s*\.', r'구조\1.', text)
     clean_text = re.sub(r'\s+', ' ', clean_text)
 
     matches = re.findall(r"(\d+\.\d+)\s*㎡", clean_text)
     if matches:
-        # 아파트 전용면적 범위 (20~200㎡) 내에서 가장 큰 면적 선택
         valid_areas = [m for m in matches if 20 <= float(m) <= 200]
         if valid_areas:
             largest_area = max(valid_areas, key=lambda x: float(x))
             return f"{largest_area}㎡"
-        # 유효 범위 없으면 가장 큰 면적
         largest_area = max(matches, key=lambda x: float(x))
         return f"{largest_area}㎡"
     return ""
