@@ -328,39 +328,6 @@ def _extract_text_from_pdf(filepath: str) -> str:
         print(f"PDF 텍스트 추출 중 오류 발생: {e}")
         return ""
 
-def parse_pdf_for_ltv(pdf_path):
-    try:
-        full_text = _extract_text_from_pdf(pdf_path)
-        if not full_text:
-            return {}
-
-        # 1. 텍스트를 구조화된 섹션으로 분리
-        sections = _split_text_into_sections(full_text)
-
-        # 2. 섹션 기반으로 정보 추출
-        address = _parse_address(sections.get('full', ''))
-        area = _parse_area(sections.get('full', ''))
-        customer_details = _parse_owners(sections)
-
-        # 열람일시와 나이 검사 추가
-        viewing_datetime = extract_viewing_datetime(full_text)
-        age_check = check_registration_age(viewing_datetime)
-
-        # 3. 섹션 기반으로 심사 기준 분석 실행
-        eligibility_checks = analyze_eligibility_from_sections(sections)
-
-        return {
-            "customer_name": customer_details,
-            "birth_date": "",
-            "address": address,
-            "area": area,
-            "viewing_datetime": viewing_datetime,
-            "age_check": age_check,
-            "eligibility_checks": eligibility_checks
-        }
-    except Exception as e:
-        print(f"PDF 파싱 중 오류 발생: {e}")
-        return {}
 
 def extract_owner_shares_linewise(pdf_path):
     """
