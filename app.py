@@ -640,14 +640,8 @@ def generate_memo(data):
         if kb_price_str:
             address_area_parts.append(kb_price_str)
 
-        # 시세적용 정보 추가 (층수 기준)
-        price_type = ""
-        if address and address.strip():
-            floor_match = re.search(r'(?:제)?(\d+)층', address)
-            if floor_match:
-                floor = int(floor_match.group(1))
-                price_type = "하안가 적용" if floor <= 2 else "일반가 적용"
-
+        # 시세적용 정보 추가 (오피스텔이면 층수 무관 하안가, 아파트 등은 층수 기준)
+        price_type = get_price_type_from_address(address, property_type)
         if price_type:
             address_area_parts.append(price_type)
 
