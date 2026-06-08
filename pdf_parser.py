@@ -1208,9 +1208,13 @@ def get_building_info(address):
                     for item in items:
                         dong_nm = item.findtext('dongNm') or ''
                         etc_purps = item.findtext('etcPurps') or ''
+                        main_purps = item.findtext('mainPurpsCdNm') or ''
                         h_cnt = item.findtext('hhldCnt') or '0'
                         u_date = (item.findtext('useAprDay') or '').strip()  # 공백 제거
-                        is_excluded = any(keyword in dong_nm or keyword in etc_purps for keyword in exclude_keywords)
+                        # 주용도가 공동주택/아파트면 etcPurps 키워드와 무관하게 포함
+                        is_residential = '공동주택' in main_purps or '아파트' in main_purps
+                        # dong_nm 기준으로만 제외 (etcPurps는 부가용도라 주거동에도 근린생활 포함될 수 있음)
+                        is_excluded = not is_residential and any(keyword in dong_nm for keyword in exclude_keywords)
                         if not is_excluded and h_cnt.isdigit():
                             title_hhld += int(h_cnt)
                         if u_date and not title_date:
