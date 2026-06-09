@@ -23,20 +23,20 @@ from history_manager_flask import fetch_all_customers, fetch_customer_details, c
 # --- ▼▼▼ pdf_parser.py에서 모든 필요한 함수를 가져오도록 수정합니다 ▼▼▼ ---
 from pdf_parser import (
     extract_address,
-    extract_search_address,  # [신규] KB시세 검색용 축약 주소 추출
+    extract_search_address,
     extract_area,
     extract_property_type,
     extract_owner_info,
     extract_viewing_datetime,
     check_registration_age,
     extract_owner_shares_with_birth,
-    extract_rights_info,  # 근저당권 분석 함수
-    extract_construction_date,  # [신규] 준공일자 추출
-    extract_last_transfer_info,  # [신규] 최근 소유권 이전 정보
-    extract_seizure_info,  # [신규] 압류/가압류 정보 추출
-    get_building_info,  # [신규] 건축물대장 정보 조회
-    check_land_ownership_right  # [신규] 소유권대지권 확인
+    extract_rights_info,
+    extract_construction_date,
+    extract_last_transfer_info,
+    extract_seizure_info,
+    check_land_ownership_right
 )
+from kb_scraper import get_kb_info
 
 # --- 로깅 설정 ---
 logging.basicConfig(level=logging.INFO)
@@ -201,21 +201,36 @@ def upload_and_parse_pdf():
     # [신규] 소유권대지권 확인
     has_land_ownership_right = check_land_ownership_right(full_text)
 
-    # [신규] 건축물대장 정보 조회 (세대수, 준공일)
-    print(f"\n===== 건축물대장 조회 시작 =====")
+    # KB API로 세대수/준공일/시세/단지번호 한 번에 조회
+    print(f"\n===== KB API 조회 시작 =====")
     print(f"추출된 주소: {extracted_address}")
+    area_val = 0.0
     try:
-        building_info = get_building_info(extracted_address)
-        print(f"건축물대장 결과: {building_info}")
+        area_str = extracted_area.replace('㎡', '').strip() if extracted_area else ''
+        area_val = float(area_str) if area_str else 0.0
+    except Exception:
+        pass
+    try:
+        kb_info = get_kb_info(extracted_address, area_val if area_val > 0 else None)
+        print(f"KB API 결과: {kb_info}")
     except Exception as e:
-        print(f"건축물대장 조회 중 에러 발생: {e}")
+        print(f"KB API 조회 중 에러: {e}")
         import traceback
         traceback.print_exc()
-        building_info = {'success': False, 'total_households': 0, 'completion_date': '', 'raw_completion_date': '', 'buildings': []}
-    print(f"===== 건축물대장 조회 종료 =====\n")
+        kb_info = {'success': False, 'kb_price': 0, 'kb_price_high': 0, 'kb_price_low': 0,
+                   'total_households': 0, 'completion_date': '', 'complex_no': '', 'complex_name': '', 'area_m2': 0.0}
+    print(f"===== KB API 조회 종료 =====\n")
 
-    # 3. 결과 정리 및 반환 (KB 크롤링 제거 - 별도 API 사용)
-    # [신규] KB시세 검색용 축약 주소 추출
+    # building_info 호환 형식으로 변환 (기존 프론트 코드 유지)
+    building_info = {
+        'success': kb_info['success'],
+        'total_households': kb_info['total_households'],
+        'completion_date': kb_info['completion_date'],
+        'raw_completion_date': kb_info['completion_date'],
+        'buildings': []
+    }
+
+    # 3. 결과 정리 및 반환
     search_address = extract_search_address(extracted_address)
 
     scraped_data = {
@@ -235,15 +250,25 @@ def upload_and_parse_pdf():
         'transfer_price': transfer_info.get('price', ''),  # 거래가액
 
         'owner_shares': extract_owner_shares_with_birth(full_text),
-        'has_land_ownership_right': has_land_ownership_right  # [신규] 소유권대지권 여부
+        'has_land_ownership_right': has_land_ownership_right,  # [신규] 소유권대지권 여부
+        'floor': int(re.search(r'제?(\d+)층', extracted_address).group(1)) if re.search(r'제?(\d+)층', extracted_address) else None,
     }
 
     return jsonify({
         "success": True,
         "scraped_data": scraped_data,
         "rights_info": rights_info,
-        "seizure_info": seizure_info,  # [신규] 압류 정보 추가
-        "building_info": building_info  # [신규] 건축물대장 정보 추가
+        "seizure_info": seizure_info,
+        "building_info": building_info,
+        "kb_info": {
+            "kb_price": kb_info['kb_price'],
+            "kb_price_high": kb_info['kb_price_high'],
+            "kb_price_low": kb_info['kb_price_low'],
+            "complex_no": kb_info['complex_no'],
+            "complex_name": kb_info['complex_name'],
+            "area_m2": kb_info['area_m2'],
+            "rcns_info": kb_info.get('rcns_info'),
+        }
     })
 
 # --- (이하 나머지 모든 API 라우트 및 앱 실행 코드는 기존과 완벽하게 동일합니다) ---
