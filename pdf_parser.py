@@ -715,24 +715,33 @@ def extract_last_transfer_info(text):
         
         gap_gu_text = gap_gu_match.group(1)
 
-        # 2. 소유권이전 + 소유권보존 모두 찾기
-        # 패턴 1: 쉼표 구분 형식 (소유권이전)
-        pattern = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*이전["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+        # 2. 소유권이전/지분이전/보존 모두 찾기
+        # 패턴 1: 쉼표 구분 형식 — "1, 소유권이전, 2016년..." 또는 "1, 공유자전원지분전부이전, ..."
+        pattern = r'["\']?(\d+)["\']?\s*,\s*["\']?(?:소유권\s*이전|[가-힣]*지분[가-힣]*이전|공유자전원지분전부이전)["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
         all_transfers = re.findall(pattern, gap_gu_text)
 
         if not all_transfers:
-            # 패턴 2: 쉼표 없이 공백으로 구분된 경우를 위한 예비 패턴
-            pattern2 = r'(\d+)\s+소유권\s*이전\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            # 패턴 2: 공백 구분 형식 — "1 소유권이전 2016년..." 또는 "1 공유자전원지분전부이전 2016년..."
+            pattern2 = r'(\d+)\s+(?:소유권\s*이전|[가-힣]*지분[가-힣]*이전|공유자전원지분전부이전)\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
             all_transfers = re.findall(pattern2, gap_gu_text)
+
+        if not all_transfers:
+            # 패턴 3: 줄바꿈 포함 — 순위번호 다음 줄에 등기목적이 오는 경우
+            # "1\n(전 5)\n공유자전원지분전부\n이전\n2016년2월25일\n제11178호\n2016년1월12일\n매매"
+            pattern3 = r'(\d+)[\s\S]{0,30}?(?:소유권\s*이전|지분[가-힣]*이전|공유자전원지분전부이전)[\s\S]{0,100}?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)\s*(?:\n[^\n]*\n|\s*)(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            m3_list = re.findall(pattern3, gap_gu_text)
+            # 접수일(첫번째 날짜)보다 등기원인일(두번째 날짜)이 더 의미있으므로 두번째 날짜 사용
+            if m3_list:
+                all_transfers = [(m[0], m[2]) for m in m3_list]
 
         # 소유권이전이 없으면 소유권보존 날짜 탐색 (신축 분양 등)
         if not all_transfers:
-            pattern3 = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*보존["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
-            all_transfers = re.findall(pattern3, gap_gu_text)
+            pattern4 = r'["\']?(\d+)["\']?\s*,\s*["\']?소유권\s*보존["\']?\s*,\s*["\']?(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            all_transfers = re.findall(pattern4, gap_gu_text)
 
         if not all_transfers:
-            pattern4 = r'(\d+)\s+소유권\s*보존\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
-            all_transfers = re.findall(pattern4, gap_gu_text)
+            pattern5 = r'(\d+)\s+소유권\s*보존\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)'
+            all_transfers = re.findall(pattern5, gap_gu_text)
 
         if not all_transfers:
             return result
