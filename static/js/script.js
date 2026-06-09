@@ -26,6 +26,7 @@
         const el = document.getElementById(elementId);
         if (el) {
             el.value = value;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
             console.warn(`⚠️ Element not found: ${elementId}`);
         }
@@ -155,42 +156,19 @@
     // 압류 경고 표시 함수
     function displaySeizureWarning(seizureInfo) {
         const warningElement = document.getElementById('seizure-warning');
-        const summaryElement = document.getElementById('seizure-summary');
-        const detailsElement = document.getElementById('seizure-details');
-
-        if (!seizureInfo || !warningElement) {
-            return;
-        }
+        if (!seizureInfo || !warningElement) return;
 
         const totalCount = seizureInfo.total_count || 0;
         const activeCount = seizureInfo.active_count || 0;
-        const activeSeizures = seizureInfo.active_seizures || [];
-        const cancelledCount = totalCount - activeCount; // 말소된 건수
 
-        // 압류 정보가 하나라도 있으면 표시
         if (totalCount > 0) {
-            // 요약 정보
-            summaryElement.textContent = `과거 이력 (말소됨): ${cancelledCount}건\n현재 유효: ${activeCount}건`;
-
-            // 상세 정보 (현재 유효한 압류만)
-            if (activeCount > 0) {
-                const detailsHTML = activeSeizures.map(s => {
-                    const amountText = s.amount ? ` (${s.amount}원)` : '';
-                    return `순위 ${s.rank}: ${s.creditor} ${s.type} (${s.date})${amountText}`;
-                }).join('<br>');
-                detailsElement.innerHTML = detailsHTML;
-            } else {
-                detailsElement.textContent = '';
-            }
-
+            const parts = [];
+            if (activeCount > 0) parts.push(`현재 ${activeCount}건`);
+            const cancelledCount = totalCount - activeCount;
+            if (cancelledCount > 0) parts.push(`말소 ${cancelledCount}건`);
+            warningElement.textContent = `⚠️ 압류 (${parts.join(', ')})`;
             warningElement.style.display = 'block';
-
-            // 자동 스크롤하여 경고가 보이도록
-            setTimeout(() => {
-                warningElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 500);
         } else {
-            // 압류 정보가 없으면 숨김
             warningElement.style.display = 'none';
         }
     }
@@ -1343,6 +1321,7 @@ async function handleFileUpload(file) {
             const rights_info = result.rights_info; // 근저당권 정보
             const seizure_info = result.seizure_info; // [신규] 압류/가압류 정보
             const building_info = result.building_info; // [신규] 건축물대장 정보 (세대수, 준공일)
+            const kb_info = result.kb_info || {};       // [신규] KB 시세/단지 정보
 
             // 디버깅: 추출된 데이터 로그
             console.log('📊 scraped_data:', scraped);
@@ -1394,13 +1373,10 @@ async function handleFileUpload(file) {
             // [신규] 압류 경고 표시
             displaySeizureWarning(seizure_info);
 
-            // [신규] 소유권대지권 없음 경고
-            if (scraped.has_land_ownership_right === false) {
-                const addressField = document.getElementById('address');
-                if (addressField) {
-                    addressField.style.cssText = 'background-color: #ffcccc !important; border: 2px solid #ff0000 !important; box-shadow: 0 0 5px rgba(255,0,0,0.3) !important;';
-                }
-                showCustomAlert('⚠️ 소유권대지권 無\n\n이 등기부등본에 소유권대지권이 확인되지 않습니다.');
+            // 대지권미등기 경고 텍스트 표시
+            const landWarning = document.getElementById('land-ownership-warning');
+            if (landWarning) {
+                landWarning.style.display = scraped.has_land_ownership_right === false ? 'block' : 'none';
             }
 
             // 소유자별 지분 정보 (지분 한도 계산기 탭)
@@ -1459,30 +1435,54 @@ async function handleFileUpload(file) {
                 input.dispatchEvent(new Event('blur'));
             });
 
-            // [신규] KB시세 창 자동 열기 (팝업 방식)
-            if (scraped.search_address) {
-                console.log(`🏠 KB시세 자동 검색: ${scraped.search_address}`);
+            // 재건축 단계 자동 입력
+            const rcnsField = document.getElementById('rcns_step');
+            if (rcnsField) {
+                const rcns = kb_info.rcns_info;
+                if (rcns && rcns.step_no) {
+                    rcnsField.value = `${rcns.step_no}단계 ${rcns.step_name}`;
+                    rcnsField.style.color = '#FF2F2F';
+                    rcnsField.style.fontWeight = 'bold';
+                } else {
+                    rcnsField.value = '재건축정보없음';
+                    rcnsField.style.color = '';
+                    rcnsField.style.fontWeight = '';
+                }
+            }
 
-                // 클립보드 복사 (백업)
-                navigator.clipboard.writeText(scraped.search_address);
+            // [신규] KB 시세 자동 입력 + KB 단지 페이지 자동 오픈
+            if (kb_info.complex_no) {
+                // 오피스텔 → 무조건 하한가 / 아파트 1,2층 → 하한가 / 3층 이상 → 일반가
+                const floor = scraped.floor;
+                const isOfficetel = scraped.property_type && scraped.property_type.includes('오피스텔');
+                const isLowFloor = isOfficetel || (floor !== null && floor !== undefined && floor <= 2);
+                const kbPriceToUse = isLowFloor ? kb_info.kb_price_low : kb_info.kb_price;
+                if (kbPriceToUse && kbPriceToUse > 0) {
+                    safeSetValue('kb_price', kbPriceToUse);
+                    const reason = isOfficetel ? '오피스텔→하한가' : `${floor}층→${isLowFloor ? '하한가' : '일반가'}`;
+                    console.log(`KB시세 자동 입력: ${kbPriceToUse}만원 (${reason}, ${kb_info.complex_name}, ${kb_info.area_m2}㎡)`);
+                }
 
-                // ★ 핵심: URL 파라미터로 검색 주소를 전달
-                // content.js가 페이지 로드 시 파라미터를 감지하여 자동 검색 실행
-                const encodedAddress = encodeURIComponent(scraped.search_address);
-                const kbUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encodedAddress}`;
-
-                // 팝업 창 크기 및 위치 설정
+                // KB 단지 페이지 자동 오픈
+                const kbUrl = `https://kbland.kr/c/${kb_info.complex_no}`;
                 const popupWidth = 1200;
                 const popupHeight = 900;
-                const left = (window.innerWidth - popupWidth) / 2;
-                const top = (window.innerHeight - popupHeight) / 2;
+                const left = Math.max(0, (window.screen.width - popupWidth) / 2);
+                const top = Math.max(0, (window.screen.height - popupHeight) / 2);
+                console.log(`KB 단지 페이지 오픈: ${kbUrl}`);
+                window.open(kbUrl, 'kbLandPopup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`);
 
-                console.log(`📍 KB Land 팝업 열기: ${kbUrl}`);
-                window.open(
-                    kbUrl,
-                    'kbLandPopup',
-                    `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
-                );
+            } else if (scraped.search_address) {
+                // KB API 조회 실패 시 기존 지도 검색 fallback
+                navigator.clipboard.writeText(scraped.search_address).catch(() => {});
+                const encodedAddress = encodeURIComponent(scraped.search_address);
+                const kbUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encodedAddress}`;
+                const popupWidth = 1200;
+                const popupHeight = 900;
+                const left = Math.max(0, (window.screen.width - popupWidth) / 2);
+                const top = Math.max(0, (window.screen.height - popupHeight) / 2);
+                console.log(`KB Land 지도 팝업 오픈 (fallback): ${kbUrl}`);
+                window.open(kbUrl, 'kbLandPopup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`);
             }
 
             // PDF 뷰어를 표시하고 파일 이름을 보여줍니다.
