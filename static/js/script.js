@@ -2745,6 +2745,45 @@ function parseCustomerNames() {
 
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', () => {
+    // KB시세 버튼 클릭 - 주소 있으면 API로 단지 조회 후 바로 오픈, 없으면 지도 메인 오픈
+    const kbSearchBtn = document.getElementById('kb-search-btn');
+    if (kbSearchBtn) {
+        kbSearchBtn.addEventListener('click', async () => {
+            const address = document.getElementById('address')?.value.trim();
+            const popupWidth = 1200, popupHeight = 900;
+            const left = Math.max(0, (window.screen.width - popupWidth) / 2);
+            const top = Math.max(0, (window.screen.height - popupHeight) / 2);
+            const popupOpts = `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+
+            if (address) {
+                kbSearchBtn.textContent = 'KB조회중...';
+                kbSearchBtn.disabled = true;
+                try {
+                    const res = await fetch('/api/kb_search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.complex_no) {
+                        window.open(`https://kbland.kr/c/${data.complex_no}`, 'kbLandPopup', popupOpts);
+                    } else {
+                        // 단지 못 찾으면 지도 검색으로 fallback
+                        const encoded = encodeURIComponent(address);
+                        window.open(`https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encoded}`, 'kbLandPopup', popupOpts);
+                    }
+                } catch (e) {
+                    window.open('https://kbland.kr/map?xy=37.5205559,126.9265729,17', 'kbLandPopup', popupOpts);
+                } finally {
+                    kbSearchBtn.textContent = 'KB시세';
+                    kbSearchBtn.disabled = false;
+                }
+            } else {
+                window.open('https://kbland.kr/map?xy=37.5205559,126.9265729,17', 'kbLandPopup', popupOpts);
+            }
+        });
+    }
+
    // --- LTV 초기값 설정: 질권이 체크되어 있지 않으면 80%로 ---
    const ltv1Field = document.getElementById('ltv1');
    const hopeCheckbox = document.getElementById('hope-collateral-loan');
