@@ -950,7 +950,11 @@ from urllib.parse import unquote
 import re
 
 def get_legal_code_from_juso_api(address):
-    """행정안전부 도로명주소 API를 통해 주소를 10자리 법정동코드로 변환합니다."""
+    """행정안전부 도로명주소 API를 통해 법정동코드+번지 정보를 반환합니다.
+
+    Returns:
+        dict: {'legal_code': '10자리', 'bun': '0048', 'ji': '0013'} 또는 {}
+    """
     JUSO_API_KEY = "U01TX0FVVEgyMDI2MDEyMTE0MjUwMzExNzQ3MTg="
 
     # 주소에서 건물명 추출 (아파트명 등)
@@ -985,16 +989,25 @@ def get_legal_code_from_juso_api(address):
             data = response.json()
             if data.get('results', {}).get('juso'):
                 juso = data['results']['juso'][0]
-                # admCd가 10자리 행정동코드
-                adm_cd = juso.get('admCd', '')
-                # bdMgtSn에서 법정동코드 추출 (앞 10자리가 시군구+법정동)
                 bd_mgt_sn = juso.get('bdMgtSn', '')
+                jibun_addr = juso.get('jibunAddr', '')
+
+                print(f"[행정안전부 API] jibunAddr: {jibun_addr}, bdMgtSn: {bd_mgt_sn}")
 
                 if bd_mgt_sn and len(bd_mgt_sn) >= 10:
-                    # bdMgtSn 구조: 시군구(5) + 법정동(5) + 대지구분(1) + 번(4) + 지(4) + 기타
                     legal_code = bd_mgt_sn[:10]
-                    print(f"[행정안전부 API] 법정동코드 추출 성공: {legal_code}")
-                    return legal_code
+                    result = {'legal_code': legal_code, 'bun': '', 'ji': ''}
+
+                    # jibunAddr에서 번지 파싱 (예: "경기도 광명시 소하동 48-13 광명삼익아파트")
+                    if jibun_addr:
+                        jibun_match = re.search(r'[동읍면리]\s+(\d+)(?:-(\d+))?', jibun_addr)
+                        if jibun_match:
+                            result['bun'] = jibun_match.group(1).zfill(4)
+                            result['ji'] = jibun_match.group(2).zfill(4) if jibun_match.group(2) else '0000'
+                            print(f"[행정안전부 API] jibunAddr 번지: {result['bun']}-{result['ji']}")
+
+                    print(f"[행정안전부 API] 법정동코드: {legal_code}")
+                    return result
 
                 print(f"[행정안전부 API] bdMgtSn 없음 또는 형식 오류")
             else:
@@ -1005,7 +1018,7 @@ def get_legal_code_from_juso_api(address):
     except Exception as e:
         print(f"[행정안전부 API 오류] {e}")
 
-    return ""
+    return {}
 
 def get_legal_code_from_kakao(address):
     """카카오 API를 통해 주소를 10자리 법정동코드로 변환합니다."""
@@ -1230,21 +1243,25 @@ def get_building_info(address):
             print(f"[건축물대장] 조회 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
             return result
 
-        # 3. 두 번째 시도: 행정안전부 도로명주소 API로 정확한 법정동코드 가져와서 재시도
-        print(f"[건축물대장] 첫 번째 시도 실패, 행정안전부 API로 법정동코드 재조회...")
-        b_code = get_legal_code_from_juso_api(address)
+        # 3. 두 번째 시도: 행정안전부 API로 정확한 법정동코드+번지 재조회
+        print(f"[건축물대장] 첫 번째 시도 실패, 행정안전부 API로 재조회...")
+        juso_info = get_legal_code_from_juso_api(address)
 
-        if b_code and len(b_code) == 10:
-            # 행정안전부 API의 10자리 법정동코드에서 시군구(5자리)와 법정동(5자리) 추출
-            juso_sigungu = b_code[:5]
-            juso_bjdong = b_code[5:]
+        if juso_info and juso_info.get('legal_code'):
+            legal_code = juso_info['legal_code']
+            juso_sigungu = legal_code[:5]
+            juso_bjdong = legal_code[5:]
 
-            print(f"[건축물대장] 행정안전부 API 법정동코드: 시군구={juso_sigungu}, 법정동={juso_bjdong}")
+            juso_params = {
+                'sigunguCd': juso_sigungu,
+                'bjdongCd': juso_bjdong,
+                'bun': juso_info.get('bun') or parsed['bun'],
+                'ji': juso_info.get('ji') or parsed['ji'],
+            }
 
-            params['sigunguCd'] = juso_sigungu
-            params['bjdongCd'] = juso_bjdong
+            print(f"[건축물대장] 행정안전부 API: 시군구={juso_sigungu}, 법정동={juso_bjdong}, 번={juso_params['bun']}, 지={juso_params['ji']}")
 
-            api_result = call_building_api(params.copy())
+            api_result = call_building_api(juso_params)
 
             if api_result['success']:
                 result['success'] = True
@@ -1255,68 +1272,20 @@ def get_building_info(address):
                 print(f"[건축물대장] 행정안전부 API 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
                 return result
 
-        # 4. 세 번째 시도: 카카오 API로 법정동코드+번지 재조회
-        print(f"[건축물대장] 두 번째 시도 실패, 카카오 API로 재조회...")
-        kakao_code = get_legal_code_from_kakao(address)
-
-        if kakao_code and len(kakao_code) == 10:
-            kakao_sigungu = kakao_code[:5]
-            kakao_bjdong = kakao_code[5:]
-
-            # 카카오 응답에서 번지 재추출 (기존 parsed 값 재사용하되 법정동코드만 교체)
-            kakao_params = params.copy()
-            kakao_params['sigunguCd'] = kakao_sigungu
-            kakao_params['bjdongCd'] = kakao_bjdong
-
-            print(f"[건축물대장] 카카오 API 법정동코드: 시군구={kakao_sigungu}, 법정동={kakao_bjdong}")
-
-            api_result = call_building_api(kakao_params)
-
-            if api_result['success']:
-                result['success'] = True
-                result['total_households'] = api_result['households']
-                result['raw_completion_date'] = api_result['date']
-                if len(api_result['date']) == 8:
-                    result['completion_date'] = f"{api_result['date'][:4]}-{api_result['date'][4:6]}-{api_result['date'][6:8]}"
-                print(f"[건축물대장] 카카오 API 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
-                return result
-
-            # 5. 네 번째 시도: 카카오 API에서 정확한 번지도 가져와서 재시도
-            print(f"[건축물대장] 카카오 API로 번지까지 재파싱 시도...")
-            KAKAO_REST_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0"
-            clean_match = re.search(r'^(.*?\d+(?:-\d+)?)\b', address)
-            search_query = clean_match.group(1) if clean_match else address
-            try:
-                kakao_resp = requests.get(
-                    'https://dapi.kakao.com/v2/local/search/address.json',
-                    headers={"Authorization": f"KakaoAK {KAKAO_REST_API_KEY}"},
-                    params={'query': search_query}, timeout=5
-                )
-                if kakao_resp.status_code == 200:
-                    kakao_data = kakao_resp.json()
-                    if kakao_data.get('documents') and kakao_data['documents'][0].get('address'):
-                        addr_info = kakao_data['documents'][0]['address']
-                        kakao_bun = str(addr_info.get('main_address_no', '') or '').zfill(4)
-                        kakao_ji  = str(addr_info.get('sub_address_no', '')  or '0').zfill(4)
-                        if kakao_bun and kakao_bun != '0000':
-                            kakao_params2 = {
-                                'sigunguCd': kakao_sigungu,
-                                'bjdongCd':  kakao_bjdong,
-                                'bun':       kakao_bun,
-                                'ji':        kakao_ji,
-                            }
-                            print(f"[건축물대장] 카카오 번지 재파싱: {kakao_bun}-{kakao_ji}")
-                            api_result2 = call_building_api(kakao_params2)
-                            if api_result2['success']:
-                                result['success'] = True
-                                result['total_households'] = api_result2['households']
-                                result['raw_completion_date'] = api_result2['date']
-                                if len(api_result2['date']) == 8:
-                                    result['completion_date'] = f"{api_result2['date'][:4]}-{api_result2['date'][4:6]}-{api_result2['date'][6:8]}"
-                                print(f"[건축물대장] 카카오 번지 재파싱 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
-                                return result
-            except Exception as kakao_e:
-                print(f"[건축물대장] 카카오 번지 재파싱 오류: {kakao_e}")
+            # ji=0000으로 한 번 더 시도 (ji 불일치 케이스 대응)
+            if juso_params['ji'] != '0000':
+                juso_params_noji = juso_params.copy()
+                juso_params_noji['ji'] = '0000'
+                print(f"[건축물대장] ji=0000으로 재시도...")
+                api_result2 = call_building_api(juso_params_noji)
+                if api_result2['success']:
+                    result['success'] = True
+                    result['total_households'] = api_result2['households']
+                    result['raw_completion_date'] = api_result2['date']
+                    if len(api_result2['date']) == 8:
+                        result['completion_date'] = f"{api_result2['date'][:4]}-{api_result2['date'][4:6]}-{api_result2['date'][6:8]}"
+                    print(f"[건축물대장] ji=0000 재시도 성공: {result['total_households']}세대, 준공일 {result['completion_date']}")
+                    return result
 
         print(f"[건축물대장] 조회 실패: {address}")
 
