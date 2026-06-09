@@ -692,8 +692,35 @@ async function updateAutoLTV() {
         if (reasonsContainer) {
             reasonsContainer.style.display = 'none';
         }
+        // 경고 테두리 초기화
+        ['unit_count', 'completion_date', 'ownership_transfer_date'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+            }
+        });
         return; // 함수 종료
     }
+
+    // ✅ [신규] 질권 체크 시 빈 필드 경고 표시 (세대수/준공일자/소유권이전일)
+    const warnFields = [
+        { id: 'unit_count',               label: '세대수' },
+        { id: 'completion_date',          label: '준공일자' },
+        { id: 'ownership_transfer_date',  label: '소유권이전일' },
+    ];
+    warnFields.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const isEmpty = !el.value || el.value.trim() === '';
+        if (isEmpty) {
+            el.style.borderColor = '#dc3545';
+            el.style.boxShadow = '0 0 0 0.2rem rgba(220,53,69,.25)';
+        } else {
+            el.style.borderColor = '';
+            el.style.boxShadow = '';
+        }
+    });
 
     // ✅ [신규] 필요금액이 입력되어 있으면 역계산 LTV 유지 (자동 LTV로 덮어쓰지 않음)
     const requiredAmountField = document.getElementById('required_amount');
@@ -1103,6 +1130,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // ✅ [신규] 메리츠/아이엠 체크박스 변경 시 자동 LTV 재계산
     document.getElementById('meritz-collateral-loan').addEventListener('change', updateAutoLTV);
     document.getElementById('hope-collateral-loan').addEventListener('change', updateAutoLTV);
+
+    // 세대수/준공일자/소유권이전일 입력 시 경고 테두리 즉시 해제
+    ['unit_count', 'completion_date', 'ownership_transfer_date'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                if (el.value.trim()) {
+                    el.style.borderColor = '';
+                    el.style.boxShadow = '';
+                }
+            });
+        }
+    });
 
     // 메리츠 급지 호버 효과 초기화
     initMeritzRegionTooltips();
