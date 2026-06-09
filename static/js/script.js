@@ -1329,6 +1329,7 @@ async function handleFileUpload(file) {
             console.log('📅 transfer_date:', scraped.transfer_date);
             console.log('⚠️ seizure_info:', seizure_info);
             console.log('🏢 building_info:', building_info);
+            console.log('💰 kb_info:', kb_info);
 
             // --- 2. 추출된 기본 정보를 각 필드에 자동으로 채워 넣습니다. ---
             
