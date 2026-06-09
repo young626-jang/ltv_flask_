@@ -44,14 +44,12 @@ def _get_price(complex_no, sqrmsr_no):
         return None
 
     항목 = 시세목록[0]
-    vals = list(항목.values())  # 인덱스 기반 접근 (필드명 인코딩 무관)
-    # index 8: 매매일반거래가, 15: 매매상한가, 42: 매매하한가, 21: 전용면적, 12: 면적일련번호
     return {
-        '매매일반가': vals[8]  if len(vals) > 8  else 0,
-        '매매상한가': vals[15] if len(vals) > 15 else 0,
-        '매매하한가': vals[42] if len(vals) > 42 else 0,
-        '전용면적':   vals[21] if len(vals) > 21 else 0,
-        '면적일련번호': vals[12] if len(vals) > 12 else 0,
+        '매매일반가': 항목.get('매매일반거래가') or 0,
+        '매매상한가': 항목.get('매매상한가') or 0,
+        '매매하한가': 항목.get('매매하한가') or 0,
+        '전용면적':   항목.get('전용면적') or 0,
+        '면적일련번호': 항목.get('면적일련번호') or 0,
     }
 
 
@@ -71,13 +69,12 @@ def _find_best_sqrmsr(complex_no, target_area_m2):
     best_sqrmsr_no = None
     best_diff = float('inf')
     for item in items:
-        vals = list(item.values())
-        if len(vals) <= 30:
-            continue
         try:
-            exclusive_area = float(vals[30])  # 전용면적
-            sqrmsr_no = vals[16]              # 면적일련번호
+            exclusive_area = float(item.get('전용면적') or 0)
+            sqrmsr_no = item.get('면적일련번호')
         except (ValueError, TypeError):
+            continue
+        if not sqrmsr_no or not exclusive_area:
             continue
         diff = abs(exclusive_area - target_area_m2)
         if diff < best_diff:
@@ -99,15 +96,14 @@ def _get_complex_main(complex_no):
     body = r.json().get('dataBody', {}).get('data', {})
     if not body:
         return {}
-    vals = list(body.values())
-    # [08] 사용승인일 전체 "1995.08.04", [31] 총세대수, [28] 동수, [29] 최고층수, [30] 최저층수
-    use_apr_day = vals[8] if len(vals) > 8 else ''   # "1995.08.04"
-    total_households = vals[31] if len(vals) > 31 else 0
-    dong_cnt = vals[28] if len(vals) > 28 else 0
-    max_floor = vals[29] if len(vals) > 29 else 0
-    min_floor = vals[30] if len(vals) > 30 else 0
 
-    # "1995.08.04" → "1995-08-04"
+    use_apr_day = body.get('준공년월일', '')
+    total_households = body.get('총세대수', 0)
+    dong_cnt = body.get('총동수', 0)
+    max_floor = body.get('최고층수', 0)
+    min_floor = body.get('최저층수', 0)
+
+    # "2023.04.17" → "2023-04-17"
     completion_date = ''
     if use_apr_day and isinstance(use_apr_day, str) and '.' in use_apr_day:
         completion_date = use_apr_day.replace('.', '-')
