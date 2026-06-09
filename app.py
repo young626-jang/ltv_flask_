@@ -1153,9 +1153,12 @@ def calculate_ltv_from_required_amount_route():
         logger.error(f"LTV 역산 계산 중 오류: {e}")
         return jsonify({"error": "LTV 계산 중 오류가 발생했습니다."}), 500
 
+KAKAO_API_KEY = "7105bf011f69bc4cb521ec9b1ea496e0"
+KAKAO_HEADERS = {'Authorization': f'KakaoAK {KAKAO_API_KEY}'}
+
 @app.route('/api/convert-to-road-address', methods=['POST'])
 def convert_to_road_address():
-    """지번 주소를 도로명 주소로 변환 (행정안전부 도로명주소 API 사용)"""
+    """지번 주소를 도로명 주소로 변환 (카카오 로컬 API 사용)"""
     try:
         data = request.get_json()
         address = data.get('address', '').strip()
@@ -1165,173 +1168,167 @@ def convert_to_road_address():
 
         logger.info(f"[도로명 변환] 원본: {address}")
 
-        # 동/호수 정보 미리 추출 (나중에 사용)
-        # 패턴1: 동 + 층 + 호 (예: 제401동 제1층 제109호, 제가동 제4층 제409호)
-        dong_ho_match = re.search(r'제?([가-힣]?[가-힣\d]+)동.*?제?(\d+)층\s*제?(\d+)호', address)
-        # 패턴2: 동 + 호 (층 없음)
+        # 건물 동번호/호수 추출 — 법정동(작전동, 행신동)과 구분하여 숫자동/영문자동만 추출
+        dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)층\s*제?(\d+)호', address)
         if not dong_ho_match:
-            dong_ho_match = re.search(r'제?([가-힣]?[가-힣\d]+)동.*?제?(\d+)호', address)
-        # 패턴3: 층 + 호만 (동 없음, 예: 제12층 제1204호) - 오피스텔/상가 등
+            dong_ho_match = re.search(r'제([가-나라마바사아자차카타파하])동.*?제?(\d+)층\s*제?(\d+)호', address)
+        if not dong_ho_match:
+            dong_ho_match = re.search(r'제?(\d+)동.*?제?(\d+)호', address)
+        if not dong_ho_match:
+            dong_ho_match = re.search(r'제([가-나라마바사아자차카타파하])동.*?제?(\d+)호', address)
         floor_ho_match = None
         if not dong_ho_match:
             floor_ho_match = re.search(r'제?(\d+)층\s*제?(\d+)호', address)
 
-        # 검색 키워드: 지번 주소 부분만 추출 (동/호수 제외)
-        # "경기도 고양시 덕양구 행신동 796 소만마을아파트 제102동 제11층 제1101호"
-        # → "경기도 고양시 덕양구 행신동 796" (지번까지만)
-
-        # 패턴: 시/도 + 시/군/구 + 동/읍/면/리 + 번지 (동1가, 동2가 등 포함)
-        jibun_pattern = r'^(.*?[동읍면리가로](?:\d가)?\s*\d+(?:-\d+)?)'
-        jibun_match = re.search(jibun_pattern, address)
-
-        if jibun_match:
-            # 지번 주소로 검색 (가장 정확함)
-            search_keyword = jibun_match.group(1).strip()
-        else:
-            # 지번 패턴이 없으면 원본 주소에서 동/호수 부분만 제거
-            search_keyword = re.sub(r'\s*제?\d+동.*$', '', address).strip()
-
-        logger.info(f"[도로명 변환] 검색 키워드: {search_keyword}")
-
-        # 원본 주소에서 건물명 추출 (지번 뒤 ~ 동/층/호수 앞)
-        # 예: "탄현동 1481 탄현마을아파트 제401동" → "탄현마을아파트"
-        # 예: "서초동 1327-27 강남역한화오벨리스크 제12층" → "강남역한화오벨리스크"
-        building_name = ''
-        # 패턴1: 지번 뒤 ~ 제X동 앞
-        building_match = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+동', address)
-        if not building_match:
-            # 패턴2: 지번 뒤 ~ 제X층 앞 (동 없이 층부터 시작하는 경우)
-            building_match = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+층', address)
-        if building_match:
-            building_name = building_match.group(1).strip()
-        logger.info(f"[도로명 변환] 추출된 건물명: {building_name}")
-
-        # 행정안전부 도로명주소 API 호출
-        JUSO_API_KEY = "U01TX0FVVEgyMDI2MDEyMTE0MjUwMzExNzQ3MTg="
-        url = 'https://business.juso.go.kr/addrlink/addrLinkApi.do'
-        params = {
-            'keyword': search_keyword,
-            'confmKey': JUSO_API_KEY,
-            'countPerPage': '10',
-            'resultType': 'json'
-        }
-
-        response = requests.post(url, data=params, timeout=5)
-        logger.info(f"[도로명 변환] API 응답: {response.status_code}")
-
-        if response.status_code == 200:
-            result = response.json()
-            logger.info(f"[도로명 변환] 응답 데이터: {result}")
-
-            juso_list = result.get('results', {}).get('juso', [])
-            if juso_list and len(juso_list) > 0:
-                # 동/호수 정보는 위에서 이미 추출됨 (dong_ho_match 또는 floor_ho_match)
-                dong_num = None
-                floor_num = None
-                ho_num = None
-
-                if dong_ho_match:
-                    dong_num = dong_ho_match.group(1)
-                    # 3개 그룹이면 (동, 층, 호), 2개 그룹이면 (동, 호)
-                    if dong_ho_match.lastindex >= 3:
-                        floor_num = dong_ho_match.group(2)
-                        ho_num = dong_ho_match.group(3)
-                    else:
-                        ho_num = dong_ho_match.group(2)
-                elif floor_ho_match:
-                    # 동 없이 층/호만 있는 경우 (오피스텔, 상가 등)
-                    floor_num = floor_ho_match.group(1)
-                    ho_num = floor_ho_match.group(2)
-
-                # 건물명이 있으면 가장 일치하는 결과 선택
-                selected_juso = juso_list[0]  # 기본값: 첫 번째 결과
-
-                if building_name and len(juso_list) > 1:
-                    # 건물명 유사도 비교하여 가장 일치하는 항목 선택
-                    best_match_score = -1
-                    building_name_normalized = building_name.replace(' ', '').lower()
-
-                    # 핵심 키워드 추출 (숫자/단지 제외한 기본 건물명)
-                    # "탄현마을아파트" → "탄현마을", "아파트"
-                    # "탄현마을4단지아파트" → "탄현마을", "아파트"
-                    import re as re_inner
-                    core_keywords = re_inner.sub(r'\d+단지|\d+차|제?\d+동', '', building_name_normalized).strip()
-
-                    for juso in juso_list:
-                        api_building_name = juso.get('bdNm', '').replace(' ', '').lower()
-
-                        # 완전 일치 (최우선)
-                        if building_name_normalized == api_building_name:
-                            selected_juso = juso
-                            logger.info(f"[도로명 변환] 건물명 완전 일치: {juso.get('bdNm')}")
-                            break
-
-                        score = 0
-
-                        # 1. 원본이 API 결과에 포함됨
-                        if building_name_normalized in api_building_name:
-                            score = len(building_name_normalized) * 100
-                        # 2. API 결과가 원본에 포함됨
-                        elif api_building_name in building_name_normalized:
-                            score = len(api_building_name) * 10
-                        # 3. 핵심 키워드 포함 여부 (숫자/단지 제외하고 비교)
-                        # "탄현마을아파트" vs "탄현마을4단지아파트" → 둘 다 "탄현마을"과 "아파트" 포함
-                        elif core_keywords:
-                            # "아파트"가 원본에 있고 API 결과에도 있으면 가산점
-                            if '아파트' in building_name_normalized and '아파트' in api_building_name:
-                                # 원본의 기본명이 API 결과에 포함되는지 확인
-                                base_name = core_keywords.replace('아파트', '').strip()
-                                if base_name and base_name in api_building_name:
-                                    score = len(base_name) * 50
-
-                        if score > best_match_score:
-                            best_match_score = score
-                            selected_juso = juso
-                            logger.info(f"[도로명 변환] 건물명 부분 일치 (점수 {score}): {juso.get('bdNm')}")
-
-                road_addr = selected_juso.get('roadAddr', '')
-
-                if road_addr:
-                    # 도로명 주소 형식: "도로명 번지, 동호수 (법정동, 건물명)"
-                    # 괄호 부분 분리
-                    bracket_match = re.search(r'(\([^)]+\))$', road_addr)
-
-                    # 동/호 문자열 조합 (층 정보는 제외)
-                    unit_info = ''
-                    if dong_num and ho_num:
-                        unit_info = f"{dong_num}동 {ho_num}호"
-                    elif ho_num:
-                        unit_info = f"{ho_num}호"
-
-                    if bracket_match and unit_info:
-                        bracket_part = bracket_match.group(1)
-                        road_part = road_addr[:bracket_match.start()].strip()
-                        road_addr = f"{road_part}, {unit_info} {bracket_part}"
-                    elif unit_info:
-                        road_addr = f"{road_addr}, {unit_info}"
-
-                    return jsonify({
-                        "success": True,
-                        "road_address": road_addr,
-                        "original_address": address
-                    })
-                else:
-                    return jsonify({
-                        "success": False,
-                        "error": "도로명 주소를 찾을 수 없습니다"
-                    })
+        dong_num = ho_num = None
+        if dong_ho_match:
+            dong_num = dong_ho_match.group(1)
+            if dong_ho_match.lastindex >= 3:
+                ho_num = dong_ho_match.group(3)
             else:
-                error_msg = result.get('results', {}).get('common', {}).get('errorMessage', '주소 검색 결과가 없습니다')
-                return jsonify({
-                    "success": False,
-                    "error": error_msg
-                })
+                ho_num = dong_ho_match.group(2)
+        elif floor_ho_match:
+            ho_num = floor_ho_match.group(2)
+
+        # 지번 부분만 추출 (건물명/동호수 제외)
+        jibun_match = re.search(r'^(.*?[동읍면리가로](?:\d가)?\s*\d+(?:-\d+)?)', address)
+        jibun_addr = jibun_match.group(1).strip() if jibun_match else address
+
+        # 건물명 추출 (지번 뒤 ~ 동/층/호수 앞)
+        building_name = ''
+        bm = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+동', address)
+        if not bm:
+            bm = re.search(r'[동읍면리가로]\s*\d+(?:-\d+)?\s+(.+?)\s+제?\d+층', address)
+        if bm:
+            building_name = bm.group(1).strip()
+        logger.info(f"[도로명 변환] 지번: {jibun_addr}, 건물명: {building_name}")
+
+        road_addr = None
+        road_addr_fallback = None
+        matched_building = ''
+        matched_dong = ''
+        fallback_building = ''
+        fallback_dong = ''
+
+        # 1단계: 카카오 주소검색으로 지번 검색
+        r1 = requests.get('https://dapi.kakao.com/v2/local/search/address.json',
+            headers=KAKAO_HEADERS, params={'query': jibun_addr}, timeout=5)
+        if r1.status_code == 200:
+            docs = r1.json().get('documents', [])
+            if docs:
+                doc = docs[0]
+                ra = doc.get('road_address')
+                if ra:
+                    kakao_building = ra.get('building_name', '').replace(' ', '').lower()
+                    bn_norm = building_name.replace(' ', '').lower()
+                    road_addr_fallback = ra.get('address_name', '')
+                    fallback_building = ra.get('building_name', '')
+                    fallback_dong = ra.get('region_3depth_name', '')
+                    # 건물명 일치하거나 건물명 없는 경우 바로 사용
+                    if not building_name or bn_norm in kakao_building or kakao_building in bn_norm:
+                        road_addr = road_addr_fallback
+                        matched_building = ra.get('building_name', '')
+                        matched_dong = ra.get('region_3depth_name', '')
+                        logger.info(f"[도로명 변환] 1단계 성공: {road_addr}")
+
+        # 2단계: 건물명 + 동명으로 키워드 검색 (번지 제외 — 포함 시 0건)
+        if not road_addr and building_name:
+            # 번지 숫자만 추출 (지번 매칭용)
+            jibun_no_match = re.search(r'\s(\d+(?:-\d+)?)$', jibun_addr)
+            jibun_no = jibun_no_match.group(1) if jibun_no_match else ''
+            # 동명까지만 추출 (번지 제외)
+            dong_only_match = re.search(r'^(.*?[동읍면리가로](?:\d가)?)\s*\d', jibun_addr)
+            dong_only = dong_only_match.group(1).strip() if dong_only_match else jibun_addr
+
+            r2 = requests.get('https://dapi.kakao.com/v2/local/search/keyword.json',
+                headers=KAKAO_HEADERS, params={'query': f'{building_name} {dong_only}'}, timeout=5)
+            if r2.status_code == 200:
+                docs2 = r2.json().get('documents', [])
+                bn_norm = building_name.replace(' ', '').lower()
+                # 단지/차수 제거 후 건물 타입 분리 (예: "뉴서울아파트" → base="뉴서울", btype="아파트")
+                core = re.sub(r'\d+단지|\d+차', '', bn_norm).strip()
+                btype_match = re.search(r'(아파트|오피스텔|빌라|연립|다세대|주상복합|타워|맨션|빌딩)$', core)
+                btype = btype_match.group(1) if btype_match else ''
+                base = core.replace(btype, '').strip() if btype else core
+
+                def name_similar(place):
+                    # 완전 포함
+                    if core in place or place in core:
+                        return True
+                    # base + btype 각각 포함 (중간에 1차/2차 등이 끼어있어도 매칭)
+                    if base and base in place and (not btype or btype in place):
+                        return True
+                    return False
+
+                for doc in docs2:
+                    place = doc.get('place_name', '').replace(' ', '').lower()
+                    addr_name = doc.get('address_name', '')
+                    road_name = doc.get('road_address_name', '')
+                    jibun_ok = jibun_no and jibun_no in addr_name
+                    name_ok = name_similar(place)
+                    if road_name and jibun_ok and name_ok:
+                        road_addr = road_name
+                        matched_building = doc.get('place_name', '')
+                        # 도로명으로 재검색해서 법정동과 정확한 건물명 보완
+                        r3 = requests.get('https://dapi.kakao.com/v2/local/search/address.json',
+                            headers=KAKAO_HEADERS, params={'query': road_name}, timeout=5)
+                        r3_docs = r3.json().get('documents', [])
+                        if r3_docs:
+                            r3_ra = r3_docs[0].get('road_address', {})
+                            matched_dong = r3_ra.get('region_3depth_name', '')
+                            if r3_ra.get('building_name'):
+                                matched_building = r3_ra.get('building_name', '')
+                        logger.info(f"[도로명 변환] 2단계 성공: {road_addr} ({matched_dong}, {matched_building})")
+                        break
+        # 2단계 지번 매칭 실패 시 → 1단계 fallback 우선, 없으면 2단계 건물명 매칭
+        if not road_addr and road_addr_fallback:
+            road_addr = road_addr_fallback
+            matched_building = fallback_building
+            matched_dong = fallback_dong
+            logger.info(f"[도로명 변환] 1단계 fallback 사용: {road_addr}")
+        elif not road_addr and building_name:
+            # 2단계 결과에서 건물명만 일치하는 첫 번째 결과 사용 (1단계도 없는 경우)
+            for doc in docs2:
+                place = doc.get('place_name', '').replace(' ', '').lower()
+                road_name = doc.get('road_address_name', '')
+                if road_name and name_similar(place):
+                    road_addr = road_name
+                    # 도로명으로 재검색해서 법정동과 정확한 건물명 보완
+                    r3b = requests.get('https://dapi.kakao.com/v2/local/search/address.json',
+                        headers=KAKAO_HEADERS, params={'query': road_name}, timeout=5)
+                    r3b_docs = r3b.json().get('documents', [])
+                    if r3b_docs:
+                        r3b_ra = r3b_docs[0].get('road_address', {})
+                        matched_dong = r3b_ra.get('region_3depth_name', '')
+                        matched_building = r3b_ra.get('building_name', '') or doc.get('place_name', '')
+                    else:
+                        matched_building = doc.get('place_name', '')
+                    logger.info(f"[도로명 변환] 2단계 건물명 fallback: {road_addr} ({matched_dong}, {matched_building})")
+                    break
+            logger.info(f"[도로명 변환] 1단계 fallback 사용: {road_addr}")
+
+        if road_addr:
+            # 동/호수 조합
+            unit_info = ''
+            if dong_num and ho_num:
+                unit_info = f"{dong_num}동 {ho_num}호"
+            elif ho_num:
+                unit_info = f"{ho_num}호"
+
+            # 괄호 내용: (법정동, 건물명) 또는 (건물명) 또는 (법정동)
+            bracket_parts = [p for p in [matched_dong, matched_building] if p]
+            bracket = f"({', '.join(bracket_parts)})" if bracket_parts else ''
+
+            if unit_info and bracket:
+                road_addr = f"{road_addr}, {unit_info} {bracket}"
+            elif unit_info:
+                road_addr = f"{road_addr}, {unit_info}"
+            elif bracket:
+                road_addr = f"{road_addr} {bracket}"
+
+            return jsonify({"success": True, "road_address": road_addr, "original_address": address})
         else:
-            logger.error(f"[도로명 변환] API 오류: {response.status_code} - {response.text}")
-            return jsonify({
-                "success": False,
-                "error": f"API 오류: {response.status_code}"
-            }), 500
+            return jsonify({"success": False, "error": "도로명 주소를 찾을 수 없습니다"})
 
     except Exception as e:
         logger.error(f"도로명 주소 변환 오류: {e}", exc_info=True)
