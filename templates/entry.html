@@ -84,19 +84,12 @@
                 </div>
             </div>
 
-            <!-- 압류 경고 영역 -->
-            <div id="seizure-warning" class="alert alert-danger" style="display: none; border-left: 4px solid #dc3545; background-color: #fff5f5; margin-bottom: 1rem;">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-octagon-fill text-danger me-2"></i>
-                    <div>
-                        <div class="fw-bold text-danger" id="seizure-title">⚠️ 압류 정보</div>
-                        <div class="small text-danger" id="seizure-summary" style="font-weight: 600;"></div>
-                        <div class="small text-danger mt-1" id="seizure-details"></div>
-                    </div>
-                </div>
-            </div>
 
             <div id="basic-info-form" style="background: #FCF6F5; border-radius: 12px; padding: 0.5rem; box-shadow: var(--shadow-soft); margin-bottom: 1rem;">
+                <div style="display: flex; gap: 12px; margin-bottom: 4px;">
+                    <div id="land-ownership-warning" style="display: none; color: #FF2F2F; font-weight: bold; font-size: 14px;">⚠️ 대지권미등기</div>
+                    <div id="seizure-warning" style="display: none; color: #FF2F2F; font-weight: bold; font-size: 14px;"></div>
+                </div>
                 <div class="mb-2 d-flex gap-2">
                     <input type="text" class="form-control form-field md-input" id="address" placeholder="주소" style="flex: 1;">
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="convert-road-address-btn" title="도로명 주소로 변환" style="white-space: nowrap;">도로명</button>
@@ -109,7 +102,8 @@
                         <input type="text" class="form-control form-field md-input fw-bold" id="property_type" placeholder="물건유형 (예: 아파트, 오피스텔, 다세대)">
                         <small id="property_type_warning" style="color: red; display: none;">물건유형을 정확히 기재해주세요 (아파트/오피스텔/다세대/연립/빌라/주상복합)</small>
                     </div>
-                    <div class="col-md-6"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
+                    <div class="col-md-3"><input type="text" class="form-control form-field md-input" id="area" placeholder="면적(㎡)"></div>
+                    <div class="col-md-3"><input type="text" class="form-control form-field md-input" id="rcns_step" placeholder="재건축 정보" readonly></div>
                 </div>
 
                 <div class="row g-2 mb-2">
