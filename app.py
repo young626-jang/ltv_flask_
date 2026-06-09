@@ -1385,6 +1385,22 @@ def delete_customer_route(page_id):
         logger.error(f"고객 삭제 오류: {e}")
         return jsonify({"error": "고객 삭제 중 오류가 발생했습니다."}), 500
 
+@app.route('/api/kb_search', methods=['POST'])
+def kb_search():
+    """주소로 KB 단지번호 조회 → complex_no 반환"""
+    data = request.get_json()
+    address = data.get('address', '').strip()
+    if not address:
+        return jsonify({'success': False, 'complex_no': ''})
+    try:
+        kb = get_kb_info(address)
+        if kb.get('success') and kb.get('complex_no'):
+            return jsonify({'success': True, 'complex_no': kb['complex_no']})
+    except Exception as e:
+        print(f"[KB search] 오류: {e}")
+    return jsonify({'success': False, 'complex_no': ''})
+
+
 @app.route('/api/calculate_individual_share', methods=['POST'])
 def calculate_individual_share():
     try:
