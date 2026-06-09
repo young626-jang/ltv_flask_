@@ -27,6 +27,7 @@
         if (el) {
             el.value = value;
             el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('blur', { bubbles: true }));
         } else {
             console.warn(`⚠️ Element not found: ${elementId}`);
         }
@@ -1064,7 +1065,7 @@ async function loadCustomerData() {
             } else if(regionSelect.options.length > 0) {
                 regionSelect.selectedIndex = 0;
             }
-            safeSetValue('deduction_amount', (regionSelect.value || '').toLocaleString());
+            safeSetValue('deduction_amount', (regionSelect.value && regionSelect.value !== '0') ? parseInt(regionSelect.value).toLocaleString() : '');
         }
         const loanContainer = document.getElementById('loan-items-container');
         if (loanContainer) {
@@ -2028,15 +2029,14 @@ function attachAllEventListeners() {
     document.getElementById('deduction_amount').addEventListener('input', (e) => {
         const deductionRegionSelect = document.getElementById('deduction_region');
         const deductionAmount = e.target.value.trim();
-        
-        // 방공제 금액이 입력되었는데 지역이 선택되지 않은 경우
-        if (deductionAmount && (!deductionRegionSelect.value || deductionRegionSelect.value === '0')) {
+
+        // 프로그래밍으로 설정된 값(고객 불러오기 등)은 팝업 생략, 실제 사용자 입력만 검증
+        if (e.isTrusted && deductionAmount && (!deductionRegionSelect.value || deductionRegionSelect.value === '0')) {
             showCustomAlert("방공제지역을 선택하여 주세요", () => {
-                // 확인/닫기 버튼 클릭 시 포커스를 지역 선택으로 이동
                 deductionRegionSelect.focus();
             });
         }
-        
+
         triggerMemoGeneration();
     });
 
@@ -2784,6 +2784,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const jusoSearchBtn = document.getElementById('juso-search-btn');
+    if (jusoSearchBtn) {
+        jusoSearchBtn.addEventListener('click', () => {
+            const addressField = document.getElementById('address');
+            const address = (addressField?.value || '').trim();
+            const jibunMatch = address.match(/([가-힣]+(?:동|읍|면|리|가)\s*\d+(?:-\d+)?)/);
+            const searchAddr = jibunMatch ? jibunMatch[1] : address;
+            // 확장프로그램으로 신호 전달 (팝업창으로 열기 + 자동검색)
+            window.dispatchEvent(new CustomEvent('JUSO_SEARCH', { detail: { address: searchAddr } }));
+        });
+    }
+
    // --- LTV 초기값 설정: 질권이 체크되어 있지 않으면 80%로 ---
    const ltv1Field = document.getElementById('ltv1');
    const hopeCheckbox = document.getElementById('hope-collateral-loan');
@@ -2838,12 +2850,12 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
    // 도로명 주소 변환 버튼 이벤트 (양방향 토글)
+   let savedOriginalAddress = '';  // 지번 주소 (등기부등본 원본)
+   let savedRoadAddress = '';      // 도로명 주소
+   let isShowingRoadAddress = false;  // 현재 도로명 표시 중인지
+
    const convertRoadAddressBtn = document.getElementById('convert-road-address-btn');
    if (convertRoadAddressBtn) {
-       // 원본 주소와 도로명 주소 저장용
-       let savedOriginalAddress = '';  // 지번 주소 (등기부등본 원본)
-       let savedRoadAddress = '';      // 도로명 주소
-       let isShowingRoadAddress = false;  // 현재 도로명 표시 중인지
 
        convertRoadAddressBtn.addEventListener('click', async function() {
            const addressField = document.getElementById('address');
