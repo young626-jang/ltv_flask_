@@ -414,7 +414,8 @@ def auto_calculate_ltv_with_reasons(address, area, is_senior=True, kb_price=None
             return {'ltv': None, 'reasons': [], 'error': '급지를 판단할 수 없습니다'}
 
         loan_type = "선순위" if is_senior else "후순위"
-        reasons.append(f"급지: {region_grade} | {loan_type}")
+        type_label = "Non-APT" if property_type == "Non-APT" else "APT"
+        reasons.append(f"급지: {region_grade} | {loan_type} | {type_label}")
 
         # 2. 급지, 물건유형, 면적, 선후순위에 따른 LTV 기준값 조회
         ltv_standard = get_ltv_standard(region_grade, float(area), is_senior, property_type)
