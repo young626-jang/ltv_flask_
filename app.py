@@ -869,28 +869,6 @@ def generate_memo(data):
                 memo_lines.append("")  # ✅ LTV 한도 뒤에 빈 줄 추가
                 ltv_lines_exist = True
         
-        # 상태별 합계 계산
-        order = ['선말소', '대환', '퇴거자금']
-        status_sums = defaultdict(lambda: defaultdict(lambda: {'sum': 0, 'count': 0}))
-        has_status_sum = False
-        for item in valid_loans:
-            status = item.get('status', '')
-            if status in order:
-                principal_val = parse_korean_number(item.get('principal', '0'))
-                if principal_val > 0:
-                    status_sums[status]['principal']['sum'] += principal_val
-                    status_sums[status]['principal']['count'] += 1
-                    has_status_sum = True
-        
-        if has_status_sum:
-            memo_lines.append("-----------------------")  # 구분선 (상태별 합계 앞)
-            for status in order:
-                if status in status_sums:
-                    data = status_sums[status]
-                    if data['principal']['sum'] > 0:
-                        memo_lines.append(f"{status} 원금: {format_manwon(data['principal']['sum'])}")
-            memo_lines.append("-----------------------")  # 구분선 (상태별 합계 뒤)
-        
         # 수수료 계산
         try:
             consult_amt = parse_korean_number(fees.get('consult_amt', '0') or 0)
@@ -903,9 +881,8 @@ def generate_memo(data):
                 bridge_rate = float(fees.get('bridge_rate', '0.7') or 0.7)
                 bridge_fee = int(bridge_amt * bridge_rate / 100)
                 
-                # 수수료 정보 전에 구분선 추가 (상태별 합계가 없는 경우)
-                if not has_status_sum:
-                    memo_lines.append("-----------------------")
+                # 수수료 정보 전에 구분선 추가
+                memo_lines.append("-----------------------")
                 
                 # 수수료 정보 추가
                 if consult_amt > 0: 
