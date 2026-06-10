@@ -899,6 +899,35 @@
             color: var(--navy) !important;
         }
 
+        /* 계산기 탭 버튼 — 네이비 알약 스타일 */
+        .nav-tabs {
+            border-bottom: none !important;
+            gap: 4px;
+        }
+
+        .nav-tabs .nav-link {
+            font-size: 12.5px !important;
+            font-weight: 500 !important;
+            color: var(--text-muted) !important;
+            background: transparent !important;
+            border: 1px solid var(--border-light) !important;
+            border-radius: 7px !important;
+            padding: 5px 11px !important;
+            margin-right: 0 !important;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background: var(--surface-2) !important;
+            color: var(--text-dark) !important;
+        }
+
+        .nav-tabs .nav-link.active {
+            background: var(--navy) !important;
+            color: #fff !important;
+            border-color: var(--navy) !important;
+            font-weight: 600 !important;
+        }
+
         /* 체크박스 네이비 통일 */
         .form-check-input {
             border-color: var(--text-muted) !important;
