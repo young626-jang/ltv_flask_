@@ -1117,15 +1117,7 @@ async function loadCustomerData() {
                 // 버튼 스타일 업데이트
                 document.querySelectorAll('.meritz-loan-region-btn').forEach(btn => {
                     const btnRegion = btn.getAttribute('data-region');
-                    if (btnRegion === meritzRegion) {
-                        btn.style.backgroundColor = '#9CC3D5';
-                        btn.style.color = '#0063B2';
-                        btn.style.borderColor = '#9CC3D5';
-                    } else {
-                        btn.style.backgroundColor = '';
-                        btn.style.color = '';
-                        btn.style.borderColor = '';
-                    }
+                    btn.classList.toggle('active', btnRegion === meritzRegion);
                 });
             }
             console.log('✅ 메리츠질권 복원');
@@ -2078,6 +2070,7 @@ function attachAllEventListeners() {
                         meritzRegionBtnsDiv.style.cssText = 'display: none !important;';
                     }
                     document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+                        b.classList.remove('active');
                         b.style.backgroundColor = '';
                         b.style.color = '';
                         b.style.borderColor = '';
@@ -2237,10 +2230,10 @@ function attachAllEventListeners() {
                 b.style.borderColor = '';
             });
 
-            // 클릭된 버튼에만 스타일 적용
-            e.target.style.backgroundColor = '#9CC3D5';
-            e.target.style.color = '#0063B2';
-            e.target.style.borderColor = '#9CC3D5';
+            // 클릭된 버튼에만 스타일 적용 (네이비 소프트)
+            e.target.style.backgroundColor = 'var(--navy-soft)';
+            e.target.style.color = 'var(--navy)';
+            e.target.style.borderColor = 'var(--navy-soft)';
 
             // 금리 계산을 위한 메모 업데이트
             triggerMemoGeneration();
@@ -2330,6 +2323,7 @@ function attachAllEventListeners() {
                 }
                 // 버튼 스타일 초기화
                 document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+                    b.classList.remove('active');
                     b.style.backgroundColor = '';
                     b.style.color = '';
                     b.style.borderColor = '';
@@ -2413,17 +2407,11 @@ function attachAllEventListeners() {
             const regionLabel = region === '1gun' ? '1군(일반)' : (region === '2gun' ? '2군' : '3군');
             console.log(`🌍 메리츠 지역 선택: ${regionLabel}`);
 
-            // 모든 버튼 스타일 초기화
+            // 모든 버튼 선택 해제 후 클릭된 버튼만 active (색상은 CSS .active 규칙이 적용)
             document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
-                b.style.backgroundColor = '';
-                b.style.color = '';
-                b.style.borderColor = '';
+                b.classList.remove('active');
             });
-
-            // 클릭된 버튼에만 스타일 적용
-            e.target.style.backgroundColor = '#9CC3D5';
-            e.target.style.color = '#0063B2';
-            e.target.style.borderColor = '#9CC3D5';
+            e.target.closest('.meritz-loan-region-btn')?.classList.add('active');
 
             // 지역 변경으로 인한 LTV 재계산
             validateMeritzLoanConditions();
@@ -3561,6 +3549,7 @@ function validateMeritzLoanConditions() {
 
         // 지역 버튼 스타일 초기화
         document.querySelectorAll('.meritz-loan-region-btn').forEach(b => {
+            b.classList.remove('active');
             b.style.backgroundColor = '';
             b.style.color = '';
             b.style.borderColor = '';
