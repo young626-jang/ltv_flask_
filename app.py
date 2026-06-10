@@ -223,7 +223,7 @@ def upload_and_parse_pdf():
 
     # building_info 호환 형식으로 변환 (기존 프론트 코드 유지)
     building_info = {
-        'success': kb_info['success'],
+        'success': kb_info['total_households'] > 0 or bool(kb_info['completion_date']),
         'total_households': kb_info['total_households'],
         'completion_date': kb_info['completion_date'],
         'raw_completion_date': kb_info['completion_date'],
@@ -1308,6 +1308,16 @@ def convert_to_road_address():
             logger.info(f"[도로명 변환] 1단계 fallback 사용: {road_addr}")
 
         if road_addr:
+            # 카카오 API 도 약칭 → 풀네임 변환
+            sido_map = {
+                '경기 ': '경기도 ', '강원 ': '강원도 ', '충북 ': '충청북도 ', '충남 ': '충청남도 ',
+                '전북 ': '전라북도 ', '전남 ': '전라남도 ', '경북 ': '경상북도 ', '경남 ': '경상남도 ', '제주 ': '제주특별자치도 ',
+            }
+            for abbr, full in sido_map.items():
+                if road_addr.startswith(abbr):
+                    road_addr = full + road_addr[len(abbr):]
+                    break
+
             # 동/호수 조합
             unit_info = ''
             if dong_num and ho_num:
