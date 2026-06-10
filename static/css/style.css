@@ -1,15 +1,25 @@
         :root {
-            /* Durekt 스타일 색상 팔레트 */
-            --primary-dark: #2D3748;
-            --primary-accent: #D946EF;
-            --primary-cyan: #06FFA5;
-            --primary-blue: #3B82F6;
-            --background-light: #EDF2F7;
+            /* 딥 네이비 (금융) 팔레트 */
+            --navy: #1E3A5F;
+            --navy-soft: #E2E9F2;
+            --gold: #B8860B;
+            --gold-soft: #F5EDDA;
+            --danger-red: #B91C1C;
+            --danger-soft: #F8E5E5;
+            --surface: #FFFFFF;
+            --surface-2: #F2F4F8;
+
+            /* 기존 변수명 유지 (참조 호환) */
+            --primary-dark: #1C2434;
+            --primary-accent: #1E3A5F;
+            --primary-cyan: #B8860B;
+            --primary-blue: #1E3A5F;
+            --background-light: #E9ECF2;
             --background-white: #FFFFFF;
-            --text-dark: #1A202C;
-            --text-muted: #718096;
-            --border-light: #E2E8F0;
-            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --text-dark: #1C2434;
+            --text-muted: #768091;
+            --border-light: #D8DDE7;
+            --shadow-soft: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
         }
         
         html, body {
@@ -20,7 +30,7 @@
             overflow-x: hidden; /* 가로 스크롤 방지 */
             font-family: 'Inter', 'Malgun Gothic', sans-serif; 
             background: var(--background-light) !important;
-            background-color: #F7FAFC !important;
+            background-color: var(--background-light) !important;
             box-sizing: border-box;
         }
         
@@ -42,7 +52,7 @@
             display: flex; 
             flex-direction: column; 
             transition: flex 0.3s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
-            background: #F2EDD7;
+            background: var(--surface-2);
             border-radius: 12px;
             padding: 0;
             box-shadow: var(--shadow-soft);
@@ -62,10 +72,11 @@
         .pdf-viewer-column.compact #viewer-section {
             display: none !important;
         }
-        .form-column { 
+        .form-column {
             flex: 3; /* <-- 변경: 3/5 비율 (기존 60% 역할) */
-            height: 100%; 
-            overflow-y: scroll; 
+            height: 100%;
+            min-width: 0; /* 내용물 최소폭 때문에 리사이즈가 막히지 않도록 */
+            overflow-y: scroll;
             transition: flex 0.1s ease; /* <-- 변경: width 대신 flex에 transition 적용 */
             background: var(--background-white);
             border-radius: 12px;
@@ -128,8 +139,8 @@
             border-radius: 8px; 
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
         }
-        #upload-section { 
-            border: 3px dashed #2BAE66; 
+        #upload-section {
+            border: 2px dashed var(--border-light);
             border-radius: 12px; 
             display: flex; 
             align-items: center; 
@@ -150,22 +161,23 @@
             align-items: center;
             justify-content: center;
         }
-        #upload-section.dragover { 
-            border-color: #2BAE66; 
+        #upload-section.dragover {
+            border-color: var(--navy);
             background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
             color: var(--primary-accent);
         }
         #file-input { display: none; }
-        body { 
-            font-size: 0.9rem; 
+        body {
+            font-size: 0.9rem;
             color: var(--text-dark);
-            background-color: #EDF2F7;
+            background-color: var(--background-light);
         }
-        label { 
-            font-weight: 600; 
-            margin-bottom: 0.25rem; 
-            color: var(--text-dark);
-            font-size: 0.875rem;
+        label {
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: var(--text-muted);
+            font-size: 12px;
+            letter-spacing: .02em;
         }
 
         /* Durekt 스타일 버튼 오버라이드 */
@@ -577,8 +589,7 @@
             }
             
             /* 모든 컨테이너들 모바일에서 풀 너비 */
-            [style*="background: #F2EDD7"],
-            [style*="background: #6E6E6D"] {
+            [style*="background: var(--surface)"] {
                 margin: 0 !important;
                 padding: 0.75rem !important;
                 border-radius: 0.5rem !important;
@@ -796,201 +807,268 @@
             }
         }
         
-        /* Material Design 통일 스타일 */
+        /* 딥 네이비 버튼 시스템
+           primary = 네이비 솔리드 (핵심 동작)
+           warning = 골드 솔리드 (시세 조회)
+           secondary/info/success/soft = 네이비 소프트 (보조 동작)
+           danger = 레드 소프트 (삭제) */
         .md-btn {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px 16px !important;
+            border: 1px solid transparent !important;
+            border-radius: 7px !important;
+            padding: 7px 14px !important;
             font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            font-size: 14px !important;
+            transition: all 0.15s ease !important;
+            font-size: 13px !important;
+            line-height: 1.2 !important;
             cursor: pointer !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+            box-shadow: none !important;
             text-transform: none !important;
             letter-spacing: normal !important;
         }
-        
+
         .md-btn:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
+            filter: brightness(0.94) !important;
+            transform: none !important;
         }
-        
+
         .md-btn:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
+            filter: brightness(0.88) !important;
         }
-        
+
         .md-btn-primary {
-            background: #2196F3 !important;
-            border-color: #2196F3 !important;
+            background: var(--navy) !important;
+            border-color: var(--navy) !important;
             color: white !important;
         }
-        
+
         .md-btn-primary:hover {
-            background: #1976D2 !important;
+            background: var(--navy) !important;
             color: white !important;
         }
-        
+
         .md-btn-danger {
-            background: #f44336 !important;
-            border-color: #f44336 !important;
-            color: white !important;
+            background: var(--danger-soft) !important;
+            border-color: var(--danger-soft) !important;
+            color: var(--danger-red) !important;
         }
-        
+
         .md-btn-danger:hover {
-            background: #d32f2f !important;
-            color: white !important;
+            background: var(--danger-soft) !important;
+            color: var(--danger-red) !important;
         }
-        
+
         .md-btn-secondary {
-            background: #2BAE66 !important;
-            border-color: #2BAE66 !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            border-color: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-btn-secondary:hover {
-            background: #239c56 !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-btn-info {
-            background: #00BCD4 !important;
-            border-color: #00BCD4 !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            border-color: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-btn-info:hover {
-            background: #0097A7 !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-btn-warning {
-            background: #FF9800 !important;
-            border-color: #FF9800 !important;
+            background: var(--gold) !important;
+            border-color: var(--gold) !important;
             color: white !important;
         }
-        
+
         .md-btn-warning:hover {
-            background: #F57C00 !important;
+            background: var(--gold) !important;
             color: white !important;
         }
-        
+
         .md-btn-success {
-            background: #4CAF50 !important;
-            border-color: #4CAF50 !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            border-color: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-btn-success:hover {
-            background: #388E3C !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            color: var(--navy) !important;
+        }
+
+        /* 체크박스 네이비 통일 */
+        .form-check-input {
+            border-color: var(--text-muted) !important;
+            cursor: pointer;
+        }
+
+        .form-check-input:checked {
+            background-color: var(--navy) !important;
+            border-color: var(--navy) !important;
+        }
+
+        .form-check-input:focus {
+            border-color: var(--navy) !important;
+            box-shadow: 0 0 0 3px var(--navy-soft) !important;
+        }
+
+        /* 섹션 제목 (카드 상단 라벨 + 구분선) */
+        .sec-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: .08em;
+            margin: 2px 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sec-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-light);
+        }
+
+        /* 고스트 버튼 (낮은 우선순위 동작) */
+        .md-btn-ghost {
+            background: transparent !important;
+            border-color: var(--border-light) !important;
+            color: var(--text-muted) !important;
+        }
+
+        .md-btn-ghost:hover {
+            background: var(--surface-2) !important;
+            color: var(--text-dark) !important;
+        }
+
+        /* 보조 외부링크용 소프트 버튼 */
+        .md-btn-soft {
+            background: var(--navy-soft) !important;
+            border-color: var(--navy-soft) !important;
+            color: var(--navy) !important;
+        }
+
+        .md-btn-soft:hover {
+            background: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
         
         /* LTV 컨트롤 스타일 */
         .md-input {
-            border: 1px solid #757575 !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            font-size: 14px !important;
+            border: 1px solid var(--border-light) !important;
+            border-radius: 7px !important;
+            padding: 7px 10px !important;
+            font-size: 13.5px !important;
+            line-height: 1.4 !important;
+            height: auto !important;
             background: #fff !important;
-            transition: all 0.2s ease !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
         }
-        
+
+        .md-input::placeholder {
+            color: var(--text-muted) !important;
+            opacity: .75 !important;
+        }
+
+        .md-input[readonly] {
+            background: var(--surface-2) !important;
+        }
+
         .md-input:focus {
             outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
+            border-color: var(--navy) !important;
+            box-shadow: 0 0 0 3px var(--navy-soft) !important;
         }
-        
+
         .md-ltv-btn {
-            border: 1px solid #2BAE66 !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-            background: #2BAE66 !important;
-            color: white !important;
+            border: 1px solid var(--border-light) !important;
+            border-radius: 7px !important;
+            padding: 4px 8px !important;
+            font-weight: 700 !important;
+            transition: all 0.15s ease !important;
+            background: #fff !important;
+            color: var(--navy) !important;
             font-size: 14px !important;
             cursor: pointer !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            min-width: 36px !important;
+            box-shadow: none !important;
+            min-width: 30px !important;
         }
-        
+
         .md-ltv-btn:hover {
-            background: #239c56 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
-            color: white !important;
+            background: var(--navy-soft) !important;
+            color: var(--navy) !important;
         }
-        
+
         .md-ltv-btn.danger {
-            background: #f44336 !important;
-            color: white !important;
-            border-color: #f44336 !important;
+            background: #fff !important;
+            color: var(--danger-red) !important;
+            border-color: var(--border-light) !important;
         }
-        
+
         .md-ltv-btn.danger:hover {
-            background: #d32f2f !important;
-            color: white !important;
+            background: var(--danger-soft) !important;
+            color: var(--danger-red) !important;
         }
         
         /* 드래그 핸들과 대출 항목 스타일 */
         .md-drag-handle {
-            border: 1px solid #ddd !important;
-            border-radius: 4px !important;
-            padding: 8px !important;
-            background: #f5f5f5 !important;
-            color: #757575 !important;
+            border: none !important;
+            border-radius: 7px !important;
+            padding: 5px 4px !important;
+            background: transparent !important;
+            color: var(--text-muted) !important;
             font-size: 12px !important;
             cursor: move !important;
-            transition: all 0.2s ease !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-            min-width: 32px !important;
+            transition: all 0.15s ease !important;
+            box-shadow: none !important;
+            min-width: 24px !important;
             text-align: center !important;
             user-select: none !important;
         }
-        
+
         .md-drag-handle:hover {
-            background: #e0e0e0 !important;
-            color: #333 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            transform: translateY(-1px) !important;
+            background: var(--surface-2) !important;
+            color: var(--text-dark) !important;
         }
-        
+
         .md-drag-handle:active {
-            transform: translateY(0) !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
-            background: #d5d5d5 !important;
+            background: var(--border-light) !important;
         }
         
         .md-loan-input {
-            border: 2px solid var(--border-light) !important;
-            border-radius: 8px !important;
-            padding: 0.75rem !important;
-            font-size: 14px !important;
+            border: 1px solid var(--border-light) !important;
+            border-radius: 7px !important;
+            padding: 0.4rem 0.55rem !important;
+            font-size: 12.5px !important;
             background: #fff !important;
             transition: all 0.2s ease !important;
         }
         
         .md-loan-input:focus {
             outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
+            border-color: var(--navy) !important;
+            box-shadow: 0 0 0 3px var(--navy-soft) !important;
         }
         
         .md-loan-select {
-            border: 2px solid var(--border-light) !important;
-            border-radius: 8px !important;
-            padding: 0.75rem !important;
-            font-size: 14px !important;
+            border: 1px solid var(--border-light) !important;
+            border-radius: 7px !important;
+            padding: 0.4rem 0.55rem !important;
+            font-size: 12.5px !important;
             background: #fff !important;
             transition: all 0.2s ease !important;
         }
         
         .md-loan-select:focus {
             outline: none !important;
-            border-color: #2196F3 !important;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) !important;
+            border-color: var(--navy) !important;
+            box-shadow: 0 0 0 3px var(--navy-soft) !important;
         }
         
         .md-close-btn {
@@ -1130,12 +1208,17 @@
 
         /* 희망담보대부 체크박스 테두리 굵게 */
         #hope-collateral-loan {
-            border: 2px solid #333 !important;
+            border: 2px solid var(--text-muted) !important;
             cursor: pointer;
         }
 
+        #hope-collateral-loan:checked {
+            background-color: var(--navy) !important;
+            border-color: var(--navy) !important;
+        }
+
         #hope-collateral-loan:focus {
-            border-color: #333 !important;
-            box-shadow: 0 0 0 0.2rem rgba(51, 51, 51, 0.25);
+            border-color: var(--navy) !important;
+            box-shadow: 0 0 0 3px var(--navy-soft) !important;
         }
 
