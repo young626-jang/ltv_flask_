@@ -158,7 +158,8 @@ def parse_share_rate_for_save(value: Any) -> float:
 def fetch_all_customers() -> List[Dict]:
     """모든 고객 목록 조회"""
     customers = []
-    query_url = f"https://api.notion.com/v1/databases/{CUSTOMER_DB_ID}/query"
+    # filter_properties=title: 목록에는 고객명만 필요하므로 페이로드 최소화 (속도 개선)
+    query_url = f"https://api.notion.com/v1/databases/{CUSTOMER_DB_ID}/query?filter_properties=title"
     has_more = True
     next_cursor = None
     
