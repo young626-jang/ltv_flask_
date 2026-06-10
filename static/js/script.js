@@ -282,14 +282,10 @@
                         formColumn.style.flex = settings.formColumnFlex;
                     }
 
-                    // 가로 모드 복원
-                    if (settings.isHorizontalMode) {
+                    // 가로 모드 복원 — 토글 버튼 제거됨, 모바일에서만 적용 (PC는 좌우 분할 고정)
+                    if (settings.isHorizontalMode && isMobile) {
                         mainContainer.classList.add('horizontal-layout');
-                        const btn = document.getElementById('layout-toggle-btn');
-                        if (btn) {
-                            btn.innerHTML = '<i class="bi bi-distribute-vertical"></i> 세로 모드';
-                        }
-                        console.log('📋 저장된 레이아웃 복원됨');
+                        console.log('📋 저장된 레이아웃 복원됨 (모바일)');
                     }
                     return; // 저장된 설정이 적용되었으므로 여기서 종료
                 }
@@ -553,8 +549,8 @@
             </div>
             <div class="loan-col loan-col-action">
                 <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
-                    <button type="button" class="md-btn md-btn-secondary" onclick="addLoanItem()" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">+</button>
-                    <button type="button" class="md-btn md-btn-primary" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px; font-size: 12px; min-width: 24px;">×</button>
+                    <button type="button" class="md-btn md-btn-secondary" onclick="addLoanItem()" style="padding: 4px 8px !important; font-size: 12px; min-width: 24px;">+</button>
+                    <button type="button" class="md-btn md-btn-danger" aria-label="Close" onclick="removeLoanItem(${index})" style="padding: 4px 8px !important; font-size: 12px; min-width: 24px;">×</button>
                 </div>
             </div>
         </div>`;
@@ -2016,7 +2012,7 @@ function attachAllEventListeners() {
     document.getElementById('reset-btn').addEventListener('click', () => location.reload());
     document.getElementById('save-new-btn').addEventListener('click', saveNewCustomer);
     document.getElementById('update-btn').addEventListener('click', updateCustomer);
-    document.getElementById('layout-toggle-btn').addEventListener('click', toggleLayout);
+    document.getElementById('layout-toggle-btn')?.addEventListener('click', toggleLayout);
 
     // 방공제 지역 선택 시 자동 금액 설정
     document.getElementById('deduction_region').addEventListener('change', (e) => {
@@ -2457,12 +2453,10 @@ function attachAllEventListeners() {
         let startPos = 0;
         let startPdfSize = 0;
 
-        // ✅ [수정] 수직 리사이징 모드 여부를 판단하는 헬퍼 함수
-        // 가로 모드(상하 분할) 또는 모바일 화면(768px 이하)일 때 Y축 기반 리사이징
+        // ✅ [수정] 수직 리사이징 모드 여부 — 실제 레이아웃 방향(flex-direction)으로 판단
+        // (창 너비로 판단하면 좁은 창에서 좌우 분할인데도 세로 드래그로 오인하는 버그 발생)
         const isVerticalResize = () => {
-            const isHorizontalLayout = mainContainer.classList.contains('horizontal-layout');
-            const isMobileSize = window.matchMedia('(max-width: 768px)').matches;
-            return isHorizontalLayout || isMobileSize;
+            return getComputedStyle(mainContainer).flexDirection === 'column';
         };
 
         // 세로 모드만 지원 (가로 모드 제거)
