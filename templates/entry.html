@@ -266,7 +266,7 @@
                 </ul>
             </div>
 
-            <div class="tab-content" style="background: var(--surface); border: 1px solid var(--border-light); border-radius: 12px; padding: 0.5rem; border: 2px solid #E2E8F0; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+            <div class="tab-content" style="background: var(--surface); border: 1px solid var(--border-light); border-radius: 12px; padding: 0.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">
                 <div class="tab-pane fade" id="interest-calc-tab-pane" role="tabpanel">
                     <div class="row g-2 mb-3">
                         <div class="col-12">
@@ -311,7 +311,7 @@
                         </div>
                     </div>
                     <hr class="my-4">
-                    <h6 class="mb-3 text-success">원금 분할·만기일시 대출 계산기</h6>
+                    <h6 class="mb-3" style="color: var(--navy); font-weight: 700;">원금 분할·만기일시 대출 계산기</h6>
                     <!-- 대출금, 연이율 필드 삭제하고 바로 원금 분할 비율부터 시작 -->
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
@@ -348,7 +348,7 @@
                         </div>
                     </div>
                     <table class="table table-bordered table-sm mb-0" style="font-size: 12px;">
-                        <tr style="background: #e8f4f8;">
+                        <tr style="background: var(--surface-2);">
                             <td class="fw-bold text-center">보수액</td>
                             <td class="text-center">금액</td>
                             <td class="fw-bold text-center">공과금</td>
@@ -367,8 +367,8 @@
                             <td class="text-end" id="legal-r2">0</td>
                         </tr>
                         <tr>
-                            <td style="background: #f5f5f5;" class="fw-bold">보수액소계</td>
-                            <td style="background: #f5f5f5;" class="text-end fw-bold" id="legal-s2">0</td>
+                            <td style="background: var(--surface-2);" class="fw-bold">보수액소계</td>
+                            <td style="background: var(--surface-2);" class="text-end fw-bold" id="legal-s2">0</td>
                             <td>증지</td>
                             <td class="text-end" id="legal-r3">15,000</td>
                         </tr>
@@ -393,10 +393,10 @@
                         <tr>
                             <td></td>
                             <td></td>
-                            <td style="background: #f5f5f5;" class="fw-bold">계</td>
-                            <td style="background: #f5f5f5;" class="text-end fw-bold" id="legal-s1">0</td>
+                            <td style="background: var(--surface-2);" class="fw-bold">계</td>
+                            <td style="background: var(--surface-2);" class="text-end fw-bold" id="legal-s1">0</td>
                         </tr>
-                        <tr style="background: #2980b9; color: white;">
+                        <tr style="background: var(--navy); color: white;">
                             <td colspan="4" class="fw-bold text-center">총 계 : <span id="legal-tot">0</span></td>
                         </tr>
                     </table>
@@ -410,7 +410,7 @@
                             <label class="form-label small mb-1">대출 금액 (만원)</label>
                             <div class="position-relative">
                                 <input type="text" class="form-control md-input" id="prepay-principal" placeholder="금액 입력" style="padding-bottom: 25px;">
-                                <div id="prepay-kor-unit" style="position: absolute; right: 10px; bottom: 6px; font-size: 11px; color: #4e73df; font-weight: bold; pointer-events: none;"></div>
+                                <div id="prepay-kor-unit" style="position: absolute; right: 10px; bottom: 6px; font-size: 11px; color: var(--navy); font-weight: bold; pointer-events: none;"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -440,9 +440,9 @@
                     </div>
 
                     <!-- 결과 영역 -->
-                    <div class="p-3 rounded text-center" style="background: #f8f9fc; border: 1px solid #e3e6f0;">
+                    <div class="p-3 rounded text-center" style="background: var(--surface-2); border: 1px solid var(--border-light);">
                         <div class="small text-muted mb-1">중도상환수수료 (최종)</div>
-                        <div style="font-size: 26px; font-weight: bold; color: #e74a3b; margin-bottom: 12px;" id="prepay-result-fee">0원</div>
+                        <div style="font-size: 26px; font-weight: bold; color: var(--danger-red); margin-bottom: 12px;" id="prepay-result-fee">0원</div>
                         <div class="small d-flex justify-content-between" style="padding-top: 8px; border-top: 1px solid #ddd;">
                             <span>계산된 사용일수</span>
                             <span id="prepay-result-days">0일</span>
@@ -457,7 +457,7 @@
                     <!-- 지분시세 | 지분 LTV | 필요금액 한 줄 -->
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <label class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">지분시세</label>
-                        <input type="text" class="form-control form-field text-center md-input" id="share-price" readonly placeholder="-" style="width: 100px; background-color: #f0f0f0 !important;">
+                        <input type="text" class="form-control form-field text-center md-input" id="share-price" readonly placeholder="-" style="width: 100px; background-color: var(--surface-2) !important;">
                         <label class="mb-0" style="white-space: nowrap; font-size: 0.85rem;">지분LTV</label>
                         <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('share-ltv', -5)" style="padding: 2px 6px;">-</button>
                         <button class="md-ltv-btn" type="button" onclick="adjustLtvValue('share-ltv', 5)" style="padding: 2px 6px;">+</button>
@@ -518,7 +518,7 @@
                         </div>
                     </div>
                     <!-- 결과 영역 -->
-                    <div class="p-3 rounded mt-2" style="background: #f8f9fc; border: 1px solid #e3e6f0; font-size: 13px;">
+                    <div class="p-3 rounded mt-2" style="background: var(--surface-2); border: 1px solid var(--border-light); font-size: 13px;">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">컨설팅 비용</span>
                             <span id="fee-consult-result" class="fw-bold">0만원</span>
@@ -529,7 +529,7 @@
                         </div>
                         <div class="d-flex justify-content-between pt-2" style="border-top: 1px solid #ddd;">
                             <span class="fw-bold">합계</span>
-                            <span id="fee-total-result" class="fw-bold" style="color: #e74a3b; font-size: 15px;">0만원</span>
+                            <span id="fee-total-result" class="fw-bold" style="color: var(--danger-red); font-size: 15px;">0만원</span>
                         </div>
                     </div>
                 </div>
@@ -544,45 +544,45 @@
                     <div style="font-size: 13px;">
                         <div class="row g-2 mb-2">
                             <div class="col-5">
-                                <input type="text" class="form-control form-control-sm" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-3">
-                                <input type="text" class="form-control form-control-sm" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="cb_clearPrincipal(); calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_ltv" placeholder="LTV (%)" value="70" oninput="cb_clearPrincipal(); calcCB()">
                             </div>
                             <div class="col-4">
-                                <input type="text" class="form-control form-control-sm" id="cb_maxamt_ratio" placeholder="채최비율 (%)" value="130" oninput="calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_maxamt_ratio" placeholder="채최비율 (%)" value="130" oninput="calcCB()">
                             </div>
                             <div class="col-5">
-                                <input type="text" class="form-control form-control-sm" id="cb_principal_input" placeholder="원금 역산 (만원)" oninput="fmtComma(this); cb_clearLtv(); calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_principal_input" placeholder="원금 역산 (만원)" oninput="fmtComma(this); cb_clearLtv(); calcCB()">
                             </div>
                             <div class="col-3">
-                                <input type="text" class="form-control form-control-sm" id="cb_overdue_rate" placeholder="연체금리%" oninput="calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_overdue_rate" placeholder="연체금리%" oninput="calcCB()">
                             </div>
                             <div class="col-4">
-                                <input type="text" class="form-control form-control-sm" id="cb_overdue_months" placeholder="연체기간(월)" oninput="calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_overdue_months" placeholder="연체기간(월)" oninput="calcCB()">
                             </div>
                             <div class="col-5">
-                                <input type="text" class="form-control form-control-sm" id="cb_senior" placeholder="선순위 채최합계" oninput="fmtComma(this); calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_senior" placeholder="선순위 채최합계" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-4">
-                                <input type="text" class="form-control form-control-sm" id="cb_senior_lease" placeholder="선순위 전세금" oninput="fmtComma(this); calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_senior_lease" placeholder="선순위 전세금" oninput="fmtComma(this); calcCB()">
                             </div>
                             <div class="col-3">
-                                <input type="text" class="form-control form-control-sm" id="cb_auction_cost_rate" placeholder="경매비용%" oninput="calcCB()">
+                                <input type="text" class="form-control form-control-sm md-input" id="cb_auction_cost_rate" placeholder="경매비용%" oninput="calcCB()">
                             </div>
                         </div>
 
                         <!-- 결과 요약 (항상 표시) -->
-                        <div id="cb_summary_bar" style="display:none; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:6px 10px; margin-top:4px; cursor:pointer;" onclick="document.getElementById('cb_detail_box').style.display = document.getElementById('cb_detail_box').style.display==='none' ? '' : 'none'; this.querySelector('.cb_toggle_icon').textContent = document.getElementById('cb_detail_box').style.display==='' ? '▲' : '▼';">
+                        <div id="cb_summary_bar" style="display:none; background:var(--navy-soft); border:1px solid var(--border-light); border-radius:8px; padding:6px 10px; margin-top:4px; cursor:pointer;" onclick="document.getElementById('cb_detail_box').style.display = document.getElementById('cb_detail_box').style.display==='none' ? '' : 'none'; this.querySelector('.cb_toggle_icon').textContent = document.getElementById('cb_detail_box').style.display==='' ? '▲' : '▼';">
                             <div class="d-flex justify-content-between align-items-center" style="font-size:13px;">
-                                <span style="color:#1e40af; font-weight:700;">대출가능원금 <span id="cb_summary_principal" style="color:#2563EB; font-size:15px; font-weight:800;">-</span> / 채최 <span id="cb_summary_maxamt" style="color:#2563EB;">-</span></span>
-                                <span class="cb_toggle_icon" style="color:#64748B; font-size:11px;">▼ 상세</span>
+                                <span style="color:var(--navy); font-weight:700;">대출가능원금 <span id="cb_summary_principal" style="color:var(--navy); font-size:15px; font-weight:800;">-</span> / 채최 <span id="cb_summary_maxamt" style="color:var(--navy);">-</span></span>
+                                <span class="cb_toggle_icon" style="color:var(--text-muted); font-size:11px;">▼ 상세</span>
                             </div>
                         </div>
 
                         <!-- 결과 상세 (접기/펼치기) -->
-                        <div id="cb_detail_box" style="display:none; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-top: 4px;">
-                            <div class="row g-1" style="font-size: 12px; color: #475569;">
+                        <div id="cb_detail_box" style="display:none; background: var(--surface-2); border: 1px solid var(--border-light); border-radius: 8px; padding: 10px; margin-top: 4px;">
+                            <div class="row g-1" style="font-size: 12px; color: var(--text-muted);">
                                 <div class="col-6" id="cb_label_ltv_amount">KB시세 × LTV</div>
                                 <div class="col-6 text-end" id="cb_r_ltv_amount">-</div>
                                 <div class="col-6">선순위 배당 합계</div>
@@ -590,10 +590,10 @@
                                 <div class="col-6">채권최고액 설정 가능 한도</div>
                                 <div class="col-6 text-end" id="cb_r_maxamt_limit">-</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
-                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">채권최고액 설정액</div>
-                                <div class="col-6 text-end" id="cb_r_maxamt" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
-                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">대출 가능 원금</div>
-                                <div class="col-6 text-end" id="cb_r_principal" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
+                                <div class="col-6" style="font-size:13px; color:var(--navy); font-weight:700;">채권최고액 설정액</div>
+                                <div class="col-6 text-end" id="cb_r_maxamt" style="font-size:14px; font-weight:800; color:var(--navy);">-</div>
+                                <div class="col-6" style="font-size:13px; color:var(--navy); font-weight:700;">대출 가능 원금</div>
+                                <div class="col-6 text-end" id="cb_r_principal" style="font-size:14px; font-weight:800; color:var(--navy);">-</div>
                                 <div class="col-12"><hr style="margin: 4px 0;"></div>
                                 <div class="col-6">연체이자</div>
                                 <div class="col-6 text-end" id="cb_r_interest">-</div>
@@ -609,8 +609,8 @@
                                 <div class="col-6 text-end" id="cb_r_auction_cost">-</div>
                                 <div class="col-6">최소 낙찰금액</div>
                                 <div class="col-6 text-end fw-bold" id="cb_r_min_bid_amount">-</div>
-                                <div class="col-6" style="font-size:13px; color:#1e40af; font-weight:700;">최소 낙찰가율</div>
-                                <div class="col-6 text-end" id="cb_r_min_bid_rate" style="font-size:14px; font-weight:800; color:#2563EB;">-</div>
+                                <div class="col-6" style="font-size:13px; color:var(--navy); font-weight:700;">최소 낙찰가율</div>
+                                <div class="col-6 text-end" id="cb_r_min_bid_rate" style="font-size:14px; font-weight:800; color:var(--navy);">-</div>
                             </div>
                         </div>
                     </div>
@@ -1646,7 +1646,7 @@ function calcCB() {
         document.getElementById('cb_r_min_bid_amount').textContent = auctionCostRate > 0 ? fmt(minBidAmount) : '-';
         const rateEl = document.getElementById('cb_r_min_bid_rate');
         rateEl.textContent = auctionCostRate > 0 ? minBidRate.toFixed(1) + '%' : '-';
-        rateEl.style.color = auctionCostRate > 0 ? (minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626') : '#2563EB';
+        rateEl.style.color = auctionCostRate > 0 ? (minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626') : '#1E3A5F';
         return;
     }
     // 정방향 모드: 레이블 원상복구
@@ -1711,7 +1711,7 @@ function calcCB() {
         rateEl.style.color = minBidRate <= 70 ? '#059669' : minBidRate <= 80 ? '#D97706' : '#DC2626';
     } else {
         rateEl.textContent = '-';
-        rateEl.style.color = '#2563EB';
+        rateEl.style.color = '#1E3A5F';
     }
 }
 
