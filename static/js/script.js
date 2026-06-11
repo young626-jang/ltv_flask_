@@ -2804,6 +2804,7 @@ document.addEventListener('DOMContentLoaded', () => {
        placeholder: '고객명 검색...',
        allowClear: true,
        width: '100%',
+       dropdownParent: $('#customer-history').parent(), // body 대신 카드 내부에 부착 (모바일 위치 어긋남 방지)
        language: {
            noResults: function() { return '검색 결과 없음'; },
            searching: function() { return '검색중...'; }
