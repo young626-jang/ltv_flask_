@@ -1331,3 +1331,106 @@
             box-shadow: 0 0 0 3px var(--navy-soft) !important;
         }
 
+        /* ============================================================
+           📱 모바일 — 딥 네이비 리디자인 대응 (파일 끝: 기존 규칙 덮어씀)
+           ============================================================ */
+        @media (max-width: 768px) {
+            /* 상단 고객 영역: 검색바가 한 줄 전체 차지, 버튼 3개는 아랫줄 균등 분할 */
+            .d-flex.gap-2.mb-0.align-items-center {
+                flex-wrap: wrap;
+            }
+            .d-flex.gap-2.mb-0.align-items-center .select2-container {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+            }
+            .d-flex.gap-2.mb-0.align-items-center .md-btn {
+                flex: 1 1 0 !important;
+                white-space: nowrap;
+            }
+
+            /* 질권 체크박스 줄: 좁으면 줄바꿈, 왼쪽 정렬, 글자 쪼개짐 방지 */
+            .mt-2.d-flex.justify-content-end.align-items-center {
+                flex-wrap: wrap;
+                justify-content: flex-start !important;
+                gap: 8px 14px !important;
+            }
+            .mt-2.d-flex.justify-content-end.align-items-center .form-check-label,
+            .mt-2.d-flex.justify-content-end.align-items-center .md-btn {
+                white-space: nowrap;
+                word-break: keep-all;
+            }
+            .mt-2.d-flex.justify-content-end.align-items-center .md-btn {
+                margin-left: auto; /* 가이드 버튼 오른쪽 정렬 */
+            }
+
+            /* 상단 버튼(불러오기/삭제/새로고침): 한 줄 3등분, 컴팩트 */
+            .d-flex.gap-2.mb-0.align-items-center .md-btn {
+                padding: 8px 4px !important;
+                font-size: 12px !important;
+                min-height: 40px;
+            }
+
+            /* KB시세~준공일자 5칸: 한 줄 5개 → 3+2 두 줄 */
+            .row.g-2 > .col {
+                flex: 1 0 31%;
+            }
+
+            /* 외부 링크 6개 버튼: 3개씩 두 줄 */
+            #kb-search-btn,
+            #kb-search-btn ~ a.md-btn {
+                flex: 1 1 30% !important;
+            }
+
+            /* LTV 비율 / 필요금액: 좌우 분할 → 위아래로 */
+            .row.g-3 > .col-6 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+
+            /* 대출항목 블록 모드 — 새 팔레트 적용 */
+            .loan-item {
+                background: var(--surface-2) !important;
+                border: 1px solid var(--border-light) !important;
+                border-radius: 8px !important;
+            }
+
+            /* 군 버튼 안의 지역 배지는 좁은 화면에서 숨김 (1군/2군/3군만 표시) */
+            .meritz-loan-region-btn .badge {
+                display: none;
+            }
+
+            /* 도로명/주소정보 버튼이 주소칸 아래로 자연스럽게 떨어지도록 */
+            .mb-2.d-flex.gap-2 {
+                flex-wrap: wrap;
+            }
+            .mb-2.d-flex.gap-2 #address {
+                flex: 1 1 100% !important;
+            }
+            .mb-2.d-flex.gap-2 .md-btn {
+                flex: 1 1 0 !important;
+            }
+
+            /* LTV 적용 사유: 라벨과 내용이 좁은 화면에서 줄바꿈되도록 */
+            #ltv-reasons-container .d-flex {
+                flex-wrap: wrap;
+            }
+            #ltv-reasons-list {
+                flex: 1 1 100%;
+                min-width: 0;
+            }
+
+            /* 메리츠 군 호버 툴팁: 화면 밖으로 삐져나가지 않게 너비 제한 */
+            .meritz-region-tooltip {
+                width: min(280px, calc(100vw - 40px)) !important;
+                left: auto !important;
+                right: 0 !important;
+            }
+        }
+
+        /* 터치 기기: 호버 전용 툴팁은 탭 시 오동작/잘림 방지를 위해 숨김 */
+        @media (hover: none) and (pointer: coarse) {
+            .meritz-region-tooltip {
+                display: none !important;
+            }
+        }
+
