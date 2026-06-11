@@ -163,6 +163,24 @@
 
     @media (max-width: 768px) {
         .tab-button { min-width: 100px; font-size: 12px; }
+
+        /* 모바일: 여백 축소 */
+        body { padding: 8px; }
+        .main-container { padding: 10px; min-height: auto; }
+
+        /* 모바일: 와이드 테이블은 칸을 뭉개지 말고 가로 스크롤로 */
+        table {
+            display: block;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            min-width: 100%;
+        }
+        table > tbody, table > thead { min-width: 640px; display: table; width: 100%; }
+        .style-biz table > tbody { min-width: 720px; } /* LTV표는 컬럼이 많아 더 넓게 */
+
+        /* 내부 중첩 테이블은 스크롤 중첩 방지 */
+        .inner-table { display: table !important; overflow-x: visible !important; }
+        .inner-table > tbody { min-width: 0 !important; }
     }
 </style>
 <script>
