@@ -697,14 +697,14 @@ def generate_memo(data):
                 status = item.get('status', '/')
                 rank = item.get('rank', '') or str(i)
 
-                # 포맷: 3. 2015-06-30 | 신한은행 | 홍길동 | 설정금액: 1,000만 | 120% | 원금: 833만 | 유지
+                # 포맷: 3. 2015-06-30 | 신한은행 | 홍길동 | 채권최고액: 1,000만 | 120% | 원금: 833만 | 유지
                 parts = [f"{rank}."]
                 if setup_date:
                     parts.append(setup_date)
                 parts.append(lender)
                 if debtor:
                     parts.append(debtor)
-                parts.append(f"설정금액: {max_amount}")
+                parts.append(f"채권최고액: {max_amount}")
                 parts.append(ratio_str)
                 parts.append(f"원금: {principal}")
                 parts.append(status)
