@@ -529,16 +529,16 @@ def get_hope_collateral_interest_rate(region, ltv_rate, region_grade=None, is_me
             else:
                 cost = 11.40
     else:
-        # 아이엠 원가금리 (2026.06 기준)
+        # 아이엠 기본금리 (2026.06.15 기준 — 인상: 7.0/7.2/7.6 → 7.3/7.5/7.9)
         if is_senior:
-            cost = 7.0 if ltv <= 70 else None
+            cost = 7.3 if ltv <= 70 else None
         else:
             if ltv <= 70:
-                cost = 7.0
+                cost = 7.3
             elif ltv <= 75:
-                cost = 7.2
+                cost = 7.5
             elif ltv <= 80:
-                cost = 7.6
+                cost = 7.9
             else:
                 cost = None
 
