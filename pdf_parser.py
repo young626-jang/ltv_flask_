@@ -238,6 +238,25 @@ def extract_property_type(text):
         if '빌라' in address_match or '맨션' in address_match:
             return {'type': 'Non-APT', 'detail': '다세대주택'}
 
+    # 4-2. 아파트 브랜드명으로 판단 (단지명만 있고 '아파트' 글자가 없는 경우)
+    # 예: 풍무자이, OO푸르지오 — 표제부/주소 어디든 브랜드명 있으면 아파트
+    APT_BRANDS = [
+        '자이', '푸르지오', '래미안', '힐스테이트', '아이파크', 'e편한세상', '이편한세상',
+        '롯데캐슬', '더샵', '센트럴', '데시앙', '위브', '스위첸', '꿈에그린', '하늘채',
+        '리슈빌', '베르디움', '어울림', '캐슬', '에코', '센트레빌', '리버파크', '한라비발디',
+        '서희스타힐스', '호반베르디움', '한신더휴', '대광로제비앙', '코아루', '풍림아이원',
+    ]
+    brand_search = (clean_text + ' ' + (address_match or ''))
+    for brand in APT_BRANDS:
+        if brand in brand_search:
+            return {'type': 'APT', 'detail': '아파트'}
+
+    # 4-3. 다층 구조 추정 (지상 5층 이상 + 대지권 존재 → 아파트로 추정)
+    floor_match = re.search(r'지상\s*(\d+)\s*층', clean_text)
+    has_land_right = '대지권' in clean_text
+    if floor_match and int(floor_match.group(1)) >= 5 and has_land_right:
+        return {'type': 'APT', 'detail': '아파트'}
+
     # 5. 기본값
     return {'type': 'APT', 'detail': 'Unknown'}
 
