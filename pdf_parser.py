@@ -550,7 +550,7 @@ def extract_rights_info(full_text):
             # 해당 키가 존재하면 업데이트
             if target_key in mortgage_map and target_key not in killed_ranks:
                 # 금액 변경 (감액/증액 반영)
-                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원?', clean_entry)
                 if amount_match:
                     mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
 
@@ -579,7 +579,7 @@ def extract_rights_info(full_text):
             continue
 
         # --- 데이터 추출 ---
-        amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+        amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원?', clean_entry)
         current_amount = amount_match.group(1) if amount_match else None
 
         # 채무자 추출: "채무자 홍길동" 또는 요약 테이블의 "대상소유자" 컬럼
@@ -647,7 +647,7 @@ def extract_rights_info(full_text):
             target_key = f"{target_main}({target_sub})" if target_sub else target_main
 
             if target_key in mortgage_map and target_key not in killed_ranks:
-                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원', clean_entry)
+                amount_match = re.search(r'채권최고액\s*금?\s*([\d,]+)\s*원?', clean_entry)
                 if amount_match:
                     mortgage_map[target_key]['amount_str'] = f"금{amount_match.group(1)}원"
 
