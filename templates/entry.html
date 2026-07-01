@@ -405,30 +405,50 @@
                 <!-- ✅ [신규] 중도상환수수료 계산기 탭 내용 시작 -->
                 <!-- ====================================================== -->
                 <div class="tab-pane fade" id="prepay-fee-tab-pane" role="tabpanel">
+                    <!-- 이자 입력 방식 토글 -->
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" id="prepay-mode-auto" class="btn btn-sm md-btn flex-fill" style="font-weight:700;">⚡ 금리로 자동계산</button>
+                        <button type="button" id="prepay-mode-manual" class="btn btn-sm md-btn flex-fill" style="font-weight:700;">✍️ 이자 직접입력</button>
+                    </div>
+
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small mb-1">대출 금액 (만원)</label>
+                            <label class="form-label small mb-1">대출 원금 (만원)</label>
                             <div class="position-relative">
                                 <input type="text" class="form-control md-input" id="prepay-principal" placeholder="금액 입력" style="padding-bottom: 25px;">
                                 <div id="prepay-kor-unit" style="position: absolute; right: 10px; bottom: 6px; font-size: 11px; color: var(--navy); font-weight: bold; pointer-events: none;"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small mb-1">대출 금리 (%)</label>
-                            <input type="number" class="form-control md-input" id="prepay-interest-rate" placeholder="예: 14.9" step="0.1">
+                            <label class="form-label small mb-1">상환 금액 (만원)</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control md-input" id="prepay-repay" placeholder="미입력 시 원금과 동일" style="padding-bottom: 25px;">
+                                <div id="prepay-repay-kor-unit" style="position: absolute; right: 10px; bottom: 6px; font-size: 11px; color: var(--navy); font-weight: bold; pointer-events: none;"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small mb-1">대출 사용일수</label>
-                            <input type="number" class="form-control md-input" id="prepay-days" placeholder="일수 입력">
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label small mb-1">중수료율 (%)</label>
                             <input type="number" class="form-control md-input" id="prepay-fee-rate" value="3" step="0.1">
                         </div>
+                        <!-- 자동모드: 대출 금리 -->
+                        <div class="col-md-6" id="prepay-field-rate">
+                            <label class="form-label small mb-1">대출 금리 (%)</label>
+                            <input type="number" class="form-control md-input" id="prepay-interest-rate" placeholder="예: 14.9" step="0.1">
+                        </div>
+                        <!-- 수동모드: 납입이자 -->
+                        <div class="col-md-6" id="prepay-field-paid" style="display:none;">
+                            <label class="form-label small mb-1">지금까지 납입한 이자 (원)</label>
+                            <input type="text" class="form-control md-input" id="prepay-paid" placeholder="0">
+                        </div>
+                        <!-- 수동모드: 남은이자 -->
+                        <div class="col-md-6" id="prepay-field-current" style="display:none;">
+                            <label class="form-label small mb-1">현재 남은 이자 (원)</label>
+                            <input type="text" class="form-control md-input" id="prepay-current" placeholder="0">
+                        </div>
                     </div>
-                    <div class="row g-2 mb-3">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-6">
                             <label class="form-label small mb-1">대출 실행일</label>
                             <input type="text" class="form-control md-input" id="prepay-start-date" placeholder="YYYY-MM-DD" maxlength="10">
@@ -438,16 +458,37 @@
                             <input type="text" class="form-control md-input" id="prepay-end-date" placeholder="YYYY-MM-DD" maxlength="10">
                         </div>
                     </div>
-
-                    <!-- 결과 영역 -->
-                    <div class="p-3 rounded text-center" style="background: var(--surface-2); border: 1px solid var(--border-light);">
-                        <div class="small text-muted mb-1">중도상환수수료 (최종)</div>
-                        <div style="font-size: 26px; font-weight: bold; color: var(--danger-red); margin-bottom: 12px;" id="prepay-result-fee">0원</div>
-                        <div class="small d-flex justify-content-between" style="padding-top: 8px; border-top: 1px solid #ddd;">
-                            <span>계산된 사용일수</span>
-                            <span id="prepay-result-days">0일</span>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <label class="form-label small mb-1">사용일수 (날짜 입력 시 자동계산)</label>
+                            <input type="number" class="form-control md-input" id="prepay-days" placeholder="직접 입력 가능">
                         </div>
                     </div>
+
+                    <!-- 경고/안내 배너 -->
+                    <div id="prepay-warn" class="alert alert-warning py-2 px-3 small mb-2" style="display:none;"></div>
+
+                    <!-- 결과 영역 (상세) -->
+                    <div class="p-3 rounded" style="background: var(--surface-2); border: 1px solid var(--border-light);">
+                        <div class="small" style="line-height:1.9;">
+                            <div class="d-flex justify-content-between"><span class="text-muted">법정 최고금리 총한도</span><span class="fw-bold" id="prepay-res-limit">0원</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">납입이자 차감 후 최대 이자</span><span class="fw-bold" id="prepay-res-maxint">0원</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">남은이자 차감 후 최대 중수료</span><span class="fw-bold" id="prepay-res-maxfee">0원</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">계약상 중도상환수수료</span><span class="fw-bold" id="prepay-res-contract">0원</span></div>
+                            <div class="d-flex justify-content-between" id="prepay-res-autoint-row" style="display:none !important;"><span class="text-muted">↳ 자동계산 총이자</span><span class="fw-bold" id="prepay-res-autoint">0원</span></div>
+                            <div class="d-flex justify-content-between" id="prepay-res-remain-row" style="display:none !important;"><span class="text-muted">↳ 상환 후 남은 원금</span><span class="fw-bold" id="prepay-res-remain">0원</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">계산된 사용일수</span><span class="fw-bold" id="prepay-result-days">0일</span></div>
+                        </div>
+                        <div class="text-center mt-2 pt-2" style="border-top: 1px solid #ddd;">
+                            <div class="small text-muted mb-1">실제 중도상환수수료</div>
+                            <div style="font-size: 26px; font-weight: bold; color: var(--danger-red); margin-bottom: 8px;" id="prepay-result-fee">0원</div>
+                            <div class="small text-muted mb-1">총 청구금액</div>
+                            <div style="font-size: 18px; font-weight: bold; color: var(--navy);" id="prepay-res-total">0원</div>
+                        </div>
+                    </div>
+
+                    <!-- 계산 풀이 영역 -->
+                    <div id="prepay-solution" class="mt-2 p-3 rounded" style="background: var(--surface); border: 1px solid var(--border-light); font-size: 13px; display:none;"></div>
                 </div>
                 <!-- ====================================================== -->
                 <!-- ✅ [수정] 지분 한도 계산기 탭 내용 시작 -->
@@ -1444,37 +1485,82 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ======================================================
-// ✅ [수정] 중도상환수수료 계산기 함수들 (실시간 계산)
+// ✅ [수정] 중도상환수수료 계산기 (5단계 차감 + 자동/수동 이자 + 풀이)
 // ======================================================
 
+const prepayFmt = new Intl.NumberFormat("ko-KR");
+let prepayInterestMode = 'auto'; // 'auto' | 'manual'
+
+// 만원 단위 금액 → 한글 표시
+function prepayKorAmount(num) {
+    if (num <= 0) return "";
+    let ok = Math.floor(num / 10000);
+    let man = num % 10000;
+    return (ok > 0 ? ok + "억 " : "") + (man > 0 ? man + "만" : "") + "원";
+}
+
+// 이자 입력 방식 전환
+function setPrepayMode(mode) {
+    prepayInterestMode = mode;
+    const autoBtn = document.getElementById('prepay-mode-auto');
+    const manualBtn = document.getElementById('prepay-mode-manual');
+    if (autoBtn && manualBtn) {
+        autoBtn.classList.toggle('md-btn-primary', mode === 'auto');
+        autoBtn.classList.toggle('md-btn-ghost', mode !== 'auto');
+        manualBtn.classList.toggle('md-btn-primary', mode === 'manual');
+        manualBtn.classList.toggle('md-btn-ghost', mode !== 'manual');
+    }
+    // 필드 표시/숨김
+    document.getElementById('prepay-field-rate').style.display = (mode === 'auto') ? '' : 'none';
+    document.getElementById('prepay-field-paid').style.display = (mode === 'manual') ? '' : 'none';
+    document.getElementById('prepay-field-current').style.display = (mode === 'manual') ? '' : 'none';
+    // 자동계산 총이자 표시행은 자동모드에서만
+    document.getElementById('prepay-res-autoint-row').style.display = (mode === 'auto') ? '' : 'none';
+    calculatePrepayFee();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // 대출금액 입력 필드 - 만원 단위 + 한글 표시
+    // 모드 전환 버튼
+    const autoBtn = document.getElementById('prepay-mode-auto');
+    const manualBtn = document.getElementById('prepay-mode-manual');
+    if (autoBtn) autoBtn.addEventListener('click', () => setPrepayMode('auto'));
+    if (manualBtn) manualBtn.addEventListener('click', () => setPrepayMode('manual'));
+
+    // 대출 원금 입력 - 만원 단위 + 한글 표시
     const prepayPrincipalField = document.getElementById('prepay-principal');
     if (prepayPrincipalField) {
         prepayPrincipalField.addEventListener('input', function() {
             let val = this.value.replace(/[^0-9]/g, '');
-            this.value = val;
-
-            const korUnit = document.getElementById('prepay-kor-unit');
-            if (!val || val === "0") {
-                korUnit.innerText = "";
-            } else {
-                let amount = parseInt(val);
-                let result = "";
-                let ok = Math.floor(amount / 10000);
-                let man = amount % 10000;
-                if (ok > 0) result += ok + "억 ";
-                if (man > 0) result += man + "만";
-                korUnit.innerText = result + "원";
-            }
+            this.value = val.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('prepay-kor-unit').innerText = prepayKorAmount(parseInt(val) || 0);
             calculatePrepayFee();
         });
     }
 
+    // 상환 금액 입력 - 만원 단위 + 한글 표시
+    const prepayRepayField = document.getElementById('prepay-repay');
+    if (prepayRepayField) {
+        prepayRepayField.addEventListener('input', function() {
+            let val = this.value.replace(/[^0-9]/g, '');
+            this.value = val.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('prepay-repay-kor-unit').innerText = prepayKorAmount(parseInt(val) || 0);
+            calculatePrepayFee();
+        });
+    }
+
+    // 원 단위 이자 입력 (천단위 콤마)
+    ['prepay-paid', 'prepay-current'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() {
+            let val = this.value.replace(/[^0-9]/g, '');
+            this.value = val.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            calculatePrepayFee();
+        });
+    });
+
     // 날짜 입력 필드 - 자동 하이픈 추가
     const startDateField = document.getElementById('prepay-start-date');
     const endDateField = document.getElementById('prepay-end-date');
-
     if (startDateField) {
         startDateField.addEventListener('input', function() {
             prepayAutoHyphen(this);
@@ -1492,13 +1578,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const daysField = document.getElementById('prepay-days');
     const rateField = document.getElementById('prepay-interest-rate');
     const feeRateField = document.getElementById('prepay-fee-rate');
-
     if (daysField) daysField.addEventListener('input', calculatePrepayFee);
     if (rateField) rateField.addEventListener('input', calculatePrepayFee);
     if (feeRateField) feeRateField.addEventListener('input', calculatePrepayFee);
+
+    // 초기 모드 설정
+    setPrepayMode('auto');
 });
 
-// 날짜 자동 하이픈 추가 (YYYY-MM-DD)
+// 시간대 버그 없는 날짜 파싱 (YYYY-MM-DD → UTC 자정)
+function prepayParseYMD(str) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+    if (!m) return null;
+    const y = +m[1], mo = +m[2], d = +m[3];
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+    return dt;
+}
+
+// 날짜 자동 하이픈 추가 (YYYY-MM-DD) + 사용일수 자동계산
 function prepayAutoHyphen(obj) {
     let str = obj.value.replace(/[^0-9]/g, '');
     let tmp = '';
@@ -1507,57 +1605,200 @@ function prepayAutoHyphen(obj) {
     else tmp = str.substr(0, 4) + '-' + str.substr(4, 2) + '-' + str.substr(6);
     obj.value = tmp;
 
-    if(tmp.length === 10) {
-        const s = document.getElementById('prepay-start-date').value;
-        const e = document.getElementById('prepay-end-date').value;
-        const start = new Date(s);
-        const end = new Date(e);
-        if(!isNaN(start) && !isNaN(end)) {
-            const diff = Math.floor((end - start) / 86400000);
+    const sStr = document.getElementById('prepay-start-date').value;
+    const eStr = document.getElementById('prepay-end-date').value;
+    if (sStr.length === 10 && eStr.length === 10) {
+        const s = prepayParseYMD(sStr);
+        const e = prepayParseYMD(eStr);
+        if (s && e) {
+            const diff = Math.round((e - s) / 86400000);
             document.getElementById('prepay-days').value = diff > 0 ? diff : 0;
         }
     }
 }
 
-// 중도상환수수료 계산 함수 (실시간)
+// 중도상환수수료 계산 함수 (5단계 차감 방식)
 function calculatePrepayFee() {
-    const pStr = document.getElementById('prepay-principal').value;
-    const dStr = document.getElementById('prepay-days').value;
-    const rStr = document.getElementById('prepay-interest-rate').value;
-    const fStr = document.getElementById('prepay-fee-rate').value;
+    const warnings = [];
 
-    // 하나라도 입력 안되면 0으로 표시
-    if(!pStr || !dStr || !rStr || !fStr) {
-        updatePrepayUI(0, dStr || 0);
-        return;
+    // 대출원금 (만원 → 원)
+    const principal = (parseInt(document.getElementById('prepay-principal').value.replace(/,/g, '')) || 0) * 10000;
+
+    // 상환금액 (만원 → 원), 미입력 시 원금과 동일
+    const repayVal = document.getElementById('prepay-repay').value.replace(/,/g, '');
+    const repayAmount = repayVal ? (parseInt(repayVal) || 0) * 10000 : principal;
+
+    const feeRate = (parseFloat(document.getElementById('prepay-fee-rate').value) || 0) / 100;
+    const legalRate = 0.20; // 법정 최고금리 20% 고정
+
+    // 날짜 → 사용일수 자동계산 (UTC 기준)
+    const dInput = document.getElementById('prepay-days');
+    const startStr = document.getElementById('prepay-start-date').value;
+    const endStr = document.getElementById('prepay-end-date').value;
+    const s = startStr.length === 10 ? prepayParseYMD(startStr) : null;
+    const e = endStr.length === 10 ? prepayParseYMD(endStr) : null;
+
+    if (startStr.length === 10 && !s) warnings.push("⚠️ 대출 실행일 형식이 올바르지 않습니다.");
+    if (endStr.length === 10 && !e) warnings.push("⚠️ 상환 예정일 형식이 올바르지 않습니다.");
+    if (s && e) {
+        const diff = Math.round((e - s) / 86400000);
+        if (diff < 0) warnings.push("⚠️ 상환 예정일이 실행일보다 빠릅니다.");
+        dInput.value = diff > 0 ? diff : 0;
+    }
+    const days = parseInt(dInput.value) || 0;
+
+    // 입력 검증
+    if (repayAmount > principal && principal > 0) warnings.push("⚠️ 상환금액이 대출원금보다 큽니다.");
+    const isPartial = repayAmount > 0 && principal > 0 && repayAmount < principal;
+
+    // --- 이자 산정 ---
+    let paidInterest, currentInterest, autoTotalInterest = null;
+    if (prepayInterestMode === 'auto') {
+        const loanRate = (parseFloat(document.getElementById('prepay-interest-rate').value) || 0) / 100;
+        autoTotalInterest = Math.floor(principal * loanRate * days / 365);
+        paidInterest = autoTotalInterest;
+        currentInterest = 0;
+    } else {
+        paidInterest = parseInt(document.getElementById('prepay-paid').value.replace(/,/g, '')) || 0;
+        currentInterest = parseInt(document.getElementById('prepay-current').value.replace(/,/g, '')) || 0;
     }
 
-    const p = parseInt(pStr) * 10000;  // 만원 → 원
-    const d = parseInt(dStr);
-    const r = parseFloat(rStr);
-    const f = parseFloat(fStr);
+    // 1. 법정 최고금리 총한도 (원금 전체 기준, 365일 기준)
+    const legalLimit = principal * legalRate * days / 365;
+    // 2. 지금까지 낸 이자 차감
+    const maxInterestReceivable = legalLimit - paidInterest;
+    // 3. 현재 남은 이자 차감
+    const maxPrepaymentFee = maxInterestReceivable - currentInterest;
+    // 4. 계약상 중도상환수수료 (상환금액 기준)
+    const contractFee = repayAmount * feeRate;
+    // 5. 실제 적용 중도상환수수료
+    const actualFee = Math.max(0, Math.min(contractFee, maxPrepaymentFee));
+    // 6. 총 청구금액
+    const totalCharge = repayAmount + currentInterest + actualFee;
+    // 상환 후 남은 원금
+    const remainPrincipal = Math.max(0, principal - repayAmount);
 
-    if(p <= 0 || d <= 0) {
-        updatePrepayUI(0, d);
-        return;
+    // 결과 표시
+    const F = prepayFmt;
+    document.getElementById('prepay-res-limit').innerText = F.format(Math.floor(legalLimit)) + "원";
+    document.getElementById('prepay-res-maxint').innerText = F.format(Math.floor(maxInterestReceivable)) + "원";
+    document.getElementById('prepay-res-maxfee').innerText = F.format(Math.floor(maxPrepaymentFee)) + "원";
+    document.getElementById('prepay-res-contract').innerText = F.format(Math.floor(contractFee)) + "원";
+    document.getElementById('prepay-result-days').innerText = days + "일";
+    document.getElementById('prepay-result-fee').innerText = F.format(Math.floor(actualFee)) + "원";
+    document.getElementById('prepay-res-total').innerText = F.format(Math.floor(totalCharge)) + "원";
+
+    // 자동계산 총이자 표시
+    if (autoTotalInterest !== null) {
+        document.getElementById('prepay-res-autoint').innerText = F.format(autoTotalInterest) + "원";
+    }
+    // 부분상환 남은원금 표시
+    const remainRow = document.getElementById('prepay-res-remain-row');
+    remainRow.style.display = isPartial ? '' : 'none';
+    if (isPartial) document.getElementById('prepay-res-remain').innerText = F.format(remainPrincipal) + "원";
+
+    // 한도 초과 안내
+    if (principal > 0 && days > 0 && contractFee > maxPrepaymentFee) {
+        const cut = Math.floor(contractFee - actualFee);
+        warnings.push(`💡 계약상 중수료(${F.format(Math.floor(contractFee))}원)가 법정한도를 초과하여 ${F.format(cut)}원 감액되었습니다.`);
+    }
+    if (maxPrepaymentFee < 0) {
+        warnings.push("💡 이미 받은 이자가 법정한도를 넘어, 부과 가능한 중수료가 없습니다 (0원).");
     }
 
-    // 법적 한도 20% 및 약정 이자 (버림)
-    const limit = Math.floor(p * 0.20 * d / 365);
-    const interestTotal = Math.floor(p * (r/100) * d / 365);
+    // 배너 출력
+    const warn = document.getElementById('prepay-warn');
+    if (warnings.length) {
+        warn.innerHTML = warnings.join('<br>');
+        warn.style.display = '';
+    } else {
+        warn.style.display = 'none';
+    }
 
-    // 중수료 계산: 약정 수수료율 vs 법적 한도 잔여분 중 작은 값
-    const rawFee = Math.floor(p * (f/100));
-    const maxFee = Math.max(0, limit - interestTotal);
-    const finalFee = Math.min(rawFee, maxFee);
-
-    updatePrepayUI(finalFee, d);
+    // 계산 풀이 렌더링
+    renderPrepaySolution({
+        principal, repayAmount, feeRate, days,
+        paidInterest, currentInterest,
+        legalLimit, maxInterestReceivable, maxPrepaymentFee,
+        contractFee, actualFee, totalCharge
+    });
 }
 
-// 결과 UI 업데이트
-function updatePrepayUI(fee, days) {
-    document.getElementById('prepay-result-fee').innerText = fee.toLocaleString() + '원';
-    document.getElementById('prepay-result-days').innerText = days + '일';
+// 계산 풀이 영역 렌더링
+function renderPrepaySolution(v) {
+    const solutionEl = document.getElementById('prepay-solution');
+    if (!solutionEl) return;
+
+    if (!(v.principal > 0 && v.days > 0)) {
+        solutionEl.style.display = 'none';
+        solutionEl.innerHTML = '';
+        return;
+    }
+    solutionEl.style.display = '';
+
+    const F = prepayFmt;
+    const legalLimitFloor = Math.floor(v.legalLimit);
+    const maxInterestFloor = Math.floor(v.maxInterestReceivable);
+    const maxFeeFloor = Math.floor(v.maxPrepaymentFee);
+    const contractFeeFloor = Math.floor(v.contractFee);
+    const actualFeeFloor = Math.floor(v.actualFee);
+    const currentInterestFloor = Math.floor(v.currentInterest);
+    const paidInterestFloor = Math.floor(v.paidInterest);
+    const totalChargeFloor = Math.floor(v.totalCharge);
+
+    let reasonText = '';
+    if (contractFeeFloor > maxFeeFloor) {
+        reasonText = `⚠️ 계약상 중도상환수수료가 법정 최고금리 한도를 초과하여 최대 수령 가능 금액인 ${F.format(actualFeeFloor)}원이 적용되었습니다.`;
+    } else {
+        reasonText = `✅ 계약상 중도상환수수료가 법정 최고금리 한도 이내이므로 계약상 수수료 ${F.format(actualFeeFloor)}원이 적용되었습니다.`;
+    }
+
+    solutionEl.innerHTML = `
+        <div class="fw-bold mb-2" style="font-size:15px; color: var(--navy);">📖 계산 풀이</div>
+        <div style="line-height:1.6;">
+            <div class="mb-2">
+                <div class="fw-bold" style="color: var(--navy);">① 법정 최고금리 총한도</div>
+                <div class="p-2 rounded" style="background: var(--surface-2); border:1px solid var(--border-light);">
+                    ${F.format(v.principal)} × 20% × ${v.days}일 ÷ 365<br>= <b>${F.format(legalLimitFloor)}원</b>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="fw-bold" style="color: var(--navy);">② 지금까지 납입한 이자 차감</div>
+                <div class="p-2 rounded" style="background: var(--surface-2); border:1px solid var(--border-light);">
+                    ${F.format(legalLimitFloor)} - ${F.format(paidInterestFloor)}<br>= <b>${F.format(maxInterestFloor)}원</b><br>
+                    <span class="text-muted" style="font-size:11px;">이번에 받을 수 있는 최대 이자금액</span>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="fw-bold" style="color: var(--navy);">③ 현재 남은 이자 차감</div>
+                <div class="p-2 rounded" style="background: var(--surface-2); border:1px solid var(--border-light);">
+                    ${F.format(maxInterestFloor)} - ${F.format(currentInterestFloor)}<br>= <b>${F.format(maxFeeFloor)}원</b><br>
+                    <span class="text-muted" style="font-size:11px;">최대 수령 가능한 중도상환수수료</span>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="fw-bold" style="color: var(--navy);">④ 계약상 중도상환수수료</div>
+                <div class="p-2 rounded" style="background: var(--surface-2); border:1px solid var(--border-light);">
+                    ${F.format(v.repayAmount)} × ${(v.feeRate * 100).toFixed(2)}%<br>= <b>${F.format(contractFeeFloor)}원</b>
+                </div>
+            </div>
+            <div class="mb-2">
+                <div class="fw-bold" style="color: var(--navy);">⑤ 최종 비교</div>
+                <div class="p-2 rounded" style="background: var(--surface-2); border:1px solid var(--border-light);">
+                    계약상 중수료: <b>${F.format(contractFeeFloor)}원</b><br>
+                    최대 수령 가능 중수료: <b>${F.format(maxFeeFloor)}원</b><br>
+                    실제 적용 중수료: <b style="color: var(--danger-red);">${F.format(actualFeeFloor)}원</b>
+                </div>
+            </div>
+            <div class="p-2 rounded mb-2 fw-bold" style="background:#fff8e1; border:1px solid #ffe082; color:#8a6d00;">
+                ${reasonText}
+            </div>
+            <div class="p-2 rounded" style="background: var(--navy-soft); border:1px solid var(--border-light);">
+                총 청구금액 = 상환금액 ${F.format(v.repayAmount)}원 + 현재 남은 이자 ${F.format(currentInterestFloor)}원 + 중도상환수수료 ${F.format(actualFeeFloor)}원<br>
+                = <b>${F.format(totalChargeFloor)}원</b>
+            </div>
+        </div>
+    `;
 }
 
 function toggleTabSection() {
