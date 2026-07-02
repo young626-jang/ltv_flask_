@@ -1440,6 +1440,11 @@ async function handleFileUpload(file) {
                 }
             }
 
+            // [신규] KB 시세 매칭 실패 시 알림
+            if (kb_info.error) {
+                showCustomAlert('시세를 찾을 수 없습니다.');
+            }
+
             // [신규] KB 시세 자동 입력 + KB 단지 페이지 자동 오픈
             if (kb_info.complex_no) {
                 // 오피스텔 → 무조건 하한가 / 아파트 1,2층 → 하한가 / 3층 이상 → 일반가
