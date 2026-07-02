@@ -578,6 +578,9 @@
                 <!-- ====================================================== -->
                 <div class="tab-pane fade" id="min-bid-tab-pane" role="tabpanel" style="margin: -0.5rem; padding: 0.5rem;">
                     <div style="font-size: 13px;">
+                        <div class="mb-2">
+                            <button type="button" class="btn btn-sm md-btn md-btn-primary" style="font-weight:700;" onclick="cb_loadFromForm()">📥 물건정보 불러오기 (KB시세 · 유지 채최합계)</button>
+                        </div>
                         <div class="row g-2 mb-2">
                             <div class="col-4">
                                 <input type="text" class="form-control form-control-sm md-input" id="cb_kb_price" placeholder="KB시세 (만원)" oninput="fmtComma(this); calcCB()">
@@ -1867,6 +1870,29 @@ function calcFees() {
     document.getElementById('fee-consult-result').textContent = fmt(consultFee);
     document.getElementById('fee-bridge-result').textContent = fmt(bridgeFee);
     document.getElementById('fee-total-result').textContent = fmt(total);
+}
+
+// 메인 폼(물건정보 + 설정채권)에서 KB시세와 '유지' 채권최고액 합계를 불러오기
+function cb_loadFromForm() {
+    // KB시세 (메인 폼 kb_price, 만원 단위)
+    const kbRaw = (document.getElementById('kb_price')?.value || '').replace(/,/g, '');
+    const kbPrice = parseInt(kbRaw) || 0;
+    if (kbPrice > 0) {
+        document.getElementById('cb_kb_price').value = kbPrice.toLocaleString();
+    }
+
+    // 설정채권 중 구분이 '유지'인 항목의 채권최고액 합계 (만원 단위)
+    let seniorSum = 0;
+    document.querySelectorAll('#loan-items-container .loan-item').forEach(item => {
+        const status = item.querySelector('[name="status"]')?.value || '';
+        if (status === '유지') {
+            const maxAmt = parseInt((item.querySelector('[name="max_amount"]')?.value || '').replace(/,/g, '')) || 0;
+            seniorSum += maxAmt;
+        }
+    });
+    document.getElementById('cb_senior').value = seniorSum > 0 ? seniorSum.toLocaleString() : '';
+
+    calcCB();
 }
 
 function calcCB() {
