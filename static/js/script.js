@@ -182,6 +182,26 @@
         }
     }
 
+    // 금지사항등기(전매제한/거주의무) 경고 표시 함수
+    function displayRestrictionWarning(restrictionInfo) {
+        const warningElement = document.getElementById('restriction-warning');
+        if (!warningElement) return;
+
+        const totalCount = restrictionInfo ? (restrictionInfo.total_count || 0) : 0;
+        const activeCount = restrictionInfo ? (restrictionInfo.active_count || 0) : 0;
+
+        if (activeCount > 0) {
+            warningElement.textContent = '⚠️ 금지사항등기내용있음';
+            warningElement.style.display = 'block';
+        } else if (totalCount > 0) {
+            warningElement.textContent = '금지사항등기 말소됨';
+            warningElement.style.color = '#059669';
+            warningElement.style.display = 'block';
+        } else {
+            warningElement.style.display = 'none';
+        }
+    }
+
     // 소유권이전일이 3개월 미만인 경우 빨강색으로 표시
     function checkTransferDateColor(dateString) {
         const field = document.getElementById('ownership_transfer_date');
@@ -1362,6 +1382,9 @@ async function handleFileUpload(file) {
 
             // [신규] 압류 경고 표시
             displaySeizureWarning(seizure_info);
+
+            // [신규] 금지사항등기 경고 표시
+            displayRestrictionWarning(result.restriction_info);
 
             // 대지권미등기 경고 텍스트 표시
             const landWarning = document.getElementById('land-ownership-warning');
