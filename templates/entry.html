@@ -1968,7 +1968,8 @@ function calcCB() {
     const seniorTotal = senior + seniorLease;
     const maxAmtLimit = ltvAmount - seniorTotal;
     const maxAmt = Math.max(0, maxAmtLimit);
-    const principal = Math.floor(maxAmt / (maxAmtRatio / 100));
+    // 대출 가능 원금은 100만원 단위로 절사 (일반 LTV 계산과 동일 기준, utils.py calculate_ltv_limit 참고)
+    const principal = Math.floor(Math.floor(maxAmt / (maxAmtRatio / 100)) / 100) * 100;
     const interest = overdueRate > 0 && overdueMonths > 0
         ? principal * (overdueRate / 100) * (overdueMonths / 12) : 0;
     const actualClaim = principal + interest;
