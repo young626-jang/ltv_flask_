@@ -963,6 +963,90 @@ def extract_seizure_info(full_text):
 
     return result
 
+
+def extract_restriction_info(full_text):
+    """
+    갑구에서 금지사항등기(전매제한, 거주의무 등 소유권 처분금지 특약) 정보를 추출합니다.
+    분양가 상한제 주택 등에 흔히 붙는 부기등기로, 말소 전까지는 소유권 이전이
+    사실상 제한되는 중요 사항이라 압류와 동일하게 상단에 경고 표시해야 함.
+
+    Returns:
+        dict: {
+            'total_count': int,
+            'active_count': int,
+            'active_restrictions': [
+                {'rank': str, 'date': str}
+            ]
+        }
+    """
+    TARGET_KEYWORDS = ['금지사항등기']
+
+    result = {
+        'total_count': 0,
+        'active_count': 0,
+        'active_restrictions': []
+    }
+
+    try:
+        gap_gu_match = re.search(r"【\s*갑\s*구\s*】([\s\S]*?)(?:【\s*을\s*구\s*】|주요\s*등기사항|$)", full_text)
+        if not gap_gu_match:
+            return result
+
+        gap_gu_text = gap_gu_match.group(1)
+
+        entries = re.split(r'\n(?=\d{1,2}(?:-\d{1,2})?\s+)', gap_gu_text)
+
+        restrictions = {}  # {순위번호: 정보}
+        cancelled_ranks = set()
+
+        for entry in entries:
+            if not entry.strip():
+                continue
+
+            first_line_match = re.match(r'^\s*(\d{1,2}(?:-\d{1,2})?)\s*', entry)
+            if not first_line_match:
+                continue
+
+            rank = first_line_match.group(1)
+
+            # 말소 등기 항목: "1-1번금지사항등기말소" 같은 패턴에서 대상 순위 추출
+            if '말소' in entry:
+                cancelled_matches = re.findall(r'(\d{1,2}(?:-\d{1,2})?)번\s*금지사항등기\s*말소', entry)
+                for r in cancelled_matches:
+                    cancelled_ranks.add(r)
+                if re.search(r'등기말소|말소등기', entry):
+                    continue
+
+            direct_match = re.match(r'^\s*\d{1,2}(?:-\d{1,2})?\s+([^\n]+)', entry)
+            first_purpose_text = direct_match.group(1).strip() if direct_match else ''
+
+            if not any(kw in first_purpose_text for kw in TARGET_KEYWORDS):
+                continue
+
+            date_match = re.search(r'(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)', entry)
+            date = date_match.group(1) if date_match else ''
+
+            restrictions[rank] = {
+                'rank': rank,
+                'date': date,
+            }
+
+        result['total_count'] = len(restrictions)
+
+        for rank, info in restrictions.items():
+            if rank not in cancelled_ranks:
+                result['active_count'] += 1
+                result['active_restrictions'].append(info)
+
+        print(f"[DEBUG] 금지사항등기 추출: 총 {result['total_count']}건, 현재 유효 {result['active_count']}건")
+
+    except Exception as e:
+        print(f"금지사항등기 정보 추출 중 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return result
+
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import unquote
