@@ -34,6 +34,7 @@ from pdf_parser import (
     extract_construction_date,
     extract_last_transfer_info,
     extract_seizure_info,
+    extract_restriction_info,
     check_land_ownership_right
 )
 from kb_scraper import get_kb_info
@@ -198,6 +199,9 @@ def upload_and_parse_pdf():
     # [신규] 압류/가압류 정보 추출
     seizure_info = extract_seizure_info(full_text)
 
+    # [신규] 금지사항등기(전매제한/거주의무) 정보 추출
+    restriction_info = extract_restriction_info(full_text)
+
     # [신규] 소유권대지권 확인
     has_land_ownership_right = check_land_ownership_right(full_text)
 
@@ -259,6 +263,7 @@ def upload_and_parse_pdf():
         "scraped_data": scraped_data,
         "rights_info": rights_info,
         "seizure_info": seizure_info,
+        "restriction_info": restriction_info,
         "building_info": building_info,
         "kb_info": {
             "kb_price": kb_info['kb_price'],
