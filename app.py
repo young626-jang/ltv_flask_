@@ -268,6 +268,7 @@ def upload_and_parse_pdf():
             "complex_name": kb_info['complex_name'],
             "area_m2": kb_info['area_m2'],
             "rcns_info": kb_info.get('rcns_info'),
+            "error": kb_info.get('error', ''),
         }
     })
 
