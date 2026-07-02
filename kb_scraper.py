@@ -53,8 +53,12 @@ def _get_price(complex_no, sqrmsr_no):
     }
 
 
-def _find_best_sqrmsr(complex_no, target_area_m2):
-    """typInfo API로 전용면적과 가장 가까운 면적일련번호를 반환."""
+def _find_best_sqrmsr(complex_no, target_area_m2, tolerance=0.01):
+    """typInfo API로 전용면적과 정확히 일치(오차 tolerance 이내)하는 면적일련번호를 반환.
+
+    일치하는 면적이 없으면 None을 반환한다. 가장 가까운 값으로 임의 대체하지 않는다 -
+    다른 평형의 시세를 요청한 평형의 시세인 것처럼 반환하면 안 되기 때문.
+    """
     r = requests.get(
         'https://api.kbland.kr/land-complex/complex/typInfo',
         params={'단지기본일련번호': complex_no},
@@ -66,8 +70,6 @@ def _find_best_sqrmsr(complex_no, target_area_m2):
     if not items:
         return None
 
-    best_sqrmsr_no = None
-    best_diff = float('inf')
     for item in items:
         try:
             exclusive_area = float(item.get('전용면적') or 0)
@@ -76,12 +78,10 @@ def _find_best_sqrmsr(complex_no, target_area_m2):
             continue
         if not sqrmsr_no or not exclusive_area:
             continue
-        diff = abs(exclusive_area - target_area_m2)
-        if diff < best_diff:
-            best_diff = diff
-            best_sqrmsr_no = sqrmsr_no
+        if abs(exclusive_area - target_area_m2) <= tolerance:
+            return sqrmsr_no
 
-    return best_sqrmsr_no
+    return None
 
 
 def _get_complex_main(complex_no):
