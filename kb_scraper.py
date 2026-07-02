@@ -180,6 +180,7 @@ def get_kb_info(address, target_area_m2=None):
         'max_floor': 0,
         'min_floor': 0,
         'rcns_info': None,
+        'error': '',
     }
 
     try:
@@ -269,15 +270,18 @@ def get_kb_info(address, target_area_m2=None):
         result['max_floor'] = main_data.get('max_floor', 0)
         result['min_floor'] = main_data.get('min_floor', 0)
 
-        # 3. 전용면적에 맞는 면적일련번호 찾기
+        # 3. 전용면적에 맞는 면적일련번호 찾기 (정확히 일치해야 함 - 근사치 대체 금지)
         if target_area_m2:
-            try:
-                found = _find_best_sqrmsr(complex_no, target_area_m2)
-                if found:
-                    sqrmsr_no = found
-                    print(f'[KB API] 면적 매칭: target={target_area_m2}㎡ → 면적번호={sqrmsr_no}')
-            except Exception:
-                pass  # 실패하면 검색 결과의 대표 면적 사용
+            found = _find_best_sqrmsr(complex_no, target_area_m2)
+            if found:
+                sqrmsr_no = found
+                print(f'[KB API] 면적 매칭: target={target_area_m2}㎡ → 면적번호={sqrmsr_no}')
+            else:
+                print(f'[KB API] 면적 매칭 실패: target={target_area_m2}㎡ 와 일치하는 타입이 단지에 없음')
+                result['error'] = f'요청 전용면적({target_area_m2}㎡)과 일치하는 타입이 KB 시세에 없습니다.'
+                result['complex_no'] = complex_no
+                result['complex_name'] = complex_name
+                return result
 
         # 4. 시세 조회
         if sqrmsr_no:
@@ -312,8 +316,8 @@ def get_kb_info(address, target_area_m2=None):
 # 테스트
 if __name__ == "__main__":
     tests = [
-        ("경기도 광명시 소하동 45-3 광명삼익아파트 제101동 제1406호", 85.83),
-        ("서울특별시 강남구 역삼동 736 역삼래미안 제101동 제101호", 84.0),
+        ("경기도 광명시 소하동 45-3 광명삼익아파트 제101동 제1406호", 84.98),
+        ("서울특별시 강남구 역삼동 736 역삼래미안 제101동 제101호", 80.87),
         ("인천광역시 계양구 작전동 102-3 뉴서울아파트 제1동 제6층 제602호", 39.24),
     ]
     for addr, area in tests:
