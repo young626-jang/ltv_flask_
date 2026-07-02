@@ -459,7 +459,10 @@
                             <input type="text" class="form-control md-input" id="prepay-start-date" placeholder="YYYY-MM-DD" maxlength="10">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small mb-1">상환 예정일</label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small mb-0">상환 예정일</label>
+                                <button type="button" id="prepay-today-btn" class="btn btn-sm py-0 px-2" style="font-size:11px; font-weight:700;">📅 오늘</button>
+                            </div>
                             <input type="text" class="form-control md-input" id="prepay-end-date" placeholder="YYYY-MM-DD" maxlength="10">
                         </div>
                     </div>
@@ -1580,6 +1583,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (endDateField) {
         endDateField.addEventListener('input', function() {
             prepayAutoHyphen(this);
+            calculatePrepayFee();
+        });
+    }
+
+    // 상환 예정일 "오늘" 버튼
+    const todayBtn = document.getElementById('prepay-today-btn');
+    if (todayBtn) {
+        todayBtn.addEventListener('click', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('prepay-end-date').value = today;
             calculatePrepayFee();
         });
     }
