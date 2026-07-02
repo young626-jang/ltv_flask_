@@ -447,8 +447,13 @@
                             <label class="form-label small mb-1">현재 남은 이자 (원)</label>
                             <input type="text" class="form-control md-input" id="prepay-current" placeholder="0">
                         </div>
+                        <!-- 사용일수 (모드에 따라 JS가 위치 이동: 수동=남은이자 옆 / 자동=날짜 아래) -->
+                        <div class="col-md-6" id="prepay-field-days">
+                            <label class="form-label small mb-1">사용일수 (날짜 입력 시 자동계산)</label>
+                            <input type="number" class="form-control md-input" id="prepay-days" placeholder="직접 입력 가능">
+                        </div>
                     </div>
-                    <div class="row g-2 mb-2">
+                    <div class="row g-2 mb-2" id="prepay-date-row">
                         <div class="col-md-6">
                             <label class="form-label small mb-1">대출 실행일</label>
                             <input type="text" class="form-control md-input" id="prepay-start-date" placeholder="YYYY-MM-DD" maxlength="10">
@@ -456,12 +461,6 @@
                         <div class="col-md-6">
                             <label class="form-label small mb-1">상환 예정일</label>
                             <input type="text" class="form-control md-input" id="prepay-end-date" placeholder="YYYY-MM-DD" maxlength="10">
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-12">
-                            <label class="form-label small mb-1">사용일수 (날짜 입력 시 자동계산)</label>
-                            <input type="number" class="form-control md-input" id="prepay-days" placeholder="직접 입력 가능">
                         </div>
                     </div>
 
@@ -1509,6 +1508,22 @@ function setPrepayMode(mode) {
     document.getElementById('prepay-field-rate').style.display = (mode === 'auto') ? '' : 'none';
     document.getElementById('prepay-field-paid').style.display = (mode === 'manual') ? '' : 'none';
     document.getElementById('prepay-field-current').style.display = (mode === 'manual') ? '' : 'none';
+
+    // 사용일수 필드를 모드에 맞는 위치로 이동
+    const daysField = document.getElementById('prepay-field-days');
+    if (mode === 'auto') {
+        // 자동모드: 날짜 행 아래에 전체 너비로
+        document.getElementById('prepay-date-row').appendChild(daysField);
+        daysField.classList.remove('col-md-6');
+        daysField.classList.add('col-12');
+    } else {
+        // 수동모드: 현재 남은 이자 필드 바로 옆
+        const current = document.getElementById('prepay-field-current');
+        current.parentNode.insertBefore(daysField, current.nextSibling);
+        daysField.classList.remove('col-12');
+        daysField.classList.add('col-md-6');
+    }
+
     // 총 청구금액은 수동모드에서만 (자동모드는 실제 중도상환수수료만 표시)
     document.getElementById('prepay-res-total-wrap').style.display = (mode === 'auto') ? 'none' : '';
     calculatePrepayFee();
