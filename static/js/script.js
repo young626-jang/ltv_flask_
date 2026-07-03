@@ -2769,6 +2769,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (address) {
                 kbSearchBtn.textContent = 'KB조회중...';
                 kbSearchBtn.disabled = true;
+
+                // 팝업 차단 방지: 클릭 이벤트 안에서 동기적으로 먼저 창을 열어둔다.
+                // (await 이후 window.open을 호출하면 사용자 제스처로 인정되지 않아 브라우저가 막을 수 있음)
+                const popup = window.open('', 'kbLandPopup', popupOpts);
+
                 try {
                     const areaField = document.getElementById('area');
                     const area = areaField ? areaField.value.replace('㎡', '').trim() : '';
@@ -2778,6 +2783,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ address, area })
                     });
                     const data = await res.json();
+
+                    // 단지는 찾았지만 요청 면적과 일치하는 타입이 없거나(success=false),
+                    // 동명이인 단지 중 임의로 선택된 경우(error 존재) 사용자에게 알린다.
+                    if (data.error) {
+                        showCustomAlert(data.error);
+                    }
+
                     if (data.success && data.complex_no) {
                         // PDF 업로드와 동일한 규칙: 오피스텔/1,2층 → 하한가, 그 외 → 일반가
                         const floorMatch = address.match(/제?(\d+)층/);
@@ -2796,14 +2808,55 @@ document.addEventListener('DOMContentLoaded', () => {
                             const reason = isOfficetel ? '오피스텔→하한가' : `${floor}층→${isLowFloor ? '하한가' : '일반가'}`;
                             console.log(`KB시세 자동 입력: ${kbPriceToUse}만원 (${reason}, ${data.complex_name}, ${data.area_m2}㎡)`);
                         }
-                        window.open(`https://kbland.kr/c/${data.complex_no}`, 'kbLandPopup', popupOpts);
+
+                        // [신규] 세대수/준공일/재건축 정보도 PDF 업로드와 동일하게 자동 입력
+                        if (data.total_households) {
+                            const unitCountField = document.getElementById('unit_count') || document.getElementById('total_households');
+                            if (unitCountField) {
+                                unitCountField.value = data.total_households;
+                                unitCountField.dispatchEvent(new Event('input'));
+                                unitCountField.dispatchEvent(new Event('blur'));
+                            }
+                        }
+                        if (data.completion_date) {
+                            const completionField = document.getElementById('completion_date');
+                            if (completionField) {
+                                completionField.value = data.completion_date;
+                                completionField.dispatchEvent(new Event('input'));
+                                completionField.dispatchEvent(new Event('blur'));
+                            }
+                        }
+                        const rcnsField = document.getElementById('rcns_step');
+                        if (rcnsField) {
+                            const rcns = data.rcns_info;
+                            if (rcns && rcns.step_no) {
+                                rcnsField.value = `${rcns.step_no}단계 ${rcns.step_name}`;
+                                rcnsField.style.color = '#FF2F2F';
+                                rcnsField.style.fontWeight = 'bold';
+                            } else {
+                                rcnsField.value = '재건축정보없음';
+                                rcnsField.style.color = '';
+                                rcnsField.style.fontWeight = '';
+                            }
+                        }
+
+                        triggerMemoGeneration();
+
+                        const kbUrl = `https://kbland.kr/c/${data.complex_no}`;
+                        if (popup) { popup.location.href = kbUrl; } else { window.open(kbUrl, 'kbLandPopup', popupOpts); }
+                    } else if (data.complex_no) {
+                        // 단지는 찾았으나 시세 매칭 실패(면적 불일치) - 그래도 해당 단지 페이지는 열어준다
+                        const kbUrl = `https://kbland.kr/c/${data.complex_no}`;
+                        if (popup) { popup.location.href = kbUrl; } else { window.open(kbUrl, 'kbLandPopup', popupOpts); }
                     } else {
-                        // 단지 못 찾으면 지도 검색으로 fallback
+                        // 단지 자체를 못 찾으면 지도 검색으로 fallback
                         const encoded = encodeURIComponent(address);
-                        window.open(`https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encoded}`, 'kbLandPopup', popupOpts);
+                        const mapUrl = `https://kbland.kr/map?xy=37.5205559,126.9265729,16&autoSearch=${encoded}`;
+                        if (popup) { popup.location.href = mapUrl; } else { window.open(mapUrl, 'kbLandPopup', popupOpts); }
                     }
                 } catch (e) {
-                    window.open('https://kbland.kr/map?xy=37.5205559,126.9265729,17', 'kbLandPopup', popupOpts);
+                    const fallbackUrl = 'https://kbland.kr/map?xy=37.5205559,126.9265729,17';
+                    if (popup) { popup.location.href = fallbackUrl; } else { window.open(fallbackUrl, 'kbLandPopup', popupOpts); }
                 } finally {
                     kbSearchBtn.textContent = 'KB시세';
                     kbSearchBtn.disabled = false;
