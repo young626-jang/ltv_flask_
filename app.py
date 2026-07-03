@@ -1390,16 +1390,21 @@ def kb_search():
         area_val = None
     try:
         kb = get_kb_info(address, area_val)
-        if kb.get('success') and kb.get('complex_no'):
+        # 단지는 찾았으나 지정 면적과 일치하는 타입이 없는 경우: 조용히 대체하지 않고
+        # 단지번호/에러 메시지를 그대로 프론트에 전달해 사용자가 확인하도록 한다.
+        if kb.get('complex_no'):
             return jsonify({
-                'success': True,
+                'success': kb.get('success', False),
                 'complex_no': kb['complex_no'],
                 'complex_name': kb.get('complex_name', ''),
                 'kb_price': kb.get('kb_price', 0),
                 'kb_price_high': kb.get('kb_price_high', 0),
                 'kb_price_low': kb.get('kb_price_low', 0),
                 'area_m2': kb.get('area_m2', 0),
+                'total_households': kb.get('total_households', 0),
+                'completion_date': kb.get('completion_date', ''),
                 'rcns_info': kb.get('rcns_info'),
+                'error': kb.get('error', ''),
             })
     except Exception as e:
         print(f"[KB search] 오류: {e}")
