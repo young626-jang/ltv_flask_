@@ -10,14 +10,14 @@ _KB_HEADERS = {
 }
 
 
-def _search_complex(keyword):
-    """아파트명으로 KB 단지 검색. 첫 번째 결과 반환."""
+def _search_complex_candidates(keyword, limit=5):
+    """아파트명으로 KB 단지 검색. 후보 리스트 전체 반환 (동명이인 단지 구분용)."""
     r = requests.get(
         'https://api.kbland.kr/land-complex/serch/intgraSerch',
         params={
             '검색설정명': 'SRC_NTOTAL',
             '검색키워드': keyword,
-            '출력갯수': '5',
+            '출력갯수': str(limit),
             '페이지설정값': '1',
         },
         headers=_KB_HEADERS,
@@ -25,7 +25,12 @@ def _search_complex(keyword):
     )
     r.raise_for_status()
     data = r.json()
-    items = data.get('dataBody', {}).get('data', {}).get('data', {}).get('HSCM', {}).get('data', [])
+    return data.get('dataBody', {}).get('data', {}).get('data', {}).get('HSCM', {}).get('data', [])
+
+
+def _search_complex(keyword):
+    """아파트명으로 KB 단지 검색. 첫 번째 결과 반환."""
+    items = _search_complex_candidates(keyword)
     return items[0] if items else None
 
 
@@ -201,19 +206,84 @@ def get_kb_info(address, target_area_m2=None):
         if apt_match:
             apt_keyword = re.sub(r'아파트$', '', apt_match.group(1)).strip()
 
-        def _is_address_match(item, check_beonji=False):
-            """시군구 일치 여부 확인. check_beonji=True면 번지 정확 일치도 확인."""
+        # 도로명주소 + 괄호 병기 형식 처리 (예: "영동대로 220, 7동 1001호 (대치동, 쌍용아파트)")
+        # 괄호 안에 실제 행정동명과 정확한 건물명(차수 포함)이 병기되는 관행을 우선 활용.
+        # 괄호 밖 정규식은 "영동대로"의 "영동"을 동으로, "1001호"를 번지로 오인식하는 등
+        # 도로명 표기를 지번 표기로 착각하기 쉬우므로, 괄호 정보가 있으면 그쪽을 신뢰한다.
+        paren_match = re.search(r'\(([^)]+)\)', address)
+        paren_dong = ''
+        paren_apt_keyword = ''
+        if paren_match:
+            paren_content = paren_match.group(1)
+            paren_dong_match = re.search(r'([가-힣]+[동읍면리](?:\d가)?)', paren_content)
+            if paren_dong_match:
+                paren_dong = paren_dong_match.group(1)
+            paren_apt_match = re.search(
+                r'([가-힣a-zA-Z0-9]+(?:\d+차)?(?:아파트|파크|타운|빌|캐슬|스카이뷰|힐스테이트|자이|푸르지오|래미안|e편한세상|센트럴|더샵|롯데캐슬|시티|타워|하이츠|빌라|맨션|팰리스|삼익|현대|대우|주공|한양|한신|두산|벽산|LG|lg)[가-힣a-zA-Z0-9]*)',
+                paren_content
+            )
+            if paren_apt_match:
+                paren_apt_keyword = re.sub(r'아파트$', '', paren_apt_match.group(1)).strip()
+
+        # 괄호 정보가 있으면 동/건물명을 그쪽으로 교체 (더 신뢰도 높음).
+        # 괄호 밖에서 뽑은 번지(beonji)는 도로명 표기를 오인식한 값(예: "1001호"→"1001")일
+        # 수 있어 신뢰할 수 없으므로 함께 버린다.
+        if paren_dong:
+            dong = paren_dong
+            beonji = ''
+        if paren_apt_keyword:
+            apt_keyword = paren_apt_keyword
+
+        def _is_address_match(item, check_beonji=False, check_dong=False):
+            """시군구/동 일치 여부 확인. check_beonji=True면 번지 정확 일치도 확인."""
             bub_addr = item.get('BUBADDR', '') or item.get('NEWADDRESS', '') or ''
             if sigungu and sigungu[:3] not in bub_addr:
                 return False
+            if check_dong and dong and dong not in bub_addr:
+                return False
             if check_beonji and beonji:
-                arno = (item.get('ARNO', '') or '').strip()
+                arno_raw = (item.get('ARNO', '') or '').strip()
+                # KB는 ARNO를 "65", "102-3" 같은 순수 번지 외에 "65번지 일대"처럼
+                # 서술형으로도 반환하므로, 앞쪽 숫자(-숫자) 패턴만 뽑아 비교한다.
+                arno_match = re.match(r'(\d+(?:-\d+)?)', arno_raw)
+                arno = arno_match.group(1) if arno_match else arno_raw
                 # ARNO가 원본 번지와 정확히 일치하거나 원본 번지로 시작해야 함
                 # 예: beonji="102-3", arno="102-3" → 일치
                 # 예: beonji="736", arno="736-24" → 불일치 (736이 포함된 다른 번지)
                 if arno and arno != beonji and not arno.startswith(beonji + '-'):
                     return False
             return True
+
+        ambiguous_no_area_match = False  # 동명이인 후보가 여럿인데 어느 곳에도 목표 면적이 없었던 경우
+
+        def _pick_among_candidates(keyword, check_beonji, check_dong):
+            """검색 결과 후보들을 주소로 1차 필터링한 뒤, 후보가 여럿이고
+            target_area_m2가 주어졌으면 실제 면적일련번호가 존재하는 후보를 우선 채택한다.
+            (동명이인 단지 - 예: "쌍용대치1차" vs "쌍용2차" - 를 면적으로 구분)
+            """
+            nonlocal ambiguous_no_area_match
+            candidates = _search_complex_candidates(keyword)
+            matched = [c for c in candidates if _is_address_match(c, check_beonji=check_beonji, check_dong=check_dong)]
+            if not matched:
+                return None
+            if len(matched) == 1:
+                return matched[0]
+            if not target_area_m2:
+                # 후보가 여럿인데 면적 정보가 없어 구분 불가 - 1순위로 폴백하되 불확실함을 남긴다.
+                print(f"[KB API] 경고: 후보 {len(matched)}개 중 면적 정보 없이 1순위로 임의 선택")
+                ambiguous_no_area_match = True
+                return matched[0]
+            for cand in matched:
+                try:
+                    if _find_best_sqrmsr(cand['COMPLEX_NO'], target_area_m2):
+                        print(f"[KB API] 후보 {len(matched)}개 중 면적 일치로 선택: {cand.get('HSCM_NM')} ({cand['COMPLEX_NO']})")
+                        return cand
+                except Exception:
+                    continue
+            # 어느 후보에도 목표 면적이 없으면 1순위 후보로 폴백하되, 불확실했다는 사실을 남긴다.
+            print(f"[KB API] 경고: 후보 {len(matched)}개 모두 면적({target_area_m2}㎡) 불일치 - 1순위로 임의 폴백")
+            ambiguous_no_area_match = True
+            return matched[0]
 
         item = None
 
@@ -235,13 +305,20 @@ def get_kb_info(address, target_area_m2=None):
                         print(f"[KB API] 건물명 불일치 ('{complex_nm}' ≠ '{apt_keyword}'), 2순위로")
                         item = None
 
-        # 2순위: 건물명(아파트 제거) 검색 (예: "뉴서울", "광명삼익"), 시군구만 검증
+        # 2순위: 동+건물명 검색 (예: "대치동 쌍용2차") - 번지를 신뢰할 수 없을 때(도로명주소 등)
+        # 건물명이 흔한 이름이라도 동명을 함께 검증해 동명이인 단지를 걸러낸다.
+        # 동일 동에 같은 이름 계열 단지가 여럿이면(예: 쌍용대치1차/쌍용2차) 면적으로 재구분한다.
+        if not item and dong and apt_keyword:
+            kw2 = f"{dong} {apt_keyword}"
+            print(f"[KB API] 2순위 검색 (동+건물명): {kw2}")
+            item = _pick_among_candidates(kw2, check_beonji=False, check_dong=True)
+            if not item:
+                print(f"[KB API] 2순위 매칭 실패, 3순위로")
+
+        # 3순위: 건물명(아파트 제거)만 검색 (예: "뉴서울", "광명삼익"), 시군구+동 검증
         if not item and apt_keyword:
-            print(f"[KB API] 2순위 검색 (건물명): {apt_keyword}")
-            item = _search_complex(apt_keyword)
-            if item and not _is_address_match(item, check_beonji=False):
-                print(f"[KB API] 주소 불일치 ('{item.get('BUBADDR')}' ≠ '{sigungu}'), 무시")
-                item = None
+            print(f"[KB API] 3순위 검색 (건물명): {apt_keyword}")
+            item = _pick_among_candidates(apt_keyword, check_beonji=False, check_dong=True)
 
         if not item:
             print(f"[KB API] 단지 검색 실패")
@@ -278,10 +355,20 @@ def get_kb_info(address, target_area_m2=None):
                 print(f'[KB API] 면적 매칭: target={target_area_m2}㎡ → 면적번호={sqrmsr_no}')
             else:
                 print(f'[KB API] 면적 매칭 실패: target={target_area_m2}㎡ 와 일치하는 타입이 단지에 없음')
-                result['error'] = f'요청 전용면적({target_area_m2}㎡)과 일치하는 타입이 KB 시세에 없습니다.'
+                if ambiguous_no_area_match:
+                    result['error'] = (
+                        f'동일한 이름의 단지가 여러 곳 검색되었고, 어느 곳에도 '
+                        f'요청 전용면적({target_area_m2}㎡)과 일치하는 타입이 없어 단지를 특정할 수 없습니다. '
+                        f'"{complex_name}"(으)로 임의 선택했으니 반드시 확인하세요.'
+                    )
+                else:
+                    result['error'] = f'요청 전용면적({target_area_m2}㎡)과 일치하는 타입이 KB 시세에 없습니다.'
                 result['complex_no'] = complex_no
                 result['complex_name'] = complex_name
                 return result
+        elif ambiguous_no_area_match:
+            # 면적 정보 없이 동명이인 후보 중 하나를 임의로 골랐으므로, 시세가 나와도 확인이 필요함을 알린다.
+            result['error'] = f'참고: "{complex_name}"과(와) 이름이 비슷한 단지가 여러 곳 검색되어 임의로 선택했습니다. 단지가 맞는지 확인하세요.'
 
         # 4. 시세 조회
         if sqrmsr_no:
