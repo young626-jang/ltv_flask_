@@ -1378,15 +1378,29 @@ def delete_customer_route(page_id):
 
 @app.route('/api/kb_search', methods=['POST'])
 def kb_search():
-    """주소로 KB 단지번호 조회 → complex_no 반환"""
+    """주소로 KB 단지번호/시세 조회"""
     data = request.get_json()
     address = data.get('address', '').strip()
+    area = data.get('area')
     if not address:
         return jsonify({'success': False, 'complex_no': ''})
     try:
-        kb = get_kb_info(address)
+        area_val = float(area) if area not in (None, '') else None
+    except (TypeError, ValueError):
+        area_val = None
+    try:
+        kb = get_kb_info(address, area_val)
         if kb.get('success') and kb.get('complex_no'):
-            return jsonify({'success': True, 'complex_no': kb['complex_no']})
+            return jsonify({
+                'success': True,
+                'complex_no': kb['complex_no'],
+                'complex_name': kb.get('complex_name', ''),
+                'kb_price': kb.get('kb_price', 0),
+                'kb_price_high': kb.get('kb_price_high', 0),
+                'kb_price_low': kb.get('kb_price_low', 0),
+                'area_m2': kb.get('area_m2', 0),
+                'rcns_info': kb.get('rcns_info'),
+            })
     except Exception as e:
         print(f"[KB search] 오류: {e}")
     return jsonify({'success': False, 'complex_no': ''})
