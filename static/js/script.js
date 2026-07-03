@@ -2770,13 +2770,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 kbSearchBtn.textContent = 'KB조회중...';
                 kbSearchBtn.disabled = true;
                 try {
+                    const areaField = document.getElementById('area');
+                    const area = areaField ? areaField.value.replace('㎡', '').trim() : '';
                     const res = await fetch('/api/kb_search', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ address })
+                        body: JSON.stringify({ address, area })
                     });
                     const data = await res.json();
                     if (data.success && data.complex_no) {
+                        // PDF 업로드와 동일한 규칙: 오피스텔/1,2층 → 하한가, 그 외 → 일반가
+                        const floorMatch = address.match(/제?(\d+)층/);
+                        const floor = floorMatch ? parseInt(floorMatch[1], 10) : null;
+                        const propertyTypeField = document.getElementById('property_type');
+                        const isOfficetel = propertyTypeField && propertyTypeField.value.includes('오피스텔');
+                        const isLowFloor = isOfficetel || (floor !== null && floor <= 2);
+                        const kbPriceToUse = isLowFloor ? data.kb_price_low : data.kb_price;
+                        if (kbPriceToUse && kbPriceToUse > 0) {
+                            const kbPriceField = document.getElementById('kb_price');
+                            if (kbPriceField) {
+                                kbPriceField.value = kbPriceToUse;
+                                kbPriceField.dispatchEvent(new Event('input'));
+                                kbPriceField.dispatchEvent(new Event('blur'));
+                            }
+                            const reason = isOfficetel ? '오피스텔→하한가' : `${floor}층→${isLowFloor ? '하한가' : '일반가'}`;
+                            console.log(`KB시세 자동 입력: ${kbPriceToUse}만원 (${reason}, ${data.complex_name}, ${data.area_m2}㎡)`);
+                        }
                         window.open(`https://kbland.kr/c/${data.complex_no}`, 'kbLandPopup', popupOpts);
                     } else {
                         // 단지 못 찾으면 지도 검색으로 fallback
